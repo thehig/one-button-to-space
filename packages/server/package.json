@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@colyseus/monitor": "^0.16.7",
-    "@one-button-to-space/shared": "*",
+    "@one-button-to-space/shared": "workspace:*",
     "colyseus": "^0.15.17",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",

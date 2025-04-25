@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@one-button-to-space/shared": "*",
+    "@one-button-to-space/shared": "workspace:*",
     "colyseus.js": "^0.16.16",
     "phaser": "^3.88.2",
     "simplex-noise": "^4.0.3"

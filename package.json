@@ -3,9 +3,6 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
     "dev": "echo \"Run dev script from specific package (e.g., packages/client)\"",
     "build": "npm run build --workspaces --if-present",
