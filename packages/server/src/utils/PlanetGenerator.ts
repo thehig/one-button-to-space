@@ -1,8 +1,5 @@
-import {
-  PlanetData,
-  PlanetColors,
-  PlanetNoiseParams,
-} from "../colyseus/schema/State";
+import { Schema } from "@one-button-to-space/shared";
+const { PlanetData, PlanetColors, PlanetNoiseParams } = Schema;
 
 // Simple seeded PRNG (Mulberry32) - From client Planet.ts
 function mulberry32(seedStr: string): () => number {
@@ -42,7 +39,9 @@ function randomHexColor(rng: () => number): string {
  * @param name The unique name of the planet, used as the seed.
  * @returns A PlanetData schema instance with generated properties (x/y will be defaults).
  */
-export function generatePlanetDataFromName(name: string): PlanetData {
+export function generatePlanetDataFromName(
+  name: string
+): InstanceType<typeof PlanetData> {
   const rng = mulberry32(name); // Seed the PRNG with the planet name
 
   // Define generation ranges

@@ -1,5 +1,10 @@
 {
   "compilerOptions": {
+    // Add decorator metadata flags
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
+
     /* Base Options: */
     "esModuleInterop": true,
     "skipLibCheck": true,

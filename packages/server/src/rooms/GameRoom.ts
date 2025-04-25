@@ -1,5 +1,3 @@
-import { RoomState, PlayerState, PlanetData } from "../colyseus/schema/State";
-
 // Import file system and path modules
 import fs from "fs";
 import path from "path";
@@ -7,14 +5,12 @@ import path from "path";
 import { generatePlanetDataFromName } from "../utils/PlanetGenerator";
 import { ServerPhysicsManager } from "../physics/ServerPhysicsManager";
 import { Logger } from "@one-button-to-space/shared";
-// Import the new input type
-// @ts-ignore - Shared code outside rootDir
+
+import { Schema } from "@one-button-to-space/shared";
+const { RoomState, PlayerState, PlanetData } = Schema;
+
 import { PlayerInputMessage } from "@one-button-to-space/shared";
-// Import shared physics logic
-// @ts-ignore - Shared code outside rootDir
 import { PhysicsLogic } from "@one-button-to-space/shared";
-// Import shared constant
-// @ts-ignore - Shared code outside rootDir
 import { Constants } from "@one-button-to-space/shared";
 const {
   PLAYER_THRUST_FORCE,
@@ -48,7 +44,7 @@ interface WorldPlanetDefinition {
   y: number;
 }
 
-export class GameRoom extends Room<RoomState> {
+export class GameRoom extends Room<InstanceType<typeof RoomState>> {
   // Max clients default
   maxClients = MAX_PLAYERS;
 
@@ -75,8 +71,9 @@ export class GameRoom extends Room<RoomState> {
   // Map to store pending inputs for each player
   private playerInputQueue: Map<string, PlayerInputMessage[]> = new Map();
   // Store the last broadcasted state for delta compression
-  private lastBroadcastState: { [sessionId: string]: Partial<PlayerState> } =
-    {};
+  private lastBroadcastState: {
+    [sessionId: string]: Partial<InstanceType<typeof PlayerState>>;
+  } = {};
 
   onCreate(options: any) {
     Logger.debug(LOGGER_SOURCE, `onCreate called for room ${this.roomId}`);
@@ -334,7 +331,7 @@ export class GameRoom extends Room<RoomState> {
 
         // Broadcast updated physics state using delta compression
         const currentPlayerStates: {
-          [sessionId: string]: Partial<PlayerState>;
+          [sessionId: string]: Partial<InstanceType<typeof PlayerState>>;
         } = {};
         this.state.players.forEach((player, sessionId) => {
           currentPlayerStates[sessionId] = {
@@ -350,11 +347,13 @@ export class GameRoom extends Room<RoomState> {
         });
 
         // Calculate delta state
-        const deltaState: { [sessionId: string]: Partial<PlayerState> } = {};
+        const deltaState: {
+          [sessionId: string]: Partial<InstanceType<typeof PlayerState>>;
+        } = {};
         for (const sessionId in currentPlayerStates) {
           const currentState = currentPlayerStates[sessionId];
           const lastState = this.lastBroadcastState[sessionId];
-          const playerDelta: Partial<PlayerState> = {};
+          const playerDelta: Partial<InstanceType<typeof PlayerState>> = {};
           let hasChanges = false;
 
           if (!lastState) {
@@ -437,24 +436,27 @@ export class GameRoom extends Room<RoomState> {
 
     Logger.debug(LOGGER_SOURCE, "onCreate: Registering message handlers...");
     // Register message handlers
-    this.onMessage("updateState", (client, message: Partial<PlayerState>) => {
-      Logger.debug(
-        LOGGER_SOURCE,
-        `onMessage: Received 'updateState' from ${client.sessionId}`,
-        message
-      );
-      const player = this.state.players.get(client.sessionId);
-      if (player) {
-        if (typeof message.x === "number") player.x = message.x;
-        if (typeof message.y === "number") player.y = message.y;
-        if (typeof message.angle === "number") player.angle = message.angle;
-      } else {
-        Logger.warn(
+    this.onMessage(
+      "updateState",
+      (client, message: Partial<InstanceType<typeof PlayerState>>) => {
+        Logger.debug(
           LOGGER_SOURCE,
-          `Received 'updateState' from unknown client: ${client.sessionId}`
+          `onMessage: Received 'updateState' from ${client.sessionId}`,
+          message
         );
+        const player = this.state.players.get(client.sessionId);
+        if (player) {
+          if (typeof message.x === "number") player.x = message.x;
+          if (typeof message.y === "number") player.y = message.y;
+          if (typeof message.angle === "number") player.angle = message.angle;
+        } else {
+          Logger.warn(
+            LOGGER_SOURCE,
+            `Received 'updateState' from unknown client: ${client.sessionId}`
+          );
+        }
       }
-    });
+    );
 
     // Register the message handler for player input
     this.onMessage<PlayerInputMessage>("player_input", (client, message) => {
