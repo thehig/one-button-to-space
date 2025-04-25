@@ -16,8 +16,6 @@ const LOGGER_SOURCE = "🚀🏁"; // Chosen emojis for main entry point
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
-  width: 800,
-  height: 600,
   parent: "game-container",
   backgroundColor: "#000000", // Explicitly set background color
   scale: {
@@ -31,7 +29,7 @@ const config: Phaser.Types.Core.GameConfig = {
       enableSleeping: true,
       gravity: {
         x: 0,
-        y: 0, // Disable default vertical gravity
+        y: 0,
       },
     },
   },

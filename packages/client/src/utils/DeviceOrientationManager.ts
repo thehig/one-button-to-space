@@ -1,13 +1,16 @@
 import Phaser from "phaser"; // Added to handle Phaser types if needed later
 import { Logger } from "@one-button-to-space/shared"; // Corrected path
+// Import shared constants
+import { Constants } from "@one-button-to-space/shared"; // Import from shared package
+const {
+  ORIENTATION_CHANGE_THRESHOLD,
+  MOUSE_INPUT_COOLDOWN_MS,
+  DEFAULT_SIMULATED_BETA,
+  DEFAULT_SIMULATED_GAMMA,
+} = Constants;
 
 // Define the source constant for logging
 const LOGGER_SOURCE = "🧭📱"; // Chosen emojis for DeviceOrientationManager
-
-// Threshold for detecting significant orientation change (in degrees)
-const ORIENTATION_CHANGE_THRESHOLD = 0.5;
-// Cooldown period (in milliseconds) to ignore mouse input after real device input
-const MOUSE_INPUT_COOLDOWN_MS = 1000;
 
 // Type for tracking the last active input source
 type InputSource = "real" | "simulated" | "none";
@@ -28,10 +31,10 @@ export class DeviceOrientationManager {
 
   // --- Simulation State ---
   // private isUsingSimulation: boolean = false; // Replaced by lastInputSource
-  private simulatedBeta: number = 45; // Default forward tilt (degrees)
-  private simulatedGamma: number = 0; // Default no side tilt (degrees)
-  private prevSimulatedBeta: number = 45;
-  private prevSimulatedGamma: number = 0;
+  private simulatedBeta: number = DEFAULT_SIMULATED_BETA; // Use constant
+  private simulatedGamma: number = DEFAULT_SIMULATED_GAMMA; // Use constant
+  private prevSimulatedBeta: number = DEFAULT_SIMULATED_BETA; // Use constant
+  private prevSimulatedGamma: number = DEFAULT_SIMULATED_GAMMA; // Use constant
 
   // --- State Tracking ---
   private isListening: boolean = false;

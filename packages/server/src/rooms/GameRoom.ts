@@ -24,6 +24,12 @@ const {
   SYNC_THRESHOLD_POSITION,
   SYNC_THRESHOLD_VELOCITY,
   SYNC_THRESHOLD_ANGLE,
+  PLAYER_WIDTH,
+  PLAYER_HEIGHT,
+  PHYSICS_TIMESTEP_MS,
+  INITIAL_ORBITAL_BUFFER,
+  DEFAULT_SPAWN_AREA_SIZE,
+  MAX_PLAYERS,
 } = Constants;
 
 // Import Matter.js types
@@ -42,14 +48,9 @@ interface WorldPlanetDefinition {
   y: number;
 }
 
-// Constants for player physics body
-const PLAYER_WIDTH = 40;
-const PLAYER_HEIGHT = 100;
-const PLAYER_ROTATION_SPEED = 0.05;
-
 export class GameRoom extends Room<RoomState> {
   // Max clients default
-  maxClients = 256;
+  maxClients = MAX_PLAYERS;
 
   // Store the loaded world data
   private worldPlanets: WorldPlanetDefinition[] = [];
@@ -60,8 +61,8 @@ export class GameRoom extends Room<RoomState> {
   // Add property to hold the interval ID
   private physicsLoopInterval: NodeJS.Timeout | null = null;
 
-  // Define fixed timestep (e.g., 60Hz)
-  private readonly physicsTimeStep = 1000 / 60;
+  // Use shared constant for timestep
+  private readonly physicsTimeStep = PHYSICS_TIMESTEP_MS;
 
   // Properties for time accumulation
   private accumulator: number = 0;
@@ -559,7 +560,7 @@ export class GameRoom extends Room<RoomState> {
         const orbitalDistance =
           firstPlanetState.radius +
           (firstPlanetState.atmosphereHeight ?? 50) +
-          100;
+          INITIAL_ORBITAL_BUFFER;
         const randomAngle = Math.random() * Math.PI * 2;
         player.x = firstPlanetState.x + orbitalDistance * Math.cos(randomAngle);
         player.y = firstPlanetState.y + orbitalDistance * Math.sin(randomAngle);
@@ -580,8 +581,8 @@ export class GameRoom extends Room<RoomState> {
           LOGGER_SOURCE,
           `Planet state for '${firstWorldPlanet.name}' not found in state! Placing player at default.`
         );
-        player.x = options.startX ?? Math.random() * 100;
-        player.y = options.startY ?? Math.random() * 100;
+        player.x = options.startX ?? Math.random() * DEFAULT_SPAWN_AREA_SIZE;
+        player.y = options.startY ?? Math.random() * DEFAULT_SPAWN_AREA_SIZE;
         player.angle = 0;
       }
     } else {
@@ -589,8 +590,8 @@ export class GameRoom extends Room<RoomState> {
         LOGGER_SOURCE,
         `No planets defined in world file! Placing player at default.`
       );
-      player.x = options.startX ?? Math.random() * 100;
-      player.y = options.startY ?? Math.random() * 100;
+      player.x = options.startX ?? Math.random() * DEFAULT_SPAWN_AREA_SIZE;
+      player.y = options.startY ?? Math.random() * DEFAULT_SPAWN_AREA_SIZE;
       player.angle = 0;
     }
     player.cargo = "";
