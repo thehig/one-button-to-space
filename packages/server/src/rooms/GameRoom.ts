@@ -32,12 +32,7 @@ import {
   SYNC_THRESHOLD_ANGLE,
 } from "@one-button-to-space/shared";
 // Import Matter.js types
-import {
-  Body as MatterBody,
-  Bodies as MatterBodies,
-  Sleeping,
-  Engine,
-} from "matter-js";
+import Matter from "matter-js";
 
 // Define the source constant for logging
 const LOGGER_SOURCE = "🚪🎮";
@@ -75,7 +70,7 @@ export class GameRoom extends Room<RoomState> {
   private lastPhysicsUpdateTime: number = 0;
 
   // Map to store player session IDs to their physics bodies
-  private playerBodies: Map<string, MatterBody> = new Map();
+  private playerBodies: Map<string, Matter.Body> = new Map();
   // Map to store player thrust state
   private playerThrustState: Map<string, boolean> = new Map();
   // Map to store pending inputs for each player
@@ -161,7 +156,7 @@ export class GameRoom extends Room<RoomState> {
         );
 
         // Create and add planet physics body
-        const planetBody = MatterBodies.circle(
+        const planetBody = Matter.Bodies.circle(
           planetState.x,
           planetState.y,
           planetState.radius,
@@ -223,7 +218,7 @@ export class GameRoom extends Room<RoomState> {
                   break;
                 case "set_angle":
                   // We already validated value is a number in onMessage
-                  MatterBody.setAngle(playerBody, input.value as number);
+                  Matter.Body.setAngle(playerBody, input.value as number);
                   break;
               }
             });
@@ -260,13 +255,13 @@ export class GameRoom extends Room<RoomState> {
           const dampingFactor = 1 - PLAYER_ANGULAR_DAMPING; // Damping factor (e.g., 0.95 for 0.05 damping)
           // Ensure angular velocity doesn't get infinitesimally small causing NaN issues
           if (Math.abs(playerBody.angularVelocity) > 0.0001) {
-            MatterBody.setAngularVelocity(
+            Matter.Body.setAngularVelocity(
               playerBody,
               playerBody.angularVelocity * dampingFactor
             );
           } else if (playerBody.angularVelocity !== 0) {
             // Snap to zero if very close
-            MatterBody.setAngularVelocity(playerBody, 0);
+            Matter.Body.setAngularVelocity(playerBody, 0);
           }
 
           // 4. Apply Player Input Forces (e.g., Thrust)
@@ -277,7 +272,7 @@ export class GameRoom extends Room<RoomState> {
               x: Math.cos(angle) * forceMagnitude,
               y: Math.sin(angle) * forceMagnitude,
             };
-            MatterBody.applyForce(playerBody, playerBody.position, force);
+            Matter.Body.applyForce(playerBody, playerBody.position, force);
           }
         });
         // --- End Shared Physics Logic Application ---
@@ -464,7 +459,7 @@ export class GameRoom extends Room<RoomState> {
         case "set_angle":
           if (typeof message.value === "number") {
             // Directly set the angle based on client input
-            MatterBody.setAngle(playerBody, message.value);
+            Matter.Body.setAngle(playerBody, message.value);
             // Logger.debug(`Set angle to ${message.value} for ${client.sessionId}`);
           } else {
             Logger.warn(
@@ -539,7 +534,7 @@ export class GameRoom extends Room<RoomState> {
     player.cargo = "";
 
     // Create the physics body for the player
-    const playerBody = MatterBodies.rectangle(
+    const playerBody = Matter.Bodies.rectangle(
       player.x,
       player.y,
       PLAYER_WIDTH,
@@ -551,7 +546,7 @@ export class GameRoom extends Room<RoomState> {
         // TODO: Set collision filters if needed
       }
     );
-    MatterBody.setAngle(playerBody, player.angle);
+    Matter.Body.setAngle(playerBody, player.angle);
 
     // Add body to physics engine and map
     this.physicsManager.addBody(playerBody);
@@ -689,7 +684,7 @@ export class GameRoom extends Room<RoomState> {
           x: Math.cos(angle) * forceMagnitude,
           y: Math.sin(angle) * forceMagnitude,
         };
-        MatterBody.applyForce(body, body.position, force);
+        Matter.Body.applyForce(body, body.position, force);
       }
 
       // --- Redundant state update removed ---

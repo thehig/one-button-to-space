@@ -1,4 +1,4 @@
-import { Body as MatterBody, Vector as MatterVector } from "matter-js";
+import Matter from "matter-js";
 // @ts-ignore - Allow importing from potentially outside rootDir
 import { Planet } from "@game/entities/Planet"; // Assuming Planet needs to be imported
 // @ts-ignore - Allow importing from potentially outside rootDir
@@ -20,7 +20,7 @@ export class PhysicsLogic {
    * @param gravitySources An array of objects with position and mass.
    */
   public static calculateAndApplyGravity(
-    targetBody: MatterBody,
+    targetBody: Matter.Body,
     gravitySources: SimpleGravitySource[]
   ): void {
     // TODO: Move logic from PhysicsManager.applyCustomGravity here
@@ -40,7 +40,7 @@ export class PhysicsLogic {
       const forceX = (dx / distance) * forceMagnitude;
       const forceY = (dy / distance) * forceMagnitude;
 
-      MatterBody.applyForce(targetBody, targetPosition, {
+      Matter.Body.applyForce(targetBody, targetPosition, {
         x: forceX,
         y: forceY,
       });
@@ -53,7 +53,7 @@ export class PhysicsLogic {
    * @param densityAtTarget The ambient density at the target body's position.
    */
   public static calculateAndApplyAirResistance(
-    targetBody: MatterBody,
+    targetBody: Matter.Body,
     densityAtTarget: number
   ): void {
     // TODO: Move logic from PhysicsManager.applyAirResistance here
@@ -75,7 +75,7 @@ export class PhysicsLogic {
     const dragForceX = (-velocity.x / speed) * dragMagnitude;
     const dragForceY = (-velocity.y / speed) * dragMagnitude;
 
-    MatterBody.applyForce(targetBody, targetBody.position, {
+    Matter.Body.applyForce(targetBody, targetBody.position, {
       x: dragForceX,
       y: dragForceY,
     });

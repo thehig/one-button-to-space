@@ -1,12 +1,4 @@
-import {
-  Engine,
-  World,
-  Composite,
-  Body as MatterBody,
-  Events,
-  IEventCollision,
-  Pair,
-} from "matter-js";
+import Matter from "matter-js";
 import { Logger } from "@one-button-to-space/shared";
 
 const LOGGER_SOURCE = "⚛️⚙️[S]"; // Indicate server-side physics
@@ -15,12 +7,12 @@ const LOGGER_SOURCE = "⚛️⚙️[S]"; // Indicate server-side physics
  * Manages the server-side Matter.js physics simulation.
  */
 export class ServerPhysicsManager {
-  public engine: Engine;
-  public world: World;
+  public engine: Matter.Engine;
+  public world: Matter.World;
 
   constructor() {
     Logger.info(LOGGER_SOURCE, "Initializing server-side physics engine...");
-    this.engine = Engine.create();
+    this.engine = Matter.Engine.create();
     this.world = this.engine.world;
 
     // Disable default world gravity, as we'll likely apply custom forces
@@ -33,7 +25,7 @@ export class ServerPhysicsManager {
     );
 
     // --- Setup Collision Event Listener ---
-    Events.on(this.engine, "collisionStart", (event) => {
+    Matter.Events.on(this.engine, "collisionStart", (event) => {
       // Forward the event to a handler (likely in GameRoom)
       // We don't process it here, just listen and forward
       // 'this.emit' or a callback could be used if needed, but
@@ -56,15 +48,15 @@ export class ServerPhysicsManager {
    * @param delta The time elapsed since the last update, in milliseconds.
    */
   update(delta: number): void {
-    Engine.update(this.engine, delta);
+    Matter.Engine.update(this.engine, delta);
   }
 
   /**
    * Adds a Matter.js body to the physics world.
    * @param body The Matter.js body to add.
    */
-  addBody(body: MatterBody): void {
-    Composite.add(this.world, body);
+  addBody(body: Matter.Body): void {
+    Matter.Composite.add(this.world, body);
     // Optional: Log body addition
     // Logger.debug(LOGGER_SOURCE, `Added body ${body.id} (label: ${body.label}) to world.`);
   }
@@ -73,8 +65,8 @@ export class ServerPhysicsManager {
    * Removes a Matter.js body from the physics world.
    * @param body The Matter.js body to remove.
    */
-  removeBody(body: MatterBody): void {
-    Composite.remove(this.world, body);
+  removeBody(body: Matter.Body): void {
+    Matter.Composite.remove(this.world, body);
     // Optional: Log body removal
     // Logger.debug(LOGGER_SOURCE, `Removed body ${body.id} (label: ${body.label}) from world.`);
   }
@@ -91,12 +83,12 @@ export class ServerPhysicsManager {
     // World.clear(this.world, false); // If needed
 
     // --- Clean up Event Listeners ---
-    Events.off(this.engine, "collisionStart");
+    Matter.Events.off(this.engine, "collisionStart");
     // Events.off(this.engine, 'collisionActive');
     // Events.off(this.engine, 'collisionEnd');
     // ------------------------------
 
-    World.clear(this.engine.world, false);
+    Matter.World.clear(this.engine.world, false);
     // Engine.clear(this.engine); // Clearing engine might not be necessary/desirable
     Logger.info(LOGGER_SOURCE, "Server physics engine destroyed.");
   }
