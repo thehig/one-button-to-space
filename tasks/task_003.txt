@@ -1,0 +1,304 @@
+# Task ID: 3
+# Title: Implement Core Physics Engine Integration
+# Status: done
+# Dependencies: 2
+# Priority: high
+# Description: Integrate the physics engine and set up the basic physics world with gravity simulation.
+# Details:
+Initialize the chosen physics engine (Matter.js or Planck.js). Create a physics world with configurable gravity. Implement the rocket as a physics body with appropriate mass and shape. Set up collision detection for the rocket. Create a system for variable gravity that increases as the rocket approaches celestial bodies. Implement a basic planetary body with gravity influence.
+
+# Test Strategy:
+Test that the rocket responds to gravity correctly. Verify that gravity increases as the rocket approaches planetary bodies. Ensure collision detection works by creating test objects and checking for collision events.
+
+# Subtasks:
+## 1. Initialize Physics Engine and Create Physics World [done]
+### Dependencies: None
+### Description: Set up the chosen physics engine (Matter.js or Planck.js) and create the basic physics world with default gravity settings.
+### Details:
+1. Install the chosen physics engine via npm (e.g., `npm install matter-js`)
+2. Create a module for physics initialization
+3. Initialize the physics engine with basic configuration
+4. Create a physics world with default gravity (e.g., 9.8 m/s² downward)
+5. Set up the main update loop to step the physics simulation
+6. Add configuration options for world parameters
+7. Test by creating a simple falling object and verifying gravity works correctly
+
+<info added on 2025-04-22T19:48:06.966Z>
+Here's the implementation plan to add:
+
+```typescript
+// Implementation details:
+
+// 1. PhysicsManager.ts structure
+export class PhysicsManager {
+  private engine: Matter.Engine;
+  private world: Matter.World;
+  
+  constructor(scene: Phaser.Scene) {
+    this.engine = Matter.Engine.create({
+      enableSleeping: true,
+      gravity: { x: 0, y: 1 }
+    });
+    this.world = this.engine.world;
+    
+    // Connect to Phaser's Matter physics
+    scene.matter.world.engine = this.engine;
+  }
+  
+  initializeEngine(options = {}) {
+    // Configure additional engine options
+    Matter.Engine.update(this.engine, options);
+    return this;
+  }
+  
+  createWorld(bounds = { x: 0, y: 0, width: 800, height: 600 }) {
+    // Set world bounds
+    Matter.World.setBounds(this.world, bounds.x, bounds.y, bounds.width, bounds.height);
+    return this;
+  }
+  
+  update(delta: number) {
+    // Fixed timestep for consistent physics
+    Matter.Engine.update(this.engine, delta);
+  }
+  
+  // Test method
+  createTestBody(x: number, y: number) {
+    return Matter.Bodies.circle(x, y, 30, {
+      restitution: 0.8,
+      friction: 0.005
+    });
+  }
+}
+
+// 2. Main.ts physics configuration
+const config = {
+  // ...other config
+  physics: {
+    default: 'matter',
+    matter: {
+      gravity: { y: 1 },
+      debug: true,
+      debugBodyColor: 0x0000ff
+    }
+  }
+};
+
+// 3. Usage in MainScene.ts
+import { PhysicsManager } from '../physics/PhysicsManager';
+
+export class MainScene extends Phaser.Scene {
+  private physicsManager: PhysicsManager;
+  
+  create() {
+    this.physicsManager = new PhysicsManager(this);
+    this.physicsManager.initializeEngine().createWorld();
+    
+    // Test physics
+    const testBody = this.physicsManager.createTestBody(400, 100);
+    Matter.World.add(this.physicsManager.world, testBody);
+  }
+  
+  update(time: number, delta: number) {
+    this.physicsManager.update(delta);
+  }
+}
+```
+</info added on 2025-04-22T19:48:06.966Z>
+
+## 2. Implement Rocket as Physics Body [done]
+### Dependencies: 3.1
+### Description: Create the rocket as a physics body with appropriate mass, shape, and physical properties.
+### Details:
+1. Define the rocket's physical properties (mass, dimensions, moment of inertia)
+2. Create the rocket as a rigid body in the physics world
+3. Set appropriate collision properties (friction, restitution)
+4. Add methods to apply forces for rocket propulsion
+5. Implement rotation controls for the rocket
+6. Connect the physics body to the rocket's visual representation
+7. Test by applying forces and verifying the rocket moves according to physics rules
+
+## 3. Implement Collision Detection System [done]
+### Dependencies: 3.1, 3.2
+### Description: Set up collision detection for the rocket with other objects in the physics world.
+### Details:
+1. Define collision categories for different types of objects
+2. Set up collision filters to control which objects can collide
+3. Create event listeners for collision events
+4. Implement collision response handlers
+5. Add methods to detect and respond to landing conditions
+6. Create a system to track collision data for game logic
+7. Test by creating test objects and verifying collision detection works correctly
+
+## 4. Create Planetary Body with Gravity [done]
+### Dependencies: 3.1
+### Description: Implement a basic planetary body that exists in the physics world and has its own gravity field.
+### Details:
+1. Define the planetary body's physical properties (mass, radius)
+2. Create the planet as a static body in the physics world
+3. Add visual representation for the planet
+4. Create a method to calculate gravitational force based on distance
+5. Set up collision properties for the planet surface
+6. Implement a basic atmosphere effect (optional)
+7. Test by placing objects near the planet and verifying they're attracted to it
+
+<info added on 2025-04-22T20:15:25.364Z>
+For implementing the planetary body with gravity, here's a detailed implementation plan:
+
+1. **Physics Implementation:**
+   ```typescript
+   // In constants.ts
+   export const GRAVITY_CONSTANT = 0.01; // Adjust based on desired strength
+
+   // In Planet.ts class
+   export class Planet {
+     body: MatterJS.Body;
+     radius: number;
+     mass: number;
+     scene: Phaser.Scene;
+     sprite: Phaser.GameObjects.Graphics;
+     
+     constructor(scene: Phaser.Scene, x: number, y: number, radius: number, mass: number) {
+       this.scene = scene;
+       this.radius = radius;
+       this.mass = mass;
+       
+       // Create visual representation
+       this.sprite = scene.add.graphics();
+       this.sprite.fillStyle(0x3366aa, 1);
+       this.sprite.fillCircle(0, 0, radius);
+       
+       // Create physics body
+       this.body = scene.matter.add.circle(x, y, radius, {
+         isStatic: true,
+         label: 'planet',
+         collisionFilter: {
+           category: CollisionCategory.GROUND,
+           mask: CollisionCategory.ROCKET | CollisionCategory.DEBRIS
+         }
+       });
+       
+       // Register update method for gravity calculations
+       scene.events.on('update', this.applyGravity, this);
+     }
+     
+     applyGravity() {
+       // Get all dynamic bodies in the scene
+       const bodies = this.scene.matter.world.localWorld.bodies.filter(b => !b.isStatic);
+       
+       bodies.forEach(body => {
+         const dx = this.body.position.x - body.position.x;
+         const dy = this.body.position.y - body.position.y;
+         const distance = Math.sqrt(dx * dx + dy * dy);
+         
+         if (distance > this.radius) { // Only apply gravity outside planet radius
+           const force = GRAVITY_CONSTANT * (this.mass * body.mass) / (distance * distance);
+           const angle = Math.atan2(dy, dx);
+           
+           this.scene.matter.world.engine.world.gravity.x = Math.cos(angle) * force;
+           this.scene.matter.world.engine.world.gravity.y = Math.sin(angle) * force;
+         }
+       });
+     }
+   }
+   ```
+
+2. **Atmosphere Effect:**
+   ```typescript
+   // Add to Planet class
+   createAtmosphere() {
+     const atmosphere = this.scene.add.graphics();
+     atmosphere.fillStyle(0x3366aa, 0.2);
+     atmosphere.fillCircle(this.body.position.x, this.body.position.y, this.radius * 1.2);
+     
+     // Add drag effect when objects are in atmosphere
+     this.scene.matter.world.on('beforeupdate', () => {
+       const bodies = this.scene.matter.world.localWorld.bodies.filter(b => !b.isStatic);
+       
+       bodies.forEach(body => {
+         const distance = Phaser.Math.Distance.Between(
+           this.body.position.x, this.body.position.y,
+           body.position.x, body.position.y
+         );
+         
+         if (distance < this.radius * 1.2 && distance > this.radius) {
+           // Apply drag force in atmosphere
+           const dragFactor = 0.98;
+           body.velocity.x *= dragFactor;
+           body.velocity.y *= dragFactor;
+         }
+       });
+     });
+   }
+   ```
+
+3. **Integration in MainScene:**
+   ```typescript
+   // In MainScene.create()
+   this.planet = new Planet(this, 
+     this.cameras.main.centerX,
+     this.cameras.main.height + 200, // Position below screen
+     300, // Radius
+     1000 // Mass
+   );
+   
+   // Optional atmosphere
+   this.planet.createAtmosphere();
+   
+   // Disable default gravity
+   this.matter.world.engine.world.gravity.y = 0;
+   ```
+
+4. **Testing Method:**
+   ```typescript
+   // Add to MainScene
+   testPlanetGravity() {
+     // Create test objects at different positions
+     for (let i = 0; i < 5; i++) {
+       const testBody = this.matter.add.circle(
+         this.cameras.main.centerX + (i - 2) * 100,
+         100,
+         10,
+         { restitution: 0.8, frictionAir: 0.01 }
+       );
+       
+       // Add visual for test body
+       const visual = this.add.circle(0, 0, 10, 0xff0000);
+       this.matter.add.gameObject(testBody, visual);
+     }
+   }
+   ```
+</info added on 2025-04-22T20:15:25.364Z>
+
+## 5. Implement Variable Gravity System [done]
+### Dependencies: 3.1, 3.2, 3.4
+### Description: Create a system for variable gravity that changes based on distance to celestial bodies.
+### Details:
+1. Create a gravity manager to track all gravity sources
+2. Implement the inverse square law for gravity calculation
+3. Add methods to calculate net gravitational force from multiple bodies
+4. Override the default world gravity with the variable gravity system
+5. Apply gravitational forces to the rocket in each physics step
+6. Add a debug visualization for gravity fields
+7. Test by moving the rocket around different celestial bodies and verifying gravity changes appropriately
+
+<info added on 2025-04-22T20:55:06.315Z>
+Here's the implementation plan to add:
+
+1. **Disable Default Gravity:** In `src/main.ts` Matter config, set `gravity: { x: 0, y: 0 }`.
+2. **Enhance `PhysicsManager`:**
+   - Add `gravitySources: { body: Matter.Body, mass: number }[] = [];` property.
+   - Add `registerGravitySource(body: Matter.Body, mass: number)` method.
+   - In constructor, add listener: `Matter.Events.on(this.engine, 'beforeupdate', this.applyCustomGravity.bind(this));`
+   - Create `applyCustomGravity()` method:
+     - Get dynamic bodies: `Matter.Composite.allBodies(this.world).filter(b => !b.isStatic);`
+     - Loop through dynamic bodies.
+     - Inside, loop through `gravitySources`.
+     - Calculate distance, vector, and inverse square law force (need a `GRAVITY_CONSTANT`).
+     - Apply force using `Matter.Body.applyForce(dynamicBody, dynamicBody.position, calculatedForceVector);`.
+3. **Update `MainScene.create()`:**
+   - Add `mass` property to planet body options.
+   - Call `this.physicsManager.registerGravitySource(this.planetBody, planetMass);`.
+4. **Test:** Verify rocket is pulled towards planet center.
+</info added on 2025-04-22T20:55:06.315Z>
+

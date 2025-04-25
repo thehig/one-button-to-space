@@ -1,0 +1,898 @@
+# Task ID: 12
+# Title: Implement Colyseus Multiplayer Client Integration
+# Status: done
+# Dependencies: None
+# Priority: high
+# Description: Integrate the Colyseus client library into our application to enable real-time multiplayer functionality. This includes setting up connection handling, state synchronization, and message passing within a single predefined game room.
+# Details:
+This task involves implementing the client-side integration with Colyseus multiplayer framework using a single-session approach:
+
+1. Install the Colyseus client library using npm: `npm install colyseus.js`
+
+2. Create a multiplayer service class that will handle:
+   - Connection establishment and management to the Colyseus server
+   - Automatic joining of the predefined 'game_room'
+   - State synchronization and delta handling
+   - Message sending and receiving
+   - Reconnection logic
+
+3. Implement event listeners for key Colyseus events:
+   - onJoin: When successfully connected to the game room
+   - onLeave: When disconnected from the game room
+   - onStateChange: When room state changes
+   - onError: For handling connection and runtime errors
+
+4. Create a client-side room state model that mirrors the server-side schema, focusing on player state
+
+5. Implement methods for sending player state updates to the server using room.send()
+
+6. Add connection status indicators in the UI to show players when they're connected/disconnected
+
+7. Implement proper error handling and user feedback for connection issues
+
+8. Add configuration options for different environments (development, staging, production)
+
+Ensure the implementation follows a clean architecture pattern where game logic is separated from the networking layer. The client should be able to handle network interruptions gracefully with automatic reconnection attempts.
+
+# Test Strategy:
+Testing should verify the correct implementation of the Colyseus client integration:
+
+1. Unit Tests:
+   - Test the multiplayer service class methods with mocked Colyseus client
+   - Verify proper event handling for all Colyseus events
+   - Test reconnection logic works as expected
+
+2. Integration Tests:
+   - Set up a test Colyseus server instance with the predefined 'game_room'
+   - Verify client can successfully connect to the server and join the room
+   - Verify state synchronization works correctly
+   - Test message sending and receiving between client and server
+
+3. Manual Testing:
+   - Connect multiple clients to the 'game_room' and verify they can see each other
+   - Test disconnection scenarios (server shutdown, network interruption)
+   - Verify reconnection works properly without data loss
+   - Test with different network conditions (high latency, packet loss) using network throttling
+
+4. Performance Testing:
+   - Measure connection establishment time
+   - Evaluate state synchronization performance with many entities
+   - Test with maximum expected number of simultaneous clients in the single room
+
+Document all test results and any edge cases discovered during testing.
+
+# Subtasks:
+## 1. Set up Colyseus client library and create multiplayer service [done]
+### Dependencies: None
+### Description: Install the Colyseus client library and create a base multiplayer service class with connection management functionality.
+### Details:
+Implementation steps:
+1. Install Colyseus client library using npm: `npm install colyseus.js`
+2. Create a MultiplayerService class with the following methods:
+   - connect(): Establishes connection to the Colyseus server at ws://localhost:2567 and automatically joins the predefined 'game_room'
+   - disconnect(): Properly closes the connection
+   - isConnected(): Returns connection status
+3. Implement connection configuration for different environments (dev, staging, prod)
+4. Add basic error handling for connection issues
+5. Create connection status indicators (connected/disconnected)
+
+Testing approach:
+- Create unit tests for the service using a mock server
+- Test connection establishment and disconnection
+- Verify environment configuration loading works correctly
+- Test automatic joining of the predefined 'game_room'
+
+<info added on 2025-04-23T21:26:27.708Z>
+Here's additional implementation information for the MultiplayerService:
+
+```typescript
+// Environment configuration implementation
+private loadEnvironmentConfig(): void {
+  // Load from environment variables or config file
+  const env = process.env.NODE_ENV || 'development';
+  
+  switch(env) {
+    case 'production':
+      this.serverUrl = process.env.COLYSEUS_SERVER_URL || 'wss://game-server.example.com';
+      break;
+    case 'staging':
+      this.serverUrl = process.env.COLYSEUS_SERVER_URL || 'wss://staging-game-server.example.com';
+      break;
+    default: // development
+      this.serverUrl = process.env.COLYSEUS_SERVER_URL || 'ws://localhost:2567';
+  }
+  
+  // Allow room name override from environment
+  this.roomName = process.env.COLYSEUS_ROOM_NAME || 'game_room';
+}
+```
+
+For connection status indicators:
+
+```typescript
+// Add to MultiplayerService class
+private statusListeners: Array<(status: 'disconnected' | 'connecting' | 'connected' | 'error') => void> = [];
+
+public addStatusListener(callback: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void): void {
+  this.statusListeners.push(callback);
+}
+
+public removeStatusListener(callback: (status: 'disconnected' | 'connecting' | 'connected' | 'error') => void): void {
+  const index = this.statusListeners.indexOf(callback);
+  if (index !== -1) {
+    this.statusListeners.splice(index, 1);
+  }
+}
+
+// Update the setter for connectionStatus
+private setConnectionStatus(status: 'disconnected' | 'connecting' | 'connected' | 'error'): void {
+  this.connectionStatus = status;
+  // Notify all listeners
+  this.statusListeners.forEach(listener => listener(status));
+}
+```
+
+For reconnection handling:
+
+```typescript
+private reconnectAttempts = 0;
+private maxReconnectAttempts = 5;
+private reconnectTimeout: NodeJS.Timeout | null = null;
+
+public async attemptReconnect(): Promise<void> {
+  if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+    console.error(`MultiplayerService: Maximum reconnection attempts (${this.maxReconnectAttempts}) reached.`);
+    return;
+  }
+  
+  this.reconnectAttempts++;
+  const backoffTime = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
+  
+  console.log(`MultiplayerService: Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${backoffTime}ms`);
+  
+  this.reconnectTimeout = setTimeout(async () => {
+    try {
+      await this.connect();
+      if (this.isConnected()) {
+        this.reconnectAttempts = 0;
+      }
+    } catch (e) {
+      console.error("MultiplayerService: Reconnection attempt failed:", e);
+    }
+  }, backoffTime);
+}
+```
+
+Example unit test structure:
+
+```typescript
+// tests/services/MultiplayerService.test.ts
+import { MultiplayerService } from '../../src/services/MultiplayerService';
+import { Server, Room } from 'colyseus.server-mock';
+
+describe('MultiplayerService', () => {
+  let service: MultiplayerService;
+  let mockServer: Server;
+  
+  beforeEach(() => {
+    // Setup mock Colyseus server
+    mockServer = new Server();
+    mockServer.define('game_room', Room);
+    mockServer.listen(2567);
+    
+    service = new MultiplayerService();
+  });
+  
+  afterEach(() => {
+    service.disconnect();
+    mockServer.shutdown();
+  });
+  
+  test('should connect to server successfully', async () => {
+    await service.connect();
+    expect(service.isConnected()).toBe(true);
+  });
+  
+  test('should handle disconnection properly', async () => {
+    await service.connect();
+    service.disconnect();
+    expect(service.isConnected()).toBe(false);
+  });
+  
+  test('should notify status listeners on connection state changes', async () => {
+    const statusCallback = jest.fn();
+    service.addStatusListener(statusCallback);
+    
+    await service.connect();
+    expect(statusCallback).toHaveBeenCalledWith('connecting');
+    expect(statusCallback).toHaveBeenCalledWith('connected');
+    
+    service.disconnect();
+    expect(statusCallback).toHaveBeenCalledWith('disconnected');
+  });
+});
+```
+</info added on 2025-04-23T21:26:27.708Z>
+
+<info added on 2025-04-23T21:28:53.661Z>
+Here's additional information about implementing connection status indicators:
+
+```typescript
+// Define a type for connection status for better type safety
+export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+// Add to MultiplayerService class
+export class MultiplayerService {
+  // ... existing code
+
+  // UI integration methods for connection status
+  public getStatusColorCode(status: ConnectionStatus): string {
+    switch(status) {
+      case 'connected': return '#4CAF50'; // Green
+      case 'connecting': return '#FFC107'; // Amber
+      case 'disconnected': return '#9E9E9E'; // Gray
+      case 'error': return '#F44336'; // Red
+      default: return '#9E9E9E';
+    }
+  }
+
+  public getStatusDisplayText(status: ConnectionStatus): string {
+    switch(status) {
+      case 'connected': return 'Connected to game server';
+      case 'connecting': return 'Connecting to game server...';
+      case 'disconnected': return 'Disconnected from game server';
+      case 'error': return 'Connection error';
+      default: return 'Unknown status';
+    }
+  }
+
+  // Connection monitoring
+  private setupConnectionMonitoring(): void {
+    // Ping server every 30 seconds to verify connection is still alive
+    this.pingInterval = setInterval(() => {
+      if (this.client && this.room) {
+        try {
+          this.room.send('ping');
+          this.lastPingTime = Date.now();
+        } catch (e) {
+          console.warn('Failed to ping server:', e);
+          if (this.connectionStatus === 'connected') {
+            this.setConnectionStatus('error');
+            this.attemptReconnect();
+          }
+        }
+      }
+    }, 30000);
+  }
+
+  // Cleanup method
+  public destroy(): void {
+    this.disconnect();
+    this.statusListeners = [];
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+  }
+
+  // Example usage in a React component
+  /*
+  // In a React component:
+  useEffect(() => {
+    const handleStatusChange = (status: ConnectionStatus) => {
+      setConnectionStatus(status);
+    };
+    
+    multiplayerService.addStatusListener(handleStatusChange);
+    
+    return () => {
+      multiplayerService.removeStatusListener(handleStatusChange);
+    };
+  }, []);
+  
+  return (
+    <div 
+      style={{ 
+        color: multiplayerService.getStatusColorCode(connectionStatus),
+        padding: '8px',
+        borderRadius: '4px',
+        display: 'inline-block'
+      }}
+    >
+      {multiplayerService.getStatusDisplayText(connectionStatus)}
+    </div>
+  );
+  */
+}
+```
+</info added on 2025-04-23T21:28:53.661Z>
+
+## 3. Create client-side room state model and state synchronization [done]
+### Dependencies: 12.1
+### Description: Define the client-side state model that mirrors the server schema and implement state synchronization functionality.
+### Details:
+Implementation steps:
+1. Create a player state schema with properties: id, x, y, angle, cargo
+2. Implement the following in MultiplayerService:
+   - onStateChange event handler to process state updates
+   - getState(): Returns current synchronized state
+   - applyPatch(patch): Applies delta updates to local state
+3. Add state validation to ensure data integrity
+4. Implement optimistic updates for local player actions
+5. Set up listeners for player joining, leaving, and state changes within the 'game_room'
+
+Testing approach:
+- Create unit tests for state synchronization
+- Test delta patching with various state changes
+- Verify state validation correctly identifies invalid states
+- Test optimistic updates and reconciliation
+- Verify correct handling of players joining and leaving the room
+
+<info added on 2025-04-23T21:33:47.889Z>
+## State Synchronization Implementation Plan
+
+Following the creation of `State.ts`:
+
+1.  **Import State Types:** In `MultiplayerService.ts`, import `RoomState` and `PlayerState`.
+2.  **Update Room Type:** Change `private room: Colyseus.Room<any> | null = null;` to `private room: Colyseus.Room<RoomState> | null = null;`.
+3.  **Local State Storage:** Add `private players: Map<string, PlayerState> = new Map();`.
+4.  **Listener Registration:**
+    *   Define callback types: `PlayerAddListener`, `PlayerUpdateListener`, `PlayerRemoveListener`.
+    *   Add private arrays: `playerAddListeners`, `playerUpdateListeners`, `playerRemoveListeners`.
+    *   Add public methods: `addPlayerAddListener`, `addPlayerUpdateListener`, `addPlayerRemoveListener` (and corresponding remove methods).
+    *   Add private notification methods: `notifyPlayerAdded`, `notifyPlayerUpdated`, `notifyPlayerRemoved`.
+5.  **Implement `setupRoomListeners`:**
+    *   Attach `this.room.onStateChange((state) => { ... });`.
+    *   Inside `onStateChange` (first time setup):
+        *   Attach `state.players.onAdd = (player, key) => { ... };`
+            *   Store `player` in the local `this.players` map (using `key` as the ID).
+            *   Call `this.notifyPlayerAdded(key, player);`.
+            *   Crucially, check if `key === this.room?.sessionId` to identify the local player and potentially skip notification or handle differently.
+        *   Attach `state.players.onChange = (player, key) => { ... };`
+            *   Update the local `this.players` map.
+            *   Call `this.notifyPlayerUpdated(key, player);` (Note: Colyseus schema `onChange` provides the full updated object, not just changes, usually. We might need to diff or just pass the full state).
+        *   Attach `state.players.onRemove = (player, key) => { ... };`
+            *   Remove player from the local `this.players` map.
+            *   Call `this.notifyPlayerRemoved(key);`.
+    *   Handle potential initial state iteration if needed when `onStateChange` first fires.
+</info added on 2025-04-23T21:33:47.889Z>
+
+<info added on 2025-04-23T21:36:20.438Z>
+## Player State Access Methods
+
+For the MultiplayerService, implement these additional methods to access player state:
+
+```typescript
+/**
+ * Returns a Map containing all current player states
+ * @returns Map of player IDs to PlayerState objects
+ */
+public getAllPlayersState(): Map<string, PlayerState> {
+  // Return a copy to prevent external modification of internal state
+  return new Map(this.players);
+}
+
+/**
+ * Get a specific player's state by ID
+ * @param playerId The player's session ID
+ * @returns PlayerState or undefined if player not found
+ */
+public getPlayerState(playerId: string): PlayerState | undefined {
+  return this.players.get(playerId);
+}
+
+/**
+ * Get the local player's state
+ * @returns The local player's state or undefined if not connected
+ */
+public getLocalPlayerState(): PlayerState | undefined {
+  if (!this.room?.sessionId) return undefined;
+  return this.players.get(this.room.sessionId);
+}
+```
+
+These methods provide controlled access to player state data while maintaining encapsulation of the internal players Map.
+</info added on 2025-04-23T21:36:20.438Z>
+
+## 4. Implement message sending functionality [done]
+### Dependencies: 12.3
+### Description: Add methods for sending the local player's state updates to the server periodically.
+### Details:
+Implementation steps:
+1. Add the following methods to MultiplayerService:
+   - sendPlayerState(state): Sends the local player's state (x, y, angle, cargo) to the server using room.send('updateState', state)
+   - startStateSync(interval): Begins sending periodic state updates at the specified interval (default: 100ms)
+   - stopStateSync(): Stops the periodic state updates
+2. Implement message validation before sending
+3. Add error handling for message sending failures
+4. Optimize state updates to only send when changes occur
+
+Testing approach:
+- Test state sending with various player states
+- Verify periodic updates are sent at the correct interval
+- Test optimization to ensure updates are only sent when needed
+- Verify error handling works correctly for failed sends
+
+<info added on 2025-04-23T21:37:46.282Z>
+## Message Sending Implementation Details
+
+For the state validation before sending:
+```typescript
+private validateState(state: Partial<PlayerState>): boolean {
+  // Check for required properties
+  if (state.x === undefined || state.y === undefined || state.angle === undefined) {
+    console.warn('Invalid player state: missing required properties');
+    return false;
+  }
+  
+  // Validate value ranges
+  if (isNaN(state.x) || isNaN(state.y) || isNaN(state.angle)) {
+    console.warn('Invalid player state: NaN values detected');
+    return false;
+  }
+  
+  return true;
+}
+```
+
+For the optimization to only send when changes occur:
+```typescript
+private lastSentState: PlayerState = null;
+
+public sendPlayerState(state: Partial<PlayerState>): boolean {
+  // Only send if state has changed significantly
+  if (this.lastSentState && this.isStateSimilar(state, this.lastSentState)) {
+    return false; // No need to send
+  }
+  
+  // Validation and sending logic...
+  
+  // Store last sent state for comparison
+  this.lastSentState = {...state};
+  return true;
+}
+
+private isStateSimilar(newState: Partial<PlayerState>, oldState: PlayerState): boolean {
+  // Define thresholds for significant changes
+  const positionThreshold = 0.5; // 0.5 pixels
+  const angleThreshold = 0.05; // ~3 degrees
+  
+  return (
+    Math.abs(newState.x - oldState.x) < positionThreshold &&
+    Math.abs(newState.y - oldState.y) < positionThreshold &&
+    Math.abs(newState.angle - oldState.angle) < angleThreshold &&
+    newState.cargo === oldState.cargo
+  );
+}
+```
+
+For error handling implementation:
+```typescript
+public sendPlayerState(state: Partial<PlayerState>): boolean {
+  if (!this.isConnected()) {
+    this.eventEmitter.emit('connection:error', 'Cannot send state: not connected');
+    return false;
+  }
+  
+  if (!this.validateState(state)) {
+    return false;
+  }
+  
+  try {
+    this.room.send("updateState", state);
+    return true;
+  } catch (error) {
+    console.error('Failed to send player state:', error);
+    this.eventEmitter.emit('message:error', error);
+    return false;
+  }
+}
+```
+</info added on 2025-04-23T21:37:46.282Z>
+
+## 5. Implement basic single-room Colyseus server & Phaser integration [done]
+### Dependencies: 12.1, 12.3, 12.4
+### Description: Create a basic Colyseus server with a single game room and integrate the multiplayer service with the Phaser game engine.
+### Details:
+Implementation steps:
+1. Create a basic Colyseus server (Node.js/TypeScript):
+   - Define a GameRoom class extending Colyseus Room, registered as 'game_room'
+   - Create a schema for player state (id, x, y, angle, cargo)
+   - Implement onJoin to assign session ID and add player to state
+   - Implement onLeave to remove player from state
+   - Add message handler for 'updateState' to update player state
+   - Configure server to allow anonymous connections
+2. Integrate MultiplayerService with Phaser's MainScene:
+   - Initialize and connect the MultiplayerService
+   - Start periodic state sending for the local player
+   - Use state change listeners (onAdd, onChange, onRemove) to:
+     * Create sprites for new remote players
+     * Update positions of existing remote players
+     * Remove sprites for disconnected players
+3. Implement interpolation for smooth remote player movement
+4. Add visual indicators for connection status in the UI
+
+Testing approach:
+- Test end-to-end functionality with multiple clients
+- Verify player movements are correctly synchronized
+- Test disconnection and reconnection scenarios
+- Verify server correctly handles player joining and leaving
+- Test interpolation provides smooth movement for remote players
+
+<info added on 2025-04-23T21:44:06.078Z>
+## Phaser Integration Plan
+
+Integrating `MultiplayerService` into `MainScene.ts`:
+
+1.  **Import:** `MultiplayerService` from `../../services/MultiplayerService` and `PlayerState` from `../../colyseus/schema/State`.
+2.  **Add Properties:**
+    *   `private multiplayerService!: MultiplayerService;`
+    *   `private remotePlayers: Map<string, Phaser.GameObjects.GameObject> = new Map();`
+    *   `private lastStateSendTime: number = 0;`
+    *   `private readonly stateSendInterval: number = 100; // ms`
+3.  **In `create()`:**
+    *   Instantiate `MultiplayerService`.
+    *   Call `connect()`.
+    *   Register `handlePlayerAdd`, `handlePlayerUpdate`, `handlePlayerRemove` using the service's listener methods.
+4.  **Implement Listener Callbacks:**
+    *   `handlePlayerAdd(playerId, state)`: Creates a `Phaser.GameObjects.Rectangle` at `state.x`, `state.y`, sets its angle, adds it to the scene, and stores it in `remotePlayers` map using `playerId`.
+    *   `handlePlayerUpdate(playerId, state)`: Finds the corresponding GameObject in `remotePlayers`, updates its `x`, `y`, and `angle`.
+    *   `handlePlayerRemove(playerId)`: Finds the GameObject, calls `destroy()`, and removes it from the `remotePlayers` map.
+5.  **In `update(time, delta)`:**
+    *   Check timer: `if (time > this.lastStateSendTime + this.stateSendInterval)`.
+    *   Inside check: Get local rocket state (`this.rocket.body.position.x`, `this.rocket.body.position.y`, `this.rocket.body.angle`), create state object `Partial<PlayerState>`. Call `this.multiplayerService.sendPlayerState(localState)`. Update `this.lastStateSendTime`.
+6.  **In `shutdown()`:**
+    *   Call `this.multiplayerService.disconnect();`.
+
+**Next steps (after this edit):** Implement interpolation and connection status UI.
+</info added on 2025-04-23T21:44:06.078Z>
+
+<info added on 2025-04-23T21:46:50.361Z>
+## Interpolation Implementation Plan
+
+1.  **Update `remotePlayers` Map:** Change type to `Map<string, { visual: Phaser.GameObjects.Rectangle; targetX: number; targetY: number; targetAngle: number; }>`.
+2.  **Modify `handlePlayerAdd`:** Store initial state in `targetX`, `targetY`, `targetAngle` when creating the map entry.
+3.  **Modify `handlePlayerUpdate`:** Update `targetX`, `targetY`, `targetAngle` in the map entry instead of setting visual properties directly.
+4.  **Add Interpolation Logic to `MainScene.update()`:**
+    *   Iterate `remotePlayers`.
+    *   Get `visual`, `targetX`, `targetY`, `targetAngle`.
+    *   Calculate `lerpFactor = 0.2 * (delta / 16.666)` (example).
+    *   `visual.x = Phaser.Math.Linear(visual.x, targetX, lerpFactor);`
+    *   `visual.y = Phaser.Math.Linear(visual.y, targetY, lerpFactor);`
+    *   `visual.angle = Phaser.Math.Angle.RotateTo(visual.angle, Phaser.Math.RadToDeg(targetAngle), lerpFactor);` // Use RotateTo for angle interpolation
+</info added on 2025-04-23T21:46:50.361Z>
+
+<info added on 2025-04-23T21:48:18.304Z>
+## Connection Status UI Plan
+
+1. **Define ConnectionStatus Enum:**
+   ```typescript
+   // In MultiplayerService.ts
+   export enum ConnectionStatus {
+     DISCONNECTED = 'disconnected',
+     CONNECTING = 'connecting',
+     CONNECTED = 'connected',
+     RECONNECTING = 'reconnecting',
+     ERROR = 'error'
+   }
+   ```
+
+2. **Add Status Management to MultiplayerService:**
+   ```typescript
+   private status: ConnectionStatus = ConnectionStatus.DISCONNECTED;
+   private statusListeners: ((status: ConnectionStatus) => void)[] = [];
+   
+   public addStatusListener(callback: (status: ConnectionStatus) => void): void {
+     this.statusListeners.push(callback);
+     // Immediately notify with current status
+     callback(this.status);
+   }
+   
+   private updateStatus(newStatus: ConnectionStatus): void {
+     this.status = newStatus;
+     this.statusListeners.forEach(listener => listener(newStatus));
+   }
+   ```
+
+3. **UI Implementation in MainScene:**
+   ```typescript
+   private connectionStatusText!: Phaser.GameObjects.Text;
+   
+   // In create():
+   this.connectionStatusText = this.add.text(10, 10, 'Status: Disconnected', {
+     fontSize: '16px',
+     color: '#ff0000',
+     backgroundColor: 'rgba(0,0,0,0.5)',
+     padding: { x: 5, y: 5 }
+   }).setScrollFactor(0).setDepth(100);
+   
+   handleConnectionStatusChange(status: ConnectionStatus): void {
+     let color = '#ff0000';
+     switch(status) {
+       case ConnectionStatus.CONNECTED:
+         color = '#00ff00';
+         break;
+       case ConnectionStatus.CONNECTING:
+       case ConnectionStatus.RECONNECTING:
+         color = '#ffff00';
+         break;
+     }
+     this.connectionStatusText.setText(`Status: ${status}`);
+     this.connectionStatusText.setColor(color);
+   }
+   ```
+
+4. **Add Status Updates in MultiplayerService Methods:**
+   ```typescript
+   async connect(): Promise<void> {
+     this.updateStatus(ConnectionStatus.CONNECTING);
+     try {
+       // existing connection code
+       this.updateStatus(ConnectionStatus.CONNECTED);
+     } catch (error) {
+       this.updateStatus(ConnectionStatus.ERROR);
+       throw error;
+     }
+   }
+   
+   disconnect(): void {
+     // existing disconnect code
+     this.updateStatus(ConnectionStatus.DISCONNECTED);
+   }
+   ```
+
+5. **Add Reconnection Logic:**
+   ```typescript
+   // In MultiplayerService
+   private setupReconnection(): void {
+     this.client.onClose.once(() => {
+       if (this.status !== ConnectionStatus.DISCONNECTED) {
+         this.updateStatus(ConnectionStatus.RECONNECTING);
+         this.attemptReconnect();
+       }
+     });
+   }
+   
+   private async attemptReconnect(attempts = 0): Promise<void> {
+     if (attempts >= 5) {
+       this.updateStatus(ConnectionStatus.ERROR);
+       return;
+     }
+     
+     try {
+       await this.connect();
+     } catch (error) {
+       setTimeout(() => this.attemptReconnect(attempts + 1), 2000);
+     }
+   }
+   ```
+</info added on 2025-04-23T21:48:18.304Z>
+
+<info added on 2025-04-23T22:08:11.803Z>
+## Server-Side Planet Management Implementation
+
+1. **Extend Room State Schema:**
+   ```typescript
+   // In schema/State.ts
+   export class PlanetState extends Schema {
+     @type("string") id: string;
+     @type("number") x: number;
+     @type("number") y: number;
+     @type("number") radius: number;
+     @type("string") textureKey: string;
+     @type("number") mass: number;
+   }
+
+   export class GameState extends Schema {
+     @type({ map: PlayerState }) players = new MapSchema<PlayerState>();
+     @type({ map: PlanetState }) planets = new MapSchema<PlanetState>();
+   }
+   ```
+
+2. **Initialize Planets in GameRoom:**
+   ```typescript
+   // In rooms/GameRoom.ts
+   import { planetConfigurations } from "../config/PlanetConfig";
+
+   // Inside onCreate method
+   onCreate() {
+     this.setState(new GameState());
+     
+     // Initialize planets from configuration
+     planetConfigurations.forEach(config => {
+       const planet = new PlanetState();
+       planet.id = config.id;
+       planet.x = config.position.x;
+       planet.y = config.position.y;
+       planet.radius = config.radius;
+       planet.textureKey = config.textureKey;
+       planet.mass = config.mass;
+       
+       this.state.planets.set(planet.id, planet);
+     });
+   }
+   ```
+
+3. **MultiplayerService Planet Handling:**
+   ```typescript
+   // In MultiplayerService.ts
+   import { PlanetState } from '../colyseus/schema/State';
+
+   // Add these properties
+   private planetAddListeners: Map<string, (id: string, data: PlanetState) => void> = new Map();
+   private planetRemoveListeners: Map<string, (id: string) => void> = new Map();
+   
+   // Add these methods
+   public onPlanetAdd(id: string, callback: (id: string, data: PlanetState) => void): void {
+     this.planetAddListeners.set(id, callback);
+     
+     // If already connected, notify about existing planets
+     if (this.room) {
+       this.room.state.planets.forEach((planet, planetId) => {
+         callback(planetId, planet);
+       });
+     }
+   }
+   
+   public onPlanetRemove(id: string, callback: (id: string) => void): void {
+     this.planetRemoveListeners.set(id, callback);
+   }
+   
+   // In connect method, add:
+   this.room.state.planets.onAdd = (planet, planetId) => {
+     this.planetAddListeners.forEach(listener => listener(planetId, planet));
+   };
+   
+   this.room.state.planets.onRemove = (_, planetId) => {
+     this.planetRemoveListeners.forEach(listener => listener(planetId));
+   };
+   ```
+
+4. **MainScene Planet Integration:**
+   ```typescript
+   // In MainScene.ts
+   private planets: Map<string, Phaser.GameObjects.Sprite> = new Map();
+   
+   // In create method:
+   this.multiplayerService.onPlanetAdd('mainScene', (planetId, planetData) => {
+     // Create planet sprite
+     const planetSprite = this.add.sprite(
+       planetData.x, 
+       planetData.y, 
+       planetData.textureKey
+     );
+     planetSprite.setDisplaySize(planetData.radius * 2, planetData.radius * 2);
+     
+     // Store reference
+     this.planets.set(planetId, planetSprite);
+     
+     // Note: Physics interactions would be added here in a future task
+   });
+   
+   this.multiplayerService.onPlanetRemove('mainScene', (planetId) => {
+     const planet = this.planets.get(planetId);
+     if (planet) {
+       planet.destroy();
+       this.planets.delete(planetId);
+     }
+   });
+   
+   // In shutdown method:
+   this.multiplayerService.onPlanetAdd('mainScene', null);
+   this.multiplayerService.onPlanetRemove('mainScene', null);
+   ```
+
+This implementation ensures planets are managed by the server and synchronized across all clients, providing a consistent game world for all players.
+</info added on 2025-04-23T22:08:11.803Z>
+
+<info added on 2025-04-23T22:58:06.029Z>
+## Physics Manager Integration with Synchronized Planet Data
+
+```typescript
+// In PhysicsManager.ts
+private planetObjectsMap: Map<string, { sprite: Phaser.GameObjects.Sprite; body: Phaser.Physics.Arcade.Body; data: PlanetState }> = new Map();
+
+// Method to receive the planet objects map from MainScene
+public setPlanetObjectsMap(map: Map<string, { sprite: Phaser.GameObjects.Sprite; body: Phaser.Physics.Arcade.Body; data: PlanetState }>): void {
+  this.planetObjectsMap = map;
+}
+
+// Updated addGravitySource to use PlanetState data
+public addGravitySource(
+  id: string, 
+  body: Phaser.Physics.Arcade.Body, 
+  planetData: PlanetState
+): void {
+  this.gravitySources.set(id, {
+    body,
+    mass: planetData.mass,
+    atmosphereHeight: planetData.atmosphereHeight,
+    surfaceDensity: planetData.surfaceDensity
+  });
+}
+
+// Updated applyAirResistance method
+private applyAirResistance(rocket: Phaser.Physics.Arcade.Body): void {
+  for (const [_, source] of this.gravitySources) {
+    const dx = rocket.x - source.body.x;
+    const dy = rocket.y - source.body.y;
+    const distanceSquared = dx * dx + dy * dy;
+    const distance = Math.sqrt(distanceSquared);
+    
+    // Get radius from the body
+    const planetRadius = source.body.width / 2;
+    
+    // Check if rocket is within atmosphere
+    if (distance < planetRadius + source.atmosphereHeight) {
+      // Calculate atmospheric density based on height
+      const height = distance - planetRadius;
+      const densityFactor = Math.max(0, 1 - (height / source.atmosphereHeight));
+      const density = source.surfaceDensity * densityFactor;
+      
+      // Apply drag proportional to density and velocity squared
+      const speed = Math.sqrt(rocket.velocity.x * rocket.velocity.x + rocket.velocity.y * rocket.velocity.y);
+      const dragMagnitude = this.dragCoefficient * density * speed * speed;
+      
+      if (speed > 0.1) {
+        const dragX = (dragMagnitude * rocket.velocity.x) / speed;
+        const dragY = (dragMagnitude * rocket.velocity.y) / speed;
+        
+        rocket.velocity.x -= dragX;
+        rocket.velocity.y -= dragY;
+      }
+    }
+  }
+}
+```
+
+```typescript
+// In MainScene.ts
+// Updated planet objects map to include PlanetState data
+private planetObjects: Map<string, { 
+  sprite: Phaser.GameObjects.Sprite; 
+  body: Phaser.Physics.Arcade.Body; 
+  data: PlanetState 
+}> = new Map();
+
+// In the planet creation handler
+this.multiplayerService.onPlanetAdd('mainScene', (planetId, planetData) => {
+  const planetSprite = this.add.sprite(planetData.x, planetData.y, planetData.textureKey);
+  planetSprite.setDisplaySize(planetData.radius * 2, planetData.radius * 2);
+  
+  this.physics.add.existing(planetSprite, true);
+  const body = planetSprite.body as Phaser.Physics.Arcade.Body;
+  
+  // Store all data together
+  this.planetObjects.set(planetId, {
+    sprite: planetSprite,
+    body: body,
+    data: planetData
+  });
+  
+  // Add to physics manager with synchronized data
+  this.physicsManager.addGravitySource(planetId, body, planetData);
+});
+
+// In create() method, after initializing physicsManager
+this.physicsManager.setPlanetObjectsMap(this.planetObjects);
+```
+
+```typescript
+// In schema/State.ts (server and client)
+export class PlanetState extends Schema {
+  @type("string") id: string;
+  @type("number") x: number;
+  @type("number") y: number;
+  @type("number") radius: number;
+  @type("string") textureKey: string;
+  @type("number") mass: number;
+  @type("number") atmosphereHeight: number;
+  @type("number") surfaceDensity: number;
+}
+```
+</info added on 2025-04-23T22:58:06.029Z>
+

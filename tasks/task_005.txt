@@ -1,0 +1,150 @@
+# Task ID: 5
+# Title: Implement Advanced Physics Features
+# Status: pending
+# Dependencies: 3
+# Priority: medium
+# Description: Add air resistance, collision physics, and prepare for cargo physics implementation.
+# Details:
+Implement atmospheric density that increases closer to planetary surfaces. Create air resistance effects that affect rocket movement based on atmospheric density. Refine collision physics to make interactions between the rocket and terrain realistic. Set up the foundation for cargo physics by creating physics bodies that can be attached to the rocket. Implement a system to detect landing (successful vs. crash) based on velocity and orientation.
+
+# Test Strategy:
+Test that air resistance increases appropriately near planetary surfaces. Verify that the rocket's movement is affected by atmospheric density. Test collision responses with different surfaces and at different velocities. Ensure the landing detection system correctly identifies successful landings versus crashes.
+
+# Subtasks:
+## 1. Implement Atmospheric Density System [done]
+### Dependencies: None
+### Description: Create a system that calculates atmospheric density based on distance from planetary surfaces
+### Details:
+Implementation steps:
+1. Define an atmospheric density curve that increases exponentially as objects get closer to planetary surfaces
+2. Create a function that calculates density based on altitude from planet surface
+3. Implement different density profiles for different planet types (e.g., Earth-like, gas giants, airless bodies)
+4. Add visualization helpers for debugging atmospheric density (optional)
+5. Create unit tests to verify density calculations at different altitudes
+
+Testing approach:
+- Test density values at various altitudes to ensure they follow expected curves
+- Verify edge cases (surface level, very high altitudes, transitions between space and atmosphere)
+
+<info added on 2025-04-23T20:15:44.278Z>
+For the atmospheric density system, here's the additional implementation information:
+
+The refactored approach moves density calculation responsibility to the Planet class through a new `getDensityAt(altitude)` method. This method implements a linear falloff model where:
+
+```javascript
+// Example implementation in Planet class
+getDensityAt(altitude) {
+  const atmosphereHeight = this.atmosphereData.maxHeight;
+  if (altitude >= atmosphereHeight) return 0;
+  
+  // Linear falloff from surface (1.0) to edge of atmosphere (0.0)
+  return 1.0 - (altitude / atmosphereHeight);
+}
+```
+
+The layered visual representation adds concentric semi-transparent shells around planets:
+- Inner layer: High density atmosphere (higher opacity, ~0.4 alpha)
+- Middle layer: Medium density (medium opacity, ~0.2 alpha)
+- Outer layer: Low density atmosphere (low opacity, ~0.1 alpha)
+
+Each layer uses a shader that applies appropriate coloration based on planet type (blue-white for Earth-like, orange-red for gas giants, etc.) and handles smooth transitions between layers.
+
+This approach improves performance by avoiding expensive exponential calculations and provides better visual feedback during gameplay.
+</info added on 2025-04-23T20:15:44.278Z>
+
+## 2. Add Air Resistance Physics [done]
+### Dependencies: 5.1
+### Description: Implement air resistance effects that affect rocket movement based on atmospheric density
+### Details:
+Implementation steps:
+1. Create a physics force calculator that applies drag forces to objects moving through atmosphere
+2. Calculate drag based on object velocity, cross-sectional area, and atmospheric density from subtask 1
+3. Implement drag coefficient properties for different object shapes
+4. Apply the calculated forces to the rocket's physics body
+5. Add visual effects for atmospheric entry (optional)
+
+Testing approach:
+- Test rocket deceleration in atmosphere at different velocities and altitudes
+- Verify that differently shaped objects experience appropriate levels of drag
+- Test extreme cases like high-speed atmospheric entry
+
+<info added on 2025-04-23T20:18:52.126Z>
+For the drag force calculation, we'll use the standard aerodynamic drag equation: F_drag = 0.5 * C_d * ρ * A * v^2, where C_d is the drag coefficient, ρ is atmospheric density, A is cross-sectional area, and v is velocity.
+
+Implementation details:
+- In PhysicsManager.update(), query atmospheric density at rocket position using Planet.getDensityAt(position)
+- Calculate drag magnitude using F_drag = 0.5 * rocket.dragCoefficient * density * rocket.crossSectionalArea * velocity.magnitudeSquared()
+- Apply force in direction opposite to velocity: dragForce = -velocity.normalized() * dragMagnitude
+- Add configurable drag coefficients (C_d) for different rocket parts (0.8 for blunt objects, 0.2 for streamlined)
+- Implement cross-sectional area calculation based on rocket orientation relative to velocity vector
+- Add temperature increase calculation for high-speed atmospheric entry: temp += k * density * velocity^3 * deltaTime
+
+Code snippet for core implementation:
+```javascript
+function calculateDragForce(rocket, atmosphere) {
+  const density = atmosphere.getDensityAt(rocket.position);
+  const velocityMag = rocket.velocity.magnitude();
+  const dragCoef = rocket.getDragCoefficient(rocket.velocity);
+  const area = rocket.getEffectiveCrossSectionalArea(rocket.velocity);
+  
+  const dragMagnitude = 0.5 * dragCoef * density * area * velocityMag * velocityMag;
+  return rocket.velocity.normalized().multiplyScalar(-dragMagnitude);
+}
+```
+</info added on 2025-04-23T20:18:52.126Z>
+
+## 3. Refine Collision Physics System [pending]
+### Dependencies: None
+### Description: Enhance collision detection and response to create realistic interactions between rocket and terrain
+### Details:
+Implementation steps:
+1. Improve collision detection precision for terrain interactions
+2. Implement material-based collision responses (e.g., metal-on-rock, metal-on-ice)
+3. Add impact force calculations based on velocity and angle of collision
+4. Create a system for structural integrity that responds to collision forces
+5. Add appropriate audio and visual feedback for different collision types
+
+Testing approach:
+- Test collisions at various speeds and angles
+- Verify that different terrain types produce appropriate collision responses
+- Test edge cases like grazing collisions and high-velocity impacts
+
+## 4. Implement Landing Detection System [pending]
+### Dependencies: 5.3
+### Description: Create a system to detect and classify landings as successful or crash based on velocity and orientation
+### Details:
+Implementation steps:
+1. Define parameters for successful landing (max vertical/horizontal velocity, orientation angle range)
+2. Create a landing detection system that monitors rocket state during ground contact
+3. Implement classification logic to determine if a landing is successful or a crash
+4. Add appropriate game events and notifications for different landing outcomes
+5. Create a data logging system to record landing statistics
+
+Testing approach:
+- Test various landing scenarios (perfect landing, too fast, wrong angle)
+- Verify edge cases like landing on slopes or uneven terrain
+- Test that appropriate game events are triggered for different landing outcomes
+
+## 5. Set Up Cargo Physics Foundation [pending]
+### Dependencies: 5.2, 5.3
+### Description: Create the foundation for cargo physics with attachable physics bodies for the rocket
+### Details:
+Implementation steps:
+1. Design a cargo attachment system with connection points on the rocket
+2. Implement physics joints that can connect cargo to the rocket with realistic constraints
+3. Create cargo mass and inertia calculations that affect the rocket's flight dynamics
+4. Add cargo detachment mechanics for jettisoning or deploying payloads
+5. Implement air resistance effects on cargo items (using system from subtask 2)
+
+Testing approach:
+- Test rocket flight characteristics with different cargo configurations
+- Verify that cargo properly affects center of mass and flight stability
+- Test cargo attachment/detachment under various conditions
+- Verify that detached cargo interacts properly with atmosphere and gravity
+
+## 6. Implement Atmospheric Re-entry Heating Effect [pending]
+### Dependencies: 5.2
+### Description: Calculate and apply temperature increase to the rocket based on atmospheric density and velocity.
+### Details:
+Implement temperature calculation `temp += k * density * velocity^3 * deltaTime`. Define heating coefficient `k`. Add `temperature` to `PlayerState` schema. Synchronize temperature. Add visual effects based on temperature.
+

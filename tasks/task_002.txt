@@ -1,0 +1,37 @@
+# Task ID: 2
+# Title: Implement Basic Rendering and Game Loop
+# Status: done
+# Dependencies: 1
+# Priority: high
+# Description: Set up the core game loop and rendering system to display a simple scene with a rocket.
+# Details:
+Initialize Phaser.js with a canvas that fills the viewport. Create a game loop that handles updates and rendering at an appropriate frame rate. Implement a simple camera system that can follow the rocket. Create a basic rocket sprite/shape and render it on screen. Implement a simple background to represent space.
+
+# Test Strategy:
+Verify that the game renders at a consistent frame rate. Test that the rocket appears correctly on screen. Ensure the game loop executes properly by logging timing information.
+
+# Subtasks:
+## 2.1. Create MainScene class [done]
+### Dependencies: None
+### Description: Create `src/game/scenes/MainScene.ts` and define a `class MainScene extends Phaser.Scene`.
+### Details:
+
+
+## 2.2. Implement MainScene#create() [done]
+### Dependencies: None
+### Description: Set background color to black and add a white `Phaser.GameObjects.Rectangle` at the center of the screen to represent the rocket.
+### Details:
+
+
+## 2.3. Implement empty preload() and update() methods [done]
+### Dependencies: None
+### Description: Add empty `preload()` and `update()` methods to the MainScene class for future implementation.
+### Details:
+
+
+## 2.4. Configure Phaser in main.ts [done]
+### Dependencies: None
+### Description: Modify `src/main.ts` to import MainScene, define Phaser.Types.Core.GameConfig with appropriate settings (canvas size, physics), instantiate the Phaser.Game, and remove placeholder console logs.
+### Details:
+Set the game canvas to fill the window size. Configure basic arcade physics with debug set to false. Add the MainScene to the scenes array in the config.
+

@@ -1,0 +1,23 @@
+{
+  "name": "@one-button-to-space/client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@one-button-to-space/shared": "*",
+    "colyseus.js": "^0.16.16",
+    "phaser": "^3.88.2",
+    "simplex-noise": "^4.0.3"
+  },
+  "devDependencies": {
+    "vite": "^6.3.1",
+    "@types/matter-js": "^0.19.8",
+    "@vitejs/plugin-react": "^4.3.1"
+  }
+}

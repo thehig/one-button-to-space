@@ -1,0 +1,11 @@
+# Task ID: 4
+# Title: Implement Rocket Controls - Thrust and World Tilt
+# Status: done
+# Dependencies: 3
+# Priority: high
+# Description: Develop the core control mechanisms: single-touch thrust and device tilt for world orientation.
+# Details:
+Implement touch/click event listeners to activate the rocket's main thruster. Apply appropriate force to the rocket in its current facing direction when thrust is activated. Set up accelerometer API integration to detect device tilt. Translate tilt data into changes in the world's gravity direction. Implement fallback keyboard controls for desktop testing (e.g., arrow keys for tilt, spacebar for thrust). Add visual feedback for thrust activation (e.g., flame effect, particle system).
+
+# Test Strategy:
+Test thrust activation on both touch and click events. Verify that the rocket moves in the correct direction when thrust is applied. Test accelerometer integration on mobile devices. Ensure the world tilts correctly in response to device movement. Verify fallback controls work properly on desktop.

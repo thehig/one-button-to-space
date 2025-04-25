@@ -1,0 +1,103 @@
+# Task ID: 15
+# Title: Refactor Project to Monorepo Workspace Structure
+# Status: in-progress
+# Dependencies: None
+# Priority: medium
+# Description: Migrate client, server, and shared code into a monorepo structure using npm/yarn/pnpm workspaces for better code sharing and dependency management. Original files have been moved to a 'monorepo-conversion' directory to ensure a clean workspace.
+# Details:
+## Implementation Steps:
+
+1. **Setup Root Configuration**
+   - Create/update root package.json with workspace definition (e.g., `"workspaces": ["packages/*"]`)
+   - Set up base tsconfig.json with common compiler options
+   - Add .gitignore for node_modules at root and package levels
+
+2. **Create Packages Structure**
+   - Create packages/ directory at project root
+   - Create subdirectories: packages/client/, packages/server/, packages/shared/
+
+3. **Migrate Client Code**
+   - Copy relevant client code from monorepo-conversion/src/ to packages/client/src/
+   - Copy client assets from monorepo-conversion/public/ to packages/client/public/
+   - Create client package.json with appropriate dependencies (reference original package.json)
+   - Add dependency on shared package (e.g., `"@one-button-to-space/shared": "*"`)
+   - Create client-specific tsconfig.json extending from root
+   - Update build paths and scripts
+
+4. **Migrate Server Code**
+   - Copy server code from monorepo-conversion/server/ to packages/server/src/
+   - Create server package.json with appropriate dependencies (reference original package.json)
+   - Add dependency on shared package
+   - Create server-specific tsconfig.json extending from root
+   - Update build paths and scripts
+
+5. **Set Up Shared Package**
+   - Copy shared code from monorepo-conversion/shared/ to packages/shared/src/
+   - Create package.json with name `@one-button-to-space/shared`
+   - Configure for proper TypeScript declarations
+   - Set up build process to generate distributable files
+
+6. **Refactor Import Statements**
+   - Update all imports in client and server to use the shared package
+   - Replace relative imports (../../shared) with package imports (@one-button-to-space/shared)
+
+7. **Package Installation**
+   - Run workspace-aware install from root (npm/yarn/pnpm install)
+   - Verify node_modules structure and hoisting
+
+8. **Root Scripts Configuration**
+   - Add scripts to root package.json for managing workspaces:
+     - `"build": "npm run build --workspaces"`
+     - `"dev": "npm run dev --workspaces --parallel"`
+     - `"test": "npm run test --workspaces"`
+     - Add other workspace management scripts as needed
+
+9. **Update CI/CD Pipeline**
+   - Modify CI/CD configuration to work with monorepo structure
+   - Update build and deployment scripts
+
+10. **Configuration Files Migration**
+    - Review and migrate relevant configuration from monorepo-conversion/config/ to appropriate packages
+    - Update paths and references in configuration files to match new structure
+
+11. **Cleanup**
+    - After successful testing, remove the temporary monorepo-conversion directory
+
+# Test Strategy:
+## Testing Approach:
+
+1. **Build Verification**
+   - Run `npm run build` at root level
+   - Verify all packages build successfully without errors
+   - Check that output directories contain expected files
+
+2. **Functionality Testing**
+   - Start both client and server applications
+   - Verify all core functionality works as before
+   - Test all major user flows to ensure nothing broke during migration
+   - Compare behavior with the original implementation in monorepo-conversion directory
+
+3. **Shared Code Propagation Test**
+   - Make a change to a type or function in the shared package
+   - Rebuild all packages (`npm run build`)
+   - Verify the change is correctly reflected in both client and server
+   - Test functionality that depends on the modified shared code
+
+4. **Package Dependency Test**
+   - Add a new function or type to the shared package
+   - Import and use it in both client and server
+   - Verify it works correctly in both places
+
+5. **Development Workflow Test**
+   - Test the development workflow with the new structure
+   - Verify hot reloading works correctly
+   - Ensure developers can easily run and test individual packages
+
+6. **CI Pipeline Test**
+   - Run the updated CI pipeline
+   - Verify all build, test, and deployment steps complete successfully
+
+7. **Side-by-Side Comparison**
+   - Run the original application from monorepo-conversion directory
+   - Run the new monorepo version
+   - Compare functionality, performance, and behavior to ensure equivalence

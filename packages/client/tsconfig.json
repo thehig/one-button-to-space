@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx", // Assuming React, adjust if using a different framework
+    "composite": true,
+    "outDir": "dist", // Or adjust based on your build tool
+    "rootDir": "src"
+  },
+  "include": ["src"],
+  "references": [{ "path": "../shared" }] // Reference the shared package
+}

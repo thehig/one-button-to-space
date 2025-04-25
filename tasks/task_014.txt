@@ -1,0 +1,123 @@
+# Task ID: 14
+# Title: Refactor Physics Logic for Client-Server Consistency with Client-Side Prediction
+# Status: done
+# Dependencies: None
+# Priority: high
+# Description: Create a shared physics implementation between client and server, then implement client-side prediction with server correction to improve gameplay responsiveness while maintaining authoritative server physics.
+# Details:
+This task involves restructuring our physics implementation to improve consistency and responsiveness:
+
+1. Create the following directory and files:
+   - `@shared/physics/` directory
+   - `@shared/physics/Constants.ts` for physics constants (gravity strength, air resistance factors)
+   - `@shared/physics/PhysicsLogic.ts` for core physics calculations
+   - `@shared/physics/CollisionCategories.ts` (moved from current location)
+
+2. Move the following logic to shared implementation:
+   - Extract `applyCustomGravity` and `applyAirResistance` from `src/game/physics/PhysicsManager.ts` to `PhysicsLogic.ts`
+   - Ensure all physics constants are defined in `Constants.ts`
+   - Move collision categories to shared location
+
+3. Update client and server implementations:
+   - Modify `src/game/physics/PhysicsManager.ts` to use shared logic
+   - Update server physics in `ServerPhysicsManager` and `GameRoom` to apply shared logic before `Engine.update`
+
+4. Implement refined client-side prediction:
+   - In `src/game/scenes/MainScene.ts`, remove local predicted force application to eliminate physics judder
+   - Update `Rocket.update` to set visuals directly from its physics body (remove local interpolation for player's rocket)
+   - Implement partial physics body correction using `CLIENT_PHYSICS_CORRECTION_FACTOR` towards server state instead of instant snapping
+   - Adjust local visual interpolation factor for better responsiveness while maintaining smoothness
+   - Keep interpolation for remote rockets
+
+5. Update all import paths throughout the codebase to reference the new shared modules
+   - Use `@ts-ignore` for shared imports if needed due to build configuration
+
+6. Implement thruster visibility synchronization:
+   - Add `isThrusting` property to shared PlayerState schema
+   - Update server to broadcast thrust state as part of player state
+   - Modify client to read thrust state from server updates
+   - Update Rocket entity to use the `isThrusting` property to control visual thruster display
+   - Fix any related type errors and schema import path issues
+
+The server remains the authority for physics simulation, but the client now predicts movement based on input using the same physics logic, creating a more responsive experience while maintaining consistency.
+
+**Implementation Plan:**
+1.  **Create Shared Physics Logic (`@shared`)**:
+    *   Create a new directory `@shared/physics`.
+    *   Create `Constants.ts` for shared physics constants (G, DRAG_COEFFICIENT).
+    *   Create `PhysicsLogic.ts` for shared physics calculation functions.
+    *   Move the core logic of `applyCustomGravity` from `src/game/physics/PhysicsManager.ts` into a static function (e.g., `PhysicsLogic.calculateAndApplyGravity`) in the shared file.
+    *   Move the core logic of `applyAirResistance` from `src/game/physics/PhysicsManager.ts` into a static function (e.g., `PhysicsLogic.calculateAndApplyAirResistance`) in the shared file.
+    *   Move `src/game/physics/CollisionCategories.ts` to `@shared/physics/CollisionCategories.ts`.
+
+2.  **Update Client Physics (`src/game/physics/PhysicsManager.ts`)**:
+    *   Modify it to import and use the shared functions from `@shared/physics/PhysicsLogic.ts` within its `update` method.
+    *   Remove the local implementations of `applyCustomGravity` and `applyAirResistance`.
+    *   Update imports for `CollisionCategories`.
+
+3.  **Update Server Physics (`server/src/physics/ServerPhysicsManager.ts` & `server/src/rooms/GameRoom.ts`)**:
+    *   Modify `ServerPhysicsManager` (or `GameRoom`'s physics loop) to import and use the shared functions from `@shared/physics/PhysicsLogic.ts` to apply gravity and air resistance to player bodies *before* calling `Engine.update`.
+    *   Update imports for `CollisionCategories` if used.
+
+4.  **Implement Refined Client-Side Prediction**:
+    *   **Remove Local Force Application:** Eliminate direct force application on the client to prevent physics judder.
+    *   **Define Correction Factor:** Add `CLIENT_PHYSICS_CORRECTION_FACTOR` constant to control how quickly local physics bodies correct toward server state.
+    *   **Partial Correction:** Instead of instantly snapping to server positions, gradually move the local physics body toward server state using the correction factor.
+    *   **Visual Update:** Adjust the visual interpolation factor for the local rocket to balance responsiveness and smoothness.
+    *   **Keep Remote Interpolation:** Maintain the existing interpolation for remote rockets.
+
+5.  **Implement State Correction (`src/game/scenes/MainScene.ts`)**:
+    *   **Modify `handlePhysicsUpdate`:** For the local player, apply partial correction to the local `rocket.body` state using the correction factor.
+    *   **Implement Lerping:** Use linear interpolation between current state and server state based on the correction factor.
+
+6.  **Implement Thruster Visibility Synchronization**:
+    *   Update the shared PlayerState schema to include an `isThrusting` boolean property
+    *   Modify server code to track and broadcast the thrust state of each player
+    *   Update client code to read the thrust state from server updates
+    *   Modify the Rocket entity to use the `isThrusting` property to control visual thruster display
+    *   Resolve any type errors and schema import path issues that arise
+
+7.  **Handle Imports & `@ts-ignore`**:
+    *   Update all import paths referencing the moved files.
+    *   Use `@ts-ignore` comments for shared imports if necessary.
+
+# Test Strategy:
+Testing should verify both the refactoring and the client-side prediction implementation:
+
+1. Unit Tests:
+   - Create tests for shared physics functions to verify calculations are identical to previous implementation
+   - Test that constants are properly exported and accessible
+   - Verify the CLIENT_PHYSICS_CORRECTION_FACTOR produces expected interpolation results
+
+2. Integration Tests:
+   - Verify server physics still behaves identically after refactoring
+   - Confirm client can import and use shared physics modules
+   - Test the partial correction mechanism with various correction factor values
+
+3. Functional Tests:
+   - Test high-latency scenarios (use network throttling tools):
+     - Player movement should feel responsive despite latency
+     - Verify partial correction occurs smoothly when server updates arrive
+     - Confirm no physics judder during gameplay with the refined approach
+     - No visible 'snapping' during normal gameplay
+   - Test edge cases:
+     - Rapid input changes during high latency
+     - Collision handling with prediction
+     - Multiple simultaneous player interactions
+     - Extreme server-client position differences
+   - Test thruster visibility synchronization:
+     - Verify thrusters display correctly for local player with prediction
+     - Confirm remote players' thrusters appear/disappear appropriately
+     - Test thruster state during network interruptions
+
+4. Visual Verification:
+   - Record side-by-side comparison of gameplay before and after changes
+   - Verify that remote players' movements appear smooth
+   - Confirm local player movement is more responsive but still stable
+   - Compare different CLIENT_PHYSICS_CORRECTION_FACTOR values visually
+   - Verify thruster visual effects match player actions for both local and remote players
+
+5. Performance Testing:
+   - Measure client frame rate before and after changes
+   - Verify no significant increase in CPU usage from prediction calculations
+   - Test performance with different correction factor values

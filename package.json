@@ -1,0 +1,23 @@
+{
+  "name": "one-button-to-space-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "echo \"Run dev script from specific package (e.g., packages/client)\"",
+    "build": "npm run build --workspaces --if-present",
+    "preview": "echo \"Run preview script from specific package (e.g., packages/client)\"",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "dependencies": {
+    "matter-js": "^0.20.0"
+  },
+  "devDependencies": {
+    "@types/matter-js": "^0.19.8",
+    "@types/node": "^22.15.2",
+    "typescript": "^5.8.3"
+  }
+}

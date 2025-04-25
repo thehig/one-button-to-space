@@ -1,0 +1,586 @@
+# Task ID: 13
+# Title: Implement Server-Side Physics with Matter.js
+# Status: done
+# Dependencies: 12
+# Priority: high
+# Description: Refactor the architecture to move authoritative physics simulation to the server using Matter.js, while ensuring client-side synchronization and smooth gameplay experience.
+# Details:
+This task involves a major architectural shift to move physics simulation from the client to the server for authoritative game state management. Key implementation steps include:
+
+1. Set up Matter.js on the server side with the same configuration as currently used on the client
+2. Modify the Colyseus GameRoom to initialize and maintain the physics world
+3. Implement a fixed timestep physics update loop on the server
+4. Update state schemas to include necessary physics properties (positions, velocities, rotations)
+5. Create a system to receive player inputs from clients and apply them to the physics simulation
+6. Implement state synchronization to send authoritative physics updates to clients
+7. Modify the client to:
+   - Send player inputs to the server instead of applying them locally
+   - Receive and apply server state updates
+   - Implement client-side prediction and reconciliation to minimize perceived latency
+   - Add interpolation for smooth rendering between state updates
+8. Ensure proper handling of object creation and destruction in the physics world
+9. Implement collision detection and resolution on the server
+10. Add performance optimizations to minimize network traffic (delta compression, etc.)
+
+Considerations:
+- Network latency will impact player experience; implement appropriate prediction/reconciliation
+- Physics simulation must be deterministic across server restarts
+- Consider how to handle disconnections and reconnections
+- Ensure the server can handle the computational load of physics for multiple game rooms
+
+# Test Strategy:
+Testing should verify both the correctness of the physics simulation and the quality of the networked experience:
+
+1. Unit Tests:
+   - Verify server-side physics calculations match expected outcomes
+   - Test state schema serialization/deserialization
+   - Validate input handling and application to physics bodies
+
+2. Integration Tests:
+   - Confirm proper synchronization between server and client states
+   - Test object creation/destruction across the network
+   - Verify collision detection and resolution works correctly on the server
+
+3. Performance Tests:
+   - Measure server CPU usage under various player loads
+   - Benchmark network bandwidth usage
+   - Test with artificial network latency and packet loss
+
+4. Gameplay Tests:
+   - Conduct A/B testing comparing client-side vs. server-side physics
+   - Verify gameplay feels responsive despite network latency
+   - Test edge cases like high-speed collisions and stacking objects
+
+5. Specific Test Cases:
+   - Connect multiple clients and verify consistent physics state across all
+   - Test reconnection scenario to ensure proper state recovery
+   - Verify that server authority properly overrides client prediction when conflicts occur
+   - Test with various network conditions (high latency, packet loss) to ensure graceful degradation
+
+# Subtasks:
+## 1. Set up Matter.js on the server and initialize physics world in GameRoom [done]
+### Dependencies: None
+### Description: Configure Matter.js on the server with the same settings as the client and integrate it with the Colyseus GameRoom to initialize and maintain the physics world.
+### Details:
+Implementation steps:
+1. Install Matter.js as a server dependency
+2. Create a PhysicsManager class that will encapsulate the Matter.js functionality
+3. Import and configure Matter.js with identical settings to client (gravity, bounds, etc.)
+4. Modify the GameRoom class to instantiate the physics world during room creation
+5. Set up the basic world properties and configuration options
+6. Ensure the physics world is properly destroyed when the room is disposed
+
+Testing approach:
+- Create unit tests to verify physics world initialization with expected parameters
+- Test that the physics engine can be created and destroyed properly
+- Verify that basic physics operations (adding bodies, running simulation) work as expected
+
+<info added on 2025-04-24T16:29:30.760Z>
+Here's additional implementation information for subtask 13.1:
+
+```typescript
+// server/src/physics/ServerPhysicsManager.ts
+import { Engine, World, Bodies, Composite } from 'matter-js';
+import { Logger } from '../../../shared/utils/Logger';
+
+export class ServerPhysicsManager {
+  private engine: Matter.Engine;
+  private logger: Logger;
+  
+  constructor() {
+    this.logger = new Logger('ServerPhysicsManager');
+    
+    // Initialize engine with gravity disabled (0, 0)
+    this.engine = Engine.create({
+      gravity: { x: 0, y: 0 },
+      enableSleeping: false,
+      positionIterations: 6,
+      velocityIterations: 4,
+      timing: { timeScale: 1 }
+    });
+    
+    this.logger.info('Physics engine initialized');
+  }
+  
+  public getEngine(): Matter.Engine {
+    return this.engine;
+  }
+  
+  public update(deltaTime: number): void {
+    Engine.update(this.engine, deltaTime);
+  }
+  
+  public addBody(body: Matter.Body): void {
+    Composite.add(this.engine.world, body);
+  }
+  
+  public removeBody(body: Matter.Body): void {
+    Composite.remove(this.engine.world, body);
+  }
+  
+  public destroy(): void {
+    World.clear(this.engine.world, false);
+    Engine.clear(this.engine);
+    this.logger.info('Physics engine destroyed');
+  }
+}
+
+// Integration in GameRoom.ts
+import { ServerPhysicsManager } from '../physics/ServerPhysicsManager';
+
+// In GameRoom class:
+private physicsManager: ServerPhysicsManager;
+private physicsInterval: NodeJS.Timeout;
+
+onCreate() {
+  this.physicsManager = new ServerPhysicsManager();
+  
+  // Set up physics update loop at 60fps (16.67ms)
+  const physicsTimeStep = 1000 / 60;
+  this.physicsInterval = setInterval(() => {
+    this.physicsManager.update(physicsTimeStep);
+    // Broadcast updated physics state to clients
+    this.broadcast("physics-update", this.getPhysicsState());
+  }, physicsTimeStep);
+}
+
+onDispose() {
+  if (this.physicsInterval) {
+    clearInterval(this.physicsInterval);
+  }
+  if (this.physicsManager) {
+    this.physicsManager.destroy();
+  }
+}
+
+private getPhysicsState() {
+  // Extract relevant physics state to broadcast to clients
+  // This will be expanded in future tasks
+  return {};
+}
+```
+</info added on 2025-04-24T16:29:30.760Z>
+
+## 2. Implement fixed timestep physics update loop on server [done]
+### Dependencies: 13.1
+### Description: Create a deterministic physics update loop on the server that runs at a fixed timestep to ensure consistent simulation regardless of server performance.
+### Details:
+Implementation steps:
+1. Implement a fixed timestep loop in the GameRoom that calls Matter.js update at consistent intervals (e.g., 60 times per second)
+2. Use setInterval or a similar mechanism to ensure regular updates
+3. Track accumulated time to handle potential server lag without affecting simulation accuracy
+4. Add configurable physics timestep value to server configuration
+5. Implement proper time scaling to ensure physics behave consistently regardless of update frequency
+6. Add performance monitoring to log when physics updates take longer than expected
+
+Testing approach:
+- Create tests that verify physics objects move deterministically given the same inputs
+- Test that the simulation remains stable under various server loads
+- Verify that the physics state advances correctly with the fixed timestep
+
+<info added on 2025-04-24T16:34:52.217Z>
+I've reviewed your implementation of the fixed timestep physics loop. Here are additional technical details to enhance the subtask:
+
+For the `ServerPhysicsManager.update(delta)` method:
+- Ensure you're passing the fixed timestep value to `Engine.update(engine, fixedDelta)` rather than the variable delta to maintain determinism
+- Consider adding a maximum delta cap (e.g., `Math.min(delta, 250)`) to prevent large time jumps during server hiccups
+
+For the GameRoom implementation:
+- The accumulator pattern is correct, but ensure you're using a while loop (`while (accumulator >= fixedTimestep)`) rather than if statements to handle multiple physics updates when needed
+- Track and store the interpolation factor (`const alpha = accumulator / fixedTimestep`) which will be useful for client-side rendering between physics steps
+- Consider implementing a "panic mode" that resets the accumulator if too many consecutive updates are needed (e.g., after server freeze)
+
+Configuration improvements:
+- Store the physics configuration in a central config object that includes:
+  ```typescript
+  {
+    fixedTimestep: 1000/60, // 16.67ms (60Hz)
+    maxAccumulatedTime: 200, // ms, prevents spiral of death
+    velocityIterations: 8,
+    positionIterations: 3
+  }
+  ```
+
+Performance monitoring:
+- Use `performance.now()` instead of `Date.now()` for more precise timing
+- Implement a rolling average of physics update times to detect degradation trends
+</info added on 2025-04-24T16:34:52.217Z>
+
+## 3. Update state schemas to include physics properties [done]
+### Dependencies: 13.1
+### Description: Extend the Colyseus state schemas to include all necessary physics properties such as positions, velocities, rotations, and other attributes needed for synchronization.
+### Details:
+Implementation steps:
+1. Identify all physics properties that need to be synchronized (position, velocity, angle, angular velocity, etc.)
+2. Update the entity schemas in the Colyseus state to include these properties
+3. Create mapping functions between Matter.js bodies and Colyseus schema objects
+4. Implement helper methods to update schema from physics bodies and vice versa
+5. Ensure proper type conversion between Matter.js and Colyseus schema types
+6. Add any necessary metadata for reconciliation (like physics step ID)
+
+Testing approach:
+- Test serialization and deserialization of physics properties
+- Verify that all necessary properties are included in the schema
+- Test the mapping functions between Matter.js bodies and schema objects
+
+<info added on 2025-04-24T16:38:08.933Z>
+For the physics properties implementation, consider these additional details:
+
+1. Use `@filter()` decorator on physics properties that don't need to be sent every frame to reduce bandwidth:
+   ```typescript
+   @filter(function(this: PlayerState, client, value) {
+     // Only send sleeping state changes when they actually change
+     return this.previousIsSleeping !== value;
+   })
+   @type("boolean")
+   isSleeping: boolean;
+   ```
+
+2. Add a `previousTransform` object to store last synchronized values for delta compression:
+   ```typescript
+   @type({ map: "number" })
+   previousTransform: MapSchema<number> = new MapSchema();
+   ```
+
+3. Implement threshold-based synchronization to reduce network traffic:
+   ```typescript
+   // In your mapping function
+   if (Math.abs(body.position.x - player.x) > MIN_POSITION_DELTA || 
+       Math.abs(body.position.y - player.y) > MIN_POSITION_DELTA) {
+     player.x = body.position.x;
+     player.y = body.position.y;
+   }
+   ```
+
+4. Add a `physicsBodyId` field to maintain reference between schema and Matter.js bodies:
+   ```typescript
+   @type("string")
+   physicsBodyId: string;
+   ```
+
+5. Consider adding interpolation metadata for client-side smoothing:
+   ```typescript
+   @type("number")
+   lastUpdateTime: number;
+   ```
+</info added on 2025-04-24T16:38:08.933Z>
+
+## 4. Create input handling system for client-to-server physics commands [done]
+### Dependencies: 13.1, 13.2
+### Description: Develop a system to receive player inputs from clients and apply them correctly to the server-side physics simulation.
+### Details:
+Implementation steps:
+1. Define a message format for client input commands (movement, actions, etc.)
+2. Implement server-side handlers to receive these commands in the GameRoom
+3. Create a queue system to store and process inputs in the correct order
+4. Add timestamp and sequence numbering to inputs for reconciliation
+5. Implement the logic to apply these inputs to the appropriate physics bodies
+6. Add validation to prevent cheating (speed hacks, teleporting, etc.)
+7. Create a system to acknowledge processed inputs back to clients
+
+Testing approach:
+- Test input message handling with various input types
+- Verify that inputs are applied correctly to physics bodies
+- Test input validation and rejection of invalid commands
+- Verify sequence handling works correctly with out-of-order messages
+
+## 5. Implement server-to-client state synchronization [done]
+### Dependencies: 13.2, 13.3
+### Description: Create a system to efficiently send authoritative physics updates from the server to clients, including delta compression to minimize network traffic.
+### Details:
+Implementation steps:
+1. Implement a system to track changes in physics state between updates
+2. Create a mechanism to send full state snapshots at regular intervals
+3. Implement delta compression to only send changed properties between full snapshots
+4. Add configurable send rate that may differ from physics update rate
+5. Include physics step ID with each update for reconciliation purposes
+6. Implement bandwidth optimization techniques (property filtering, quantization, etc.)
+7. Add priority system to ensure important objects always get updated
+
+Testing approach:
+- Measure bandwidth usage with and without optimizations
+- Test that clients correctly receive and apply state updates
+- Verify that delta compression correctly identifies and transmits only changed properties
+- Test with various network conditions (packet loss, latency, etc.)
+
+<info added on 2025-04-24T17:29:19.818Z>
+Implementation details:
+
+Within the GameRoom physics loop, after each physics step:
+```javascript
+// Inside the physics loop after updating physics state
+if (this.accumulator >= this.physicsTimeStep) {
+  // Physics step calculations...
+  
+  // Construct state update for broadcasting
+  const physicsUpdate = {};
+  this.players.forEach(player => {
+    if (player.body) {
+      physicsUpdate[player.sessionId] = {
+        x: player.body.position.x,
+        y: player.body.position.y,
+        angle: player.body.angle,
+        vx: player.body.velocity.x,
+        vy: player.body.velocity.y,
+        angularVelocity: player.body.angularVelocity,
+        isSleeping: player.body.isSleeping
+      };
+    }
+  });
+  
+  // Add physics step ID for reconciliation
+  const updatePacket = {
+    stepId: this.currentPhysicsStep,
+    timestamp: Date.now(),
+    delta: this.calculateDelta(this.lastBroadcastState, physicsUpdate),
+    fullState: this.shouldSendFullState() ? physicsUpdate : undefined
+  };
+  
+  // Store last broadcast state for delta calculation
+  this.lastBroadcastState = {...physicsUpdate};
+  
+  // Broadcast to all clients
+  this.broadcast("physics_update", updatePacket);
+  
+  this.currentPhysicsStep++;
+}
+```
+
+The `calculateDelta` function compares current and previous states to only send changed properties:
+```javascript
+calculateDelta(previous, current) {
+  if (!previous) return current; // First update sends everything
+  
+  const delta = {};
+  Object.keys(current).forEach(sessionId => {
+    const prevPlayerState = previous[sessionId];
+    const currPlayerState = current[sessionId];
+    
+    if (!prevPlayerState) {
+      // New player, include all properties
+      delta[sessionId] = currPlayerState;
+      return;
+    }
+    
+    // Check which properties changed
+    const playerDelta = {};
+    let hasChanges = false;
+    
+    Object.keys(currPlayerState).forEach(prop => {
+      // Apply threshold for floating point values to reduce updates
+      if (typeof currPlayerState[prop] === 'number') {
+        if (Math.abs(currPlayerState[prop] - prevPlayerState[prop]) > this.updateThresholds[prop] || 0.0001) {
+          playerDelta[prop] = currPlayerState[prop];
+          hasChanges = true;
+        }
+      } else if (currPlayerState[prop] !== prevPlayerState[prop]) {
+        playerDelta[prop] = currPlayerState[prop];
+        hasChanges = true;
+      }
+    });
+    
+    if (hasChanges) {
+      delta[sessionId] = playerDelta;
+    }
+  });
+  
+  return delta;
+}
+```
+</info added on 2025-04-24T17:29:19.818Z>
+
+<info added on 2025-04-25T09:53:56.205Z>
+<info added on 2025-04-25T09:14:32.451Z>
+Implementation refinements for delta compression:
+
+1. Define specific threshold constants for different property types:
+```javascript
+// Constants for delta compression thresholds
+const SYNC_THRESHOLD_POSITION = 0.01;  // 1cm in world units
+const SYNC_THRESHOLD_VELOCITY = 0.05;  // 5cm/s in world units
+const SYNC_THRESHOLD_ANGLE = 0.01;     // ~0.6 degrees
+const SYNC_THRESHOLD_ANGULAR_VELOCITY = 0.02;
+```
+
+2. Enhanced delta calculation with property-specific thresholds:
+```javascript
+calculateDelta(previous, current) {
+  // ... existing code ...
+  
+  Object.keys(currPlayerState).forEach(prop => {
+    // Apply property-specific thresholds
+    if (typeof currPlayerState[prop] === 'number') {
+      const threshold = 
+        prop === 'x' || prop === 'y' ? SYNC_THRESHOLD_POSITION :
+        prop === 'vx' || prop === 'vy' ? SYNC_THRESHOLD_VELOCITY :
+        prop === 'angle' ? SYNC_THRESHOLD_ANGLE :
+        prop === 'angularVelocity' ? SYNC_THRESHOLD_ANGULAR_VELOCITY :
+        0.0001; // default threshold
+        
+      if (Math.abs(currPlayerState[prop] - prevPlayerState[prop]) > threshold) {
+        playerDelta[prop] = currPlayerState[prop];
+        hasChanges = true;
+      }
+    } else if (currPlayerState[prop] !== prevPlayerState[prop]) {
+      // For boolean properties like isSleeping
+      playerDelta[prop] = currPlayerState[prop];
+      hasChanges = true;
+    }
+  });
+  
+  // ... existing code ...
+}
+```
+
+3. Client-side handling of sparse delta updates:
+```javascript
+// Client-side code
+this.room.onMessage("physics_update", (data) => {
+  const { stepId, timestamp, delta, fullState } = data;
+  
+  // Track server physics step for reconciliation
+  this.serverPhysicsStep = stepId;
+  this.serverTimestamp = timestamp;
+  
+  if (fullState) {
+    // Full state update - replace entire state
+    this.gameState = fullState;
+  } else if (delta) {
+    // Apply delta updates to existing state
+    Object.keys(delta).forEach(sessionId => {
+      // Create player entry if it doesn't exist
+      if (!this.gameState[sessionId]) {
+        this.gameState[sessionId] = {};
+      }
+      
+      // Apply only the changed properties
+      Object.assign(this.gameState[sessionId], delta[sessionId]);
+    });
+  }
+  
+  // Apply the updated state to the physics world
+  this.applyStateToPhysics();
+});
+```
+
+4. Bandwidth monitoring and adaptive compression:
+```javascript
+// Track bandwidth usage
+this.bytesSent = 0;
+this.updatesSent = 0;
+
+// After creating update packet
+const packetSize = JSON.stringify(updatePacket).length;
+this.bytesSent += packetSize;
+this.updatesSent++;
+
+// Every 5 seconds, evaluate and potentially adjust thresholds
+if (Date.now() - this.lastBandwidthCheck > 5000) {
+  const bytesPerSecond = this.bytesSent / 5;
+  
+  // If bandwidth usage is too high, increase thresholds
+  if (bytesPerSecond > this.maxBytesPerSecond) {
+    SYNC_THRESHOLD_POSITION *= 1.2;
+    SYNC_THRESHOLD_VELOCITY *= 1.2;
+    SYNC_THRESHOLD_ANGLE *= 1.2;
+  } else if (bytesPerSecond < this.minBytesPerSecond) {
+    // If bandwidth usage is low, decrease thresholds for better precision
+    SYNC_THRESHOLD_POSITION = Math.max(0.001, SYNC_THRESHOLD_POSITION * 0.8);
+    SYNC_THRESHOLD_VELOCITY = Math.max(0.01, SYNC_THRESHOLD_VELOCITY * 0.8);
+    SYNC_THRESHOLD_ANGLE = Math.max(0.001, SYNC_THRESHOLD_ANGLE * 0.8);
+  }
+  
+  this.bytesSent = 0;
+  this.lastBandwidthCheck = Date.now();
+}
+```
+</info added on 2025-04-25T09:14:32.451Z>
+</info added on 2025-04-25T09:53:56.205Z>
+
+## 6. Modify client to send inputs and apply server state [done]
+### Dependencies: 13.4, 13.5
+### Description: Update the client-side code to send player inputs to the server instead of applying them locally, and to receive and apply server state updates.
+### Details:
+Implementation steps:
+1. Refactor client input handling to send commands to server instead of applying locally
+2. Implement client-side input buffering and sequence numbering
+3. Create a system to receive and apply server state updates to local entities
+4. Modify the client rendering to use the synchronized state
+5. Implement a system to handle server acknowledgments of processed inputs
+6. Add error handling for connection issues and server rejections
+7. Create debug visualization to show server vs. client state
+
+Testing approach:
+- Test input sending and state receiving under various network conditions
+- Verify that client correctly applies server state updates
+- Test handling of connection interruptions
+- Verify that inputs are correctly sequenced and buffered
+
+## 7. Implement client-side prediction and reconciliation [done]
+### Dependencies: 13.6
+### Description: Add client-side prediction to apply inputs locally before server confirmation, and reconciliation to correct the client state when server updates arrive.
+### Details:
+Implementation steps:
+1. Implement client-side physics simulation for prediction
+2. Apply local inputs immediately while also sending to server
+3. Store input history and predicted states for reconciliation
+4. When receiving server updates, compare with predicted state
+5. If discrepancy is detected, rewind and replay inputs from last acknowledged input
+6. Implement smoothing to prevent jarring corrections
+7. Add configuration options for prediction settings
+8. Create debug visualization of prediction and reconciliation
+
+Testing approach:
+- Test prediction accuracy under various conditions
+- Verify reconciliation correctly handles server-client discrepancies
+- Test with artificial latency to ensure smooth experience
+- Measure and optimize performance impact of prediction
+
+<info added on 2025-04-25T09:54:19.967Z>
+For client-side reconciliation/correction, we've refined the approach to balance accuracy with smooth gameplay:
+
+1. The client now relies on authoritative server state rather than applying local predicted forces independently.
+
+2. Correction logic uses partial application of server state through interpolation:
+   - Position correction: `Phaser.Math.Linear(currentPos, serverPos, CLIENT_PHYSICS_CORRECTION_FACTOR)`
+   - Rotation correction: `Phaser.Math.Angle.RotateTo(currentRot, serverRot, CLIENT_PHYSICS_CORRECTION_FACTOR * delta)`
+   - Default correction factor is 0.5, configurable based on game needs
+
+3. This approach creates a dual-layer system:
+   - Physics bodies gradually align with server state to maintain collision integrity
+   - Visual elements interpolate toward target positions for smoother player experience
+
+4. Added threshold detection to prevent minor corrections (< 5px difference) from triggering full reconciliation
+
+5. Implemented adaptive correction factor that scales based on discrepancy magnitude:
+   ```javascript
+   const discrepancyMagnitude = Phaser.Math.Distance.Between(
+     currentPos.x, currentPos.y, serverPos.x, serverPos.y
+   );
+   const adaptiveFactor = Math.min(
+     CLIENT_PHYSICS_CORRECTION_FACTOR * (1 + discrepancyMagnitude/100), 
+     0.9
+   );
+   ```
+</info added on 2025-04-25T09:54:19.967Z>
+
+## 8. Add interpolation and implement collision handling [done]
+### Dependencies: 13.5, 13.7
+### Description: Implement client-side interpolation for smooth rendering between state updates and server-side collision detection and resolution.
+### Details:
+Implementation steps:
+1. Implement entity interpolation on the client to smooth movement between state updates
+2. Create a buffer of recent server states for interpolation
+3. Add configurable interpolation delay to balance smoothness vs. latency
+4. Implement server-side collision detection using Matter.js collision system
+5. Create event handlers for different collision types on the server
+6. Synchronize collision effects to clients
+7. Add special handling for important gameplay collisions (damage, pickups, etc.)
+8. Implement client-side collision prediction for responsive feedback
+
+Testing approach:
+- Test visual smoothness with various network conditions
+- Verify that collisions are correctly detected and resolved on server
+- Test collision events are properly synchronized to clients
+- Verify that interpolation correctly handles object creation and destruction
+
