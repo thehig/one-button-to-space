@@ -4,10 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "echo \"Run dev script from specific package (e.g., packages/client)\"",
-    "build": "npm run build --workspaces --if-present",
+    "dev": "echo \"Run dev:client or dev:server\"",
+    "dev:client": "pnpm --filter @one-button-to-space/client run dev",
+    "dev:server": "pnpm --filter @one-button-to-space/server run dev",
+    "build": "pnpm recursive run build",
+    "build:client": "pnpm --filter @one-button-to-space/client run build",
+    "build:server": "pnpm --filter @one-button-to-space/server run build",
     "preview": "echo \"Run preview script from specific package (e.g., packages/client)\"",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "clean": "echo \"Add clean scripts to packages to remove dist folders, then use pnpm recursive run clean\""
   },
   "dependencies": {
     "matter-js": "catalog:"

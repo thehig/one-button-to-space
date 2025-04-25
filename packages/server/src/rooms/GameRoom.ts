@@ -99,10 +99,7 @@ export class GameRoom extends Room<RoomState> {
 
     // --- Load World Definition ---
     try {
-      const worldFilePath = path.join(
-        __dirname,
-        "../../worlds/default.world.json"
-      );
+      const worldFilePath = path.join(__dirname, "worlds/default.world.json");
       Logger.info(
         LOGGER_SOURCE,
         `Attempting to load world file from: ${worldFilePath}`
