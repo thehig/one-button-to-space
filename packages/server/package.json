@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "npx tsx watch src/index.ts",
+    "debug": "cross-env DEBUG=colyseus:* npx tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit"

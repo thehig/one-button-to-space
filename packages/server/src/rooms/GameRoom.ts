@@ -28,7 +28,7 @@ const {
 
 // Import Matter.js types
 import Matter from "matter-js";
-import { Room } from "@colyseus/core";
+import { Room, Client } from "@colyseus/core";
 
 const __dirname = path.resolve();
 
@@ -78,6 +78,7 @@ export class GameRoom extends Room<RoomState> {
     {};
 
   onCreate(options: any) {
+    Logger.debug(LOGGER_SOURCE, `onCreate called for room ${this.roomId}`);
     Logger.info(
       LOGGER_SOURCE,
       `Room ${this.roomId} created with options:`,
@@ -85,14 +86,25 @@ export class GameRoom extends Room<RoomState> {
     );
 
     // Initialize the physics manager
+    Logger.debug(
+      LOGGER_SOURCE,
+      "onCreate: Initializing ServerPhysicsManager..."
+    );
     this.physicsManager = new ServerPhysicsManager();
     Logger.info(LOGGER_SOURCE, "ServerPhysicsManager initialized.");
+    Logger.debug(LOGGER_SOURCE, "onCreate: ServerPhysicsManager initialized.");
 
     // Initialize the game state
+    Logger.debug(LOGGER_SOURCE, "onCreate: Initializing RoomState...");
     this.setState(new RoomState());
     Logger.info(LOGGER_SOURCE, "GameState initialized.");
+    Logger.debug(LOGGER_SOURCE, "onCreate: RoomState initialized.");
 
     // --- Load World Definition ---
+    Logger.debug(
+      LOGGER_SOURCE,
+      "onCreate: Attempting to load world definition..."
+    );
     try {
       const worldFilePath = path.join(__dirname, "worlds/default.world.json");
       Logger.info(
@@ -114,55 +126,82 @@ export class GameRoom extends Room<RoomState> {
         error
       );
       this.worldPlanets = [];
+      Logger.debug(LOGGER_SOURCE, "onCreate: World definition load failed.");
     }
 
     // --- Initialize Planets from World Data ---
+    Logger.debug(
+      LOGGER_SOURCE,
+      `onCreate: Initializing planets from world data (${this.worldPlanets.length} found)...`
+    );
     if (this.worldPlanets.length > 0) {
-      this.worldPlanets.forEach((worldPlanet: WorldPlanetDefinition) => {
-        const basePlanetData = generatePlanetDataFromName(worldPlanet.name);
-        // Assign properties excluding colors and noiseParams first
-        const planetState = new PlanetData().assign({
-          id: worldPlanet.name,
-          x: worldPlanet.x,
-          y: worldPlanet.y,
-          radius: basePlanetData.radius,
-          mass: basePlanetData.mass,
-          atmosphereHeight: basePlanetData.atmosphereHeight,
-          surfaceDensity: basePlanetData.surfaceDensity,
-          seed: worldPlanet.name, // Use name as seed for consistency
-        });
+      this.worldPlanets.forEach(
+        (worldPlanet: WorldPlanetDefinition, index: number) => {
+          Logger.debug(
+            LOGGER_SOURCE,
+            `onCreate: Initializing planet ${index + 1}/${
+              this.worldPlanets.length
+            }: ${worldPlanet.name}`
+          );
+          const basePlanetData = generatePlanetDataFromName(worldPlanet.name);
+          Logger.debug(
+            LOGGER_SOURCE,
+            `... generated base data for ${worldPlanet.name}`
+          );
+          // Assign properties excluding colors and noiseParams first
+          const planetState = new PlanetData().assign({
+            id: worldPlanet.name,
+            x: worldPlanet.x,
+            y: worldPlanet.y,
+            radius: basePlanetData.radius,
+            mass: basePlanetData.mass,
+            atmosphereHeight: basePlanetData.atmosphereHeight,
+            surfaceDensity: basePlanetData.surfaceDensity,
+            seed: worldPlanet.name, // Use name as seed for consistency
+          });
 
-        // Assign colors and noiseParams properties to the *existing* nested schema instances
-        planetState.colors.assign({
-          base: basePlanetData.colors.base,
-          accent1: basePlanetData.colors.accent1 ?? basePlanetData.colors.base,
-          accent2: basePlanetData.colors.accent2 ?? basePlanetData.colors.base,
-        });
-        planetState.noiseParams.assign({
-          scale: basePlanetData.noiseParams.scale,
-          octaves: basePlanetData.noiseParams.octaves ?? 1,
-        });
+          // Assign colors and noiseParams properties to the *existing* nested schema instances
+          planetState.colors.assign({
+            base: basePlanetData.colors.base,
+            accent1:
+              basePlanetData.colors.accent1 ?? basePlanetData.colors.base,
+            accent2:
+              basePlanetData.colors.accent2 ?? basePlanetData.colors.base,
+          });
+          planetState.noiseParams.assign({
+            scale: basePlanetData.noiseParams.scale,
+            octaves: basePlanetData.noiseParams.octaves ?? 1,
+          });
 
-        // Add to room state using the unique name as the key
-        this.state.planets.set(worldPlanet.name, planetState);
-        Logger.info(
-          LOGGER_SOURCE,
-          `Initialized planet '${worldPlanet.name}' in state.`
-        );
+          // Add to room state using the unique name as the key
+          this.state.planets.set(worldPlanet.name, planetState);
+          Logger.info(
+            LOGGER_SOURCE,
+            `Initialized planet '${worldPlanet.name}' in state.`
+          );
 
-        // Create and add planet physics body
-        const planetBody = Matter.Bodies.circle(
-          planetState.x,
-          planetState.y,
-          planetState.radius,
-          { isStatic: true, label: `planet-${worldPlanet.name}` }
-        );
-        this.physicsManager.addBody(planetBody);
-        Logger.info(
-          LOGGER_SOURCE,
-          `Added planet '${worldPlanet.name}' physics body.`
-        );
-      });
+          // Create and add planet physics body
+          const planetBody = Matter.Bodies.circle(
+            planetState.x,
+            planetState.y,
+            planetState.radius,
+            { isStatic: true, label: `planet-${worldPlanet.name}` }
+          );
+          this.physicsManager.addBody(planetBody);
+          Logger.info(
+            LOGGER_SOURCE,
+            `Added planet '${worldPlanet.name}' physics body.`
+          );
+          Logger.debug(
+            LOGGER_SOURCE,
+            `onCreate: Finished initializing planet ${worldPlanet.name}`
+          );
+        }
+      );
+      Logger.debug(
+        LOGGER_SOURCE,
+        "onCreate: Finished initializing all planets."
+      );
     } else {
       Logger.warn(
         LOGGER_SOURCE,
@@ -171,10 +210,22 @@ export class GameRoom extends Room<RoomState> {
     }
 
     // Initialize last update time before starting loop
+    Logger.debug(
+      LOGGER_SOURCE,
+      "onCreate: Initializing physics loop variables..."
+    );
     this.lastPhysicsUpdateTime = Date.now();
     this.accumulator = 0;
+    Logger.debug(
+      LOGGER_SOURCE,
+      `onCreate: lastPhysicsUpdateTime=${this.lastPhysicsUpdateTime}, accumulator=${this.accumulator}`
+    );
 
     // Start the physics update loop with accumulation logic
+    Logger.debug(
+      LOGGER_SOURCE,
+      "onCreate: Starting physics update loop (setInterval)..."
+    );
     this.physicsLoopInterval = setInterval(() => {
       const now = Date.now();
       const elapsedMs = now - this.lastPhysicsUpdateTime;
@@ -383,8 +434,14 @@ export class GameRoom extends Room<RoomState> {
       )}ms interval.`
     );
 
+    Logger.debug(LOGGER_SOURCE, "onCreate: Registering message handlers...");
     // Register message handlers
     this.onMessage("updateState", (client, message: Partial<PlayerState>) => {
+      Logger.debug(
+        LOGGER_SOURCE,
+        `onMessage: Received 'updateState' from ${client.sessionId}`,
+        message
+      );
       const player = this.state.players.get(client.sessionId);
       if (player) {
         if (typeof message.x === "number") player.x = message.x;
@@ -400,6 +457,11 @@ export class GameRoom extends Room<RoomState> {
 
     // Register the message handler for player input
     this.onMessage<PlayerInputMessage>("player_input", (client, message) => {
+      Logger.debug(
+        LOGGER_SOURCE,
+        `onMessage: Received 'player_input' from ${client.sessionId}`,
+        message
+      );
       // Basic validation: Check if player queue exists
       const queue = this.playerInputQueue.get(client.sessionId);
       if (!queue) {
@@ -474,9 +536,14 @@ export class GameRoom extends Room<RoomState> {
     });
 
     Logger.info(LOGGER_SOURCE, "Message handlers registered.");
+    Logger.debug(LOGGER_SOURCE, `onCreate finished for room ${this.roomId}`);
   }
 
   onJoin(client: Client, options: any) {
+    Logger.debug(
+      LOGGER_SOURCE,
+      `onJoin: ${client.sessionId} attempting to join.`
+    );
     Logger.info(LOGGER_SOURCE, `${client.sessionId} joined! Options:`, options);
 
     const player = new PlayerState();
@@ -572,9 +639,17 @@ export class GameRoom extends Room<RoomState> {
       LOGGER_SOURCE,
       `Sent world creation time to ${client.sessionId}`
     );
+    Logger.debug(
+      LOGGER_SOURCE,
+      `onJoin: ${client.sessionId} finished joining.`
+    );
   }
 
   onLeave(client: Client, consented: boolean) {
+    Logger.debug(
+      LOGGER_SOURCE,
+      `onLeave: ${client.sessionId} attempting to leave. Consented: ${consented}`
+    );
     Logger.info(
       LOGGER_SOURCE,
       `${client.sessionId} left! Consented: ${consented}`
@@ -610,9 +685,14 @@ export class GameRoom extends Room<RoomState> {
         `State not found for leaving client: ${client.sessionId}`
       );
     }
+    Logger.debug(
+      LOGGER_SOURCE,
+      `onLeave: ${client.sessionId} finished leaving.`
+    );
   }
 
   onDispose() {
+    Logger.debug(LOGGER_SOURCE, `onDispose called for room ${this.roomId}`);
     Logger.info(LOGGER_SOURCE, `Room ${this.roomId} disposing...`);
     // Clear the physics loop interval using standard clearInterval
     if (this.physicsLoopInterval) {
@@ -631,6 +711,7 @@ export class GameRoom extends Room<RoomState> {
         "ServerPhysicsManager and remaining bodies destroyed."
       );
     }
+    Logger.debug(LOGGER_SOURCE, `onDispose finished for room ${this.roomId}`);
   }
 
   /**

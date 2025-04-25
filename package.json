@@ -15,6 +15,7 @@
     "clean": "echo \"Add clean scripts to packages to remove dist folders, then use pnpm recursive run clean\""
   },
   "dependencies": {
+    "cross-env": "^7.0.3",
     "matter-js": "catalog:"
   },
   "devDependencies": {

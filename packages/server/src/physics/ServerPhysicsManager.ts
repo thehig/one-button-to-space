@@ -11,6 +11,7 @@ export class ServerPhysicsManager {
   public world: Matter.World;
 
   constructor() {
+    Logger.debug(LOGGER_SOURCE, "Constructor: Initializing...");
     Logger.info(LOGGER_SOURCE, "Initializing server-side physics engine...");
     this.engine = Matter.Engine.create();
     this.world = this.engine.world;
@@ -41,6 +42,7 @@ export class ServerPhysicsManager {
     // Events.on(this.engine, 'collisionActive', (event) => { ... });
     // Events.on(this.engine, 'collisionEnd', (event) => { ... });
     // -----------------------------------
+    Logger.debug(LOGGER_SOURCE, "Constructor: Initialization finished.");
   }
 
   /**
@@ -48,7 +50,9 @@ export class ServerPhysicsManager {
    * @param delta The time elapsed since the last update, in milliseconds.
    */
   update(delta: number): void {
+    // Logger.debug(LOGGER_SOURCE, `Update: Stepping engine by ${delta.toFixed(2)}ms`);
     Matter.Engine.update(this.engine, delta);
+    // Logger.debug(LOGGER_SOURCE, "Update: Engine step complete.");
   }
 
   /**
@@ -56,9 +60,14 @@ export class ServerPhysicsManager {
    * @param body The Matter.js body to add.
    */
   addBody(body: Matter.Body): void {
+    Logger.debug(
+      LOGGER_SOURCE,
+      `addBody: Adding body id=${body.id}, label=${body.label}`
+    );
     Matter.Composite.add(this.world, body);
     // Optional: Log body addition
     // Logger.debug(LOGGER_SOURCE, `Added body ${body.id} (label: ${body.label}) to world.`);
+    Logger.debug(LOGGER_SOURCE, `addBody: Finished adding body id=${body.id}`);
   }
 
   /**
@@ -66,15 +75,24 @@ export class ServerPhysicsManager {
    * @param body The Matter.js body to remove.
    */
   removeBody(body: Matter.Body): void {
+    Logger.debug(
+      LOGGER_SOURCE,
+      `removeBody: Removing body id=${body.id}, label=${body.label}`
+    );
     Matter.Composite.remove(this.world, body);
     // Optional: Log body removal
     // Logger.debug(LOGGER_SOURCE, `Removed body ${body.id} (label: ${body.label}) from world.`);
+    Logger.debug(
+      LOGGER_SOURCE,
+      `removeBody: Finished removing body id=${body.id}`
+    );
   }
 
   /**
    * Perform necessary cleanup when the physics manager is no longer needed.
    */
   destroy(): void {
+    Logger.debug(LOGGER_SOURCE, "Destroy: Starting cleanup...");
     Logger.info(LOGGER_SOURCE, "Destroying server-side physics engine...");
     // Clear the engine. Currently Engine.clear is deprecated, but might be needed
     // depending on how Matter.js handles resource cleanup internally.
@@ -91,5 +109,6 @@ export class ServerPhysicsManager {
     Matter.World.clear(this.engine.world, false);
     // Engine.clear(this.engine); // Clearing engine might not be necessary/desirable
     Logger.info(LOGGER_SOURCE, "Server physics engine destroyed.");
+    Logger.debug(LOGGER_SOURCE, "Destroy: Cleanup finished.");
   }
 }
