@@ -26,9 +26,9 @@ import { Logger, LogLevel } from "@one-button-to-space/shared"; // Updated path
 import { DebugHud } from "../../ui/DebugHud"; // Import the new HUD class
 // @ts-ignore
 import {
-  PLAYER_THRUST_FORCE,
-  CLIENT_PHYSICS_CORRECTION_FACTOR, // Import the new constant
+  Constants, // Import the new constant
 } from "@one-button-to-space/shared"; // Import shared constant
+const { PLAYER_THRUST_FORCE, CLIENT_PHYSICS_CORRECTION_FACTOR } = Constants;
 // Import shared physics logic using relative path
 import { PhysicsLogic } from "@one-button-to-space/shared";
 

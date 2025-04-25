@@ -21,18 +21,21 @@ import { PlayerInputMessage } from "@one-button-to-space/shared";
 import { PhysicsLogic } from "@one-button-to-space/shared";
 // Import shared constant
 // @ts-ignore - Shared code outside rootDir
-import {
+import { Constants } from "@one-button-to-space/shared";
+const {
   PLAYER_THRUST_FORCE,
   PLAYER_MASS,
   PLAYER_FRICTION_AIR,
   PLAYER_ANGULAR_DAMPING,
-  // Import sync thresholds
   SYNC_THRESHOLD_POSITION,
   SYNC_THRESHOLD_VELOCITY,
   SYNC_THRESHOLD_ANGLE,
-} from "@one-button-to-space/shared";
+} = Constants;
+
 // Import Matter.js types
 import Matter from "matter-js";
+
+const __dirname = path.resolve();
 
 // Define the source constant for logging
 const LOGGER_SOURCE = "🚪🎮";
