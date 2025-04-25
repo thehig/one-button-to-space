@@ -8,6 +8,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@colyseus/schema": "catalog:"
+  },
   "devDependencies": {}
 }

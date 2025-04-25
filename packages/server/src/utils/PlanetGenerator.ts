@@ -1,4 +1,5 @@
-import { PlanetData, PlanetColors, NoiseParams } from "../schema/State";
+import { Schema } from "@one-button-to-space/shared";
+const { PlanetData, PlanetColors, PlanetNoiseParams } = Schema;
 
 // Simple seeded PRNG (Mulberry32) - From client Planet.ts
 function mulberry32(seedStr: string): () => number {

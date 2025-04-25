@@ -1,11 +1,7 @@
 import { Room, Client } from "@colyseus/core";
-import {
-  RoomState,
-  PlayerState,
-  PlanetData,
-  PlanetColors,
-  PlanetNoiseParams,
-} from "../colyseus/schema/State";
+import { Schema } from "@one-button-to-space/shared";
+const { RoomState, PlayerState, PlanetData } = Schema;
+
 // Import file system and path modules
 import fs from "fs";
 import path from "path";
@@ -137,13 +133,13 @@ export class GameRoom extends Room<RoomState> {
           seed: worldPlanet.name, // Use name as seed for consistency
         });
 
-        // Assign colors and noiseParams as new schema instances
-        planetState.colors = new PlanetColors().assign({
+        // Assign colors and noiseParams properties to the *existing* nested schema instances
+        planetState.colors.assign({
           base: basePlanetData.colors.base,
           accent1: basePlanetData.colors.accent1 ?? basePlanetData.colors.base,
           accent2: basePlanetData.colors.accent2 ?? basePlanetData.colors.base,
         });
-        planetState.noiseParams = new PlanetNoiseParams().assign({
+        planetState.noiseParams.assign({
           scale: basePlanetData.noiseParams.scale,
           octaves: basePlanetData.noiseParams.octaves ?? 1,
         });
