@@ -1,9 +1,9 @@
 import Phaser from "phaser";
 import { Body as MatterBody, Vector as MatterVector } from "matter-js";
 // @ts-ignore - Allow importing from shared potentially outside rootDir
-import { CollisionCategory } from "../../../shared/physics/CollisionCategories";
+import { CollisionCategory } from "@one-button-to-space/shared";
 // @ts-ignore - Allow importing from shared potentially outside rootDir
-import { Logger } from "../../../shared/utils/Logger";
+import { Logger } from "@one-button-to-space/shared";
 // Import the singleton instance
 // @ts-ignore - Allow importing from potentially outside rootDir
 import { multiplayerService } from "../../services/MultiplayerService";

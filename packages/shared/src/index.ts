@@ -8,3 +8,4 @@ export * from "./utils/Logger";
 export * from "./physics/Constants";
 export * from "./physics/PhysicsLogic";
 export * from "./physics/CollisionCategories";
+export * from "./config/config";

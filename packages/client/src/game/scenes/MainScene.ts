@@ -5,7 +5,7 @@ import { Rocket } from "../entities/Rocket"; // Correct relative path & Removed 
 import { Composite as MatterComposite } from "matter-js"; // Keep for Composite
 import { DeviceOrientationManager } from "../../utils/DeviceOrientationManager"; // Correct relative path
 // @ts-ignore - Allow importing from shared potentially outside rootDir
-import { CollisionCategory } from "../../../shared/physics/CollisionCategories"; // Import shared categories
+import { CollisionCategory } from "@one-button-to-space/shared"; // Import shared categories
 import { ZoomController } from "../controllers/ZoomController";
 // Multiplayer Imports
 import {

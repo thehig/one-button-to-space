@@ -1,11 +1,11 @@
 import * as Colyseus from "colyseus.js";
 // Import the configuration file
-import config from "../../config/config.json";
+import { config } from "@one-button-to-space/shared";
 // Import the state schema definitions
 import { RoomState, PlayerState, PlanetData } from "../colyseus/schema/State"; // PlanetData now includes config
-import { Logger, LogLevel } from "../../shared/utils/Logger"; // Updated path
+import { Logger, LogLevel } from "@one-button-to-space/shared"; // Updated path
 // Import Player Input type
-import { PlayerInputMessage } from "../../shared/types/InputTypes"; // Add this import
+import { PlayerInputMessage } from "@one-button-to-space/shared"; // Add this import
 
 // Define the source constant for logging
 const LOGGER_SOURCE = "🌐🤝"; // Replaced string with emojis

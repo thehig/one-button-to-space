@@ -4,10 +4,10 @@ import { Body as MatterBody } from "matter-js";
 // Remove unused Matter default import if Vector isn't needed elsewhere here
 // import Matter from "matter-js";
 // @ts-ignore - Allow importing from shared potentially outside rootDir
-import { CollisionCategory } from "../../../shared/physics/CollisionCategories";
+import { CollisionCategory } from "@one-button-to-space/shared";
 import { createNoise2D } from "simplex-noise"; // Import noise library
 // @ts-ignore - Allow importing from shared potentially outside rootDir
-import { Logger } from "../../../shared/utils/Logger"; // Updated path
+import { Logger } from "@one-button-to-space/shared"; // Updated path
 import { PlanetData } from "../../colyseus/schema/State"; // Import schema type
 
 // Define the source constant for logging

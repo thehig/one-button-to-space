@@ -81,7 +81,7 @@ Here's additional implementation information for subtask 13.1:
 ```typescript
 // server/src/physics/ServerPhysicsManager.ts
 import { Engine, World, Bodies, Composite } from 'matter-js';
-import { Logger } from '../../../shared/utils/Logger';
+import { Logger } from '@one-button-to-space/shared';
 
 export class ServerPhysicsManager {
   private engine: Matter.Engine;

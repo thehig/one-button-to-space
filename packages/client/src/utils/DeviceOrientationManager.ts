@@ -1,5 +1,5 @@
 import Phaser from "phaser"; // Added to handle Phaser types if needed later
-import { Logger, LogLevel } from "../../shared/utils/Logger"; // Corrected path
+import { Logger } from "@one-button-to-space/shared"; // Corrected path
 
 // Define the source constant for logging
 const LOGGER_SOURCE = "🧭📱"; // Chosen emojis for DeviceOrientationManager
