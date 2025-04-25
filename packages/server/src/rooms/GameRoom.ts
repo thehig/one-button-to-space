@@ -1,6 +1,4 @@
-import { Room, Client } from "@colyseus/core";
-import { Schema } from "@one-button-to-space/shared";
-const { RoomState, PlayerState, PlanetData } = Schema;
+import { RoomState, PlayerState, PlanetData } from "../colyseus/schema/State";
 
 // Import file system and path modules
 import fs from "fs";
@@ -30,6 +28,7 @@ const {
 
 // Import Matter.js types
 import Matter from "matter-js";
+import { Room } from "@colyseus/core";
 
 const __dirname = path.resolve();
 
