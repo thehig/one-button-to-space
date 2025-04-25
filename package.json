@@ -10,11 +10,11 @@
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
   "dependencies": {
-    "matter-js": "^0.20.0"
+    "matter-js": "catalog:"
   },
   "devDependencies": {
-    "@types/matter-js": "^0.19.8",
-    "@types/node": "^22.15.2",
-    "typescript": "^5.8.3"
+    "@types/matter-js": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
   }
 }

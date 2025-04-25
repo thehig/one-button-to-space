@@ -11,13 +11,13 @@
   },
   "dependencies": {
     "@one-button-to-space/shared": "workspace:*",
-    "colyseus.js": "^0.16.16",
-    "phaser": "^3.88.2",
-    "simplex-noise": "^4.0.3"
+    "colyseus.js": "catalog:",
+    "phaser": "catalog:",
+    "simplex-noise": "catalog:"
   },
   "devDependencies": {
-    "vite": "^6.3.1",
-    "@types/matter-js": "^0.19.8",
-    "@vitejs/plugin-react": "^4.3.1"
+    "vite": "catalog:",
+    "@types/matter-js": "catalog:",
+    "@vitejs/plugin-react": "catalog:"
   }
 }

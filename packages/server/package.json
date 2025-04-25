@@ -10,14 +10,23 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@colyseus/monitor": "^0.16.7",
+    "@colyseus/monitor": "catalog:",
     "@one-button-to-space/shared": "workspace:*",
-    "colyseus": "^0.15.17",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
-    "@types/express": "^4.17.21"
+    "colyseus": "catalog:",
+    "dotenv": "catalog:",
+    "express": "catalog:",
+    "@types/express": "catalog:",
+    "@colyseus/schema": "catalog:",
+    "@colyseus/auth": "catalog:",
+    "@colyseus/core": "catalog:",
+    "@colyseus/loadtest": "catalog:",
+    "@colyseus/playground": "catalog:",
+    "@colyseus/testing": "catalog:",
+    "@colyseus/tools": "catalog:",
+    "@colyseus/uwebsockets-transport": "catalog:",
+    "tsx": "catalog:"
   },
   "devDependencies": {
-    "tsx": "^4.16.2"
+    "tsx": "catalog:"
   }
 }
