@@ -607,6 +607,74 @@
           "parentTaskId": 16
         }
       ]
+    },
+    {
+      "id": 17,
+      "title": "Implement Client-Side Deterministic Star Field Background",
+      "description": "Create a procedurally generated star field background that renders consistently across sessions using a deterministic algorithm. The effect should be performant and visually appealing.",
+      "details": "Develop a JavaScript module that generates and renders a star field background on an HTML canvas element. The implementation should:\n\n1. Use a seeded random number generator to ensure the same star pattern is generated each time with the same seed value\n2. Allow configuration of parameters such as:\n   - Star density (stars per unit area)\n   - Star size range (min/max pixel size)\n   - Star brightness/color variation\n   - Background color/gradient\n   - Optional parallax effect based on mouse movement or scrolling\n3. Optimize rendering performance using:\n   - Canvas optimization techniques\n   - Efficient animation loops (requestAnimationFrame)\n   - Only redrawing when necessary\n4. Implement a resize handler to ensure the star field properly fills the container when the window size changes\n5. Provide a simple API for initialization, seed setting, and configuration updates\n6. Include options for static stars or subtle twinkling/pulsing effects\n7. Ensure the module works across all major browsers\n8. Keep the implementation lightweight with minimal dependencies",
+      "testStrategy": "1. Unit Testing:\n   - Verify the seeded random number generator produces consistent results with the same seed\n   - Test that star positions are deterministic with the same configuration\n   - Validate all configuration parameters affect the output as expected\n\n2. Visual Testing:\n   - Compare screenshots of star fields generated with the same seed to confirm visual consistency\n   - Verify the star field renders correctly at different screen sizes and device pixel ratios\n\n3. Performance Testing:\n   - Measure and benchmark rendering performance using browser dev tools\n   - Test with varying star densities to ensure performance remains acceptable\n   - Monitor memory usage during extended periods\n\n4. Cross-Browser Testing:\n   - Verify the star field renders consistently across Chrome, Firefox, Safari, and Edge\n   - Test on both desktop and mobile devices\n\n5. Integration Testing:\n   - Ensure the star field initializes correctly when the page loads\n   - Verify the resize handler properly adjusts the star field when the window is resized\n   - Test that configuration changes at runtime update the star field appropriately",
+      "status": "pending",
+      "dependencies": [],
+      "priority": "medium",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Create Seeded Random Number Generator Module",
+          "description": "Implement a deterministic random number generator that can be seeded to produce consistent results across sessions",
+          "dependencies": [],
+          "details": "1. Research and implement a high-quality seeded PRNG algorithm (like Mulberry32 or xorshift)\n2. Create a module with the following functions:\n   - `setSeed(seed)`: Initialize the generator with a specific seed value\n   - `random()`: Return a random float between 0 and 1 (similar to Math.random())\n   - `randomRange(min, max)`: Return a random number within a specified range\n   - `randomInt(min, max)`: Return a random integer within a specified range\n3. Add unit tests to verify determinism by comparing sequences with the same seed\n4. Ensure the implementation is efficient and has no external dependencies\n5. Test across different browsers to ensure consistent behavior\n\n<info added on 2025-04-26T14:37:52.642Z>\nThe Mulberry32 algorithm is a good choice for this implementation as it offers a good balance between speed and randomness quality. Here's some additional technical information:\n\n1. Implementation details:\n   - The core algorithm uses a 32-bit state that's updated with each call\n   - The bit manipulation operations (shifts, XORs) create high-quality pseudorandom sequences\n   - Time complexity is O(1) for each random number generation\n\n2. Optimization considerations:\n   - Used bitwise operations for performance\n   - Implemented `next()` method that returns raw integers for cases where float conversion isn't needed\n   - Added internal state caching to avoid recalculating when the same seed is set multiple times\n\n3. Testing recommendations:\n   - Create test vectors with known seeds and expected output sequences\n   - Test edge cases like seed=0, seed=MAX_INT, etc.\n   - Verify statistical properties using chi-square tests for randomness quality\n\n4. Usage example:\n```typescript\n// Example usage in game systems\nconst rng = new DeterministicRNG(12345); // Seed with level ID\nconst damage = rng.randomRange(10, 20); // Consistent damage roll\n```\n\n5. Added JSDoc comments to all public methods for better developer experience and type hinting.\n</info added on 2025-04-26T14:37:52.642Z>",
+          "status": "done",
+          "parentTaskId": 17
+        },
+        {
+          "id": 2,
+          "title": "Implement Star Generation Algorithm",
+          "description": "Create a module that generates star data using the seeded random number generator",
+          "dependencies": [
+            1
+          ],
+          "details": "1. Create a `StarField` class that accepts configuration parameters (density, size range, color variations, etc.)\n2. Implement a `generateStars(width, height)` method that:\n   - Uses the seeded RNG from subtask 1\n   - Creates an array of star objects based on the configured density\n   - Each star should have properties: x, y positions, size, color, brightness\n   - Distributes stars evenly across the specified dimensions\n3. Add methods to regenerate stars when parameters change\n4. Implement optional twinkling/pulsing by adding time-based properties to stars\n5. Test with different configurations to ensure proper star distribution\n6. Add validation for configuration parameters with sensible defaults\n\n<info added on 2025-04-26T14:39:07.059Z>\nI've reviewed the implementation and can provide these additional technical details:\n\n```typescript\n// Star interface represents individual star properties\ninterface Star {\n  x: number;\n  y: number;\n  size: number;\n  color: string;\n  brightness: number;\n  twinkleSpeed?: number;\n  twinklePhase?: number;\n}\n\n// Configuration interface with sensible defaults\ninterface StarFieldConfig {\n  density: number; // stars per 1000px²\n  minSize: number;\n  maxSize: number;\n  colors: string[];\n  enableTwinkling: boolean;\n  twinkleVariation: number;\n}\n\n// Implementation notes:\n// - Used HSL color model for stars to easily control brightness\n// - Color generation: `hsl(${hue}, ${saturation}%, ${brightness}%)`\n// - Twinkling implemented via sine wave: brightness * (1 + Math.sin(time * twinkleSpeed + twinklePhase) * twinkleVariation)\n// - Density calculation: Math.floor((width * height / 1000) * config.density)\n// - Added spatial distribution check to prevent star clustering\n// - Performance optimization: pre-calculated colors array for common star types\n// - Added optional z-index property for parallax effects in future enhancements\n```\n\nThe implementation includes proper validation with error handling for configuration parameters and maintains O(n) time complexity for star generation.\n</info added on 2025-04-26T14:39:07.059Z>",
+          "status": "done",
+          "parentTaskId": 17
+        },
+        {
+          "id": 3,
+          "title": "Develop Canvas Rendering System",
+          "description": "Create an optimized rendering system that draws the generated stars onto an HTML canvas",
+          "dependencies": [
+            2
+          ],
+          "details": "1. Implement a `render(canvas)` method in the StarField class that:\n   - Clears the canvas\n   - Draws the background (solid color or gradient)\n   - Efficiently renders each star with appropriate size and color\n   - Uses appropriate canvas optimization techniques (e.g., batching similar operations)\n2. Implement a main animation loop using requestAnimationFrame\n3. Add logic to only redraw when necessary (for static stars or when animation parameters change)\n4. Create helper methods for drawing different star styles (circles, glows, etc.)\n5. Test rendering performance with various star densities\n6. Add FPS monitoring during development to ensure smooth performance\n7. Implement browser-specific optimizations if needed\n\n<info added on 2025-04-26T14:40:23.643Z>\nFor the `StarFieldRenderer` implementation:\n\n- The `render()` method uses Phaser's Graphics API to efficiently batch star drawing operations, improving performance over individual draw calls\n- Implemented depth sorting to ensure stars appear in correct z-order based on their size/brightness\n- Added configurable rendering options including:\n  - `blendMode`: Support for 'ADD', 'MULTIPLY', etc. for different visual effects\n  - `alpha`: Global transparency control for the entire starfield\n  - `tint`: Optional color tinting for stars\n- Optimized rendering by:\n  - Using object pooling to avoid garbage collection during animation\n  - Implementing culling for off-screen stars\n  - Using Phaser's camera system to only render stars in the visible viewport\n- Added support for different star shapes beyond circles (diamond, cross, pixel)\n- Implemented optional post-processing effects like bloom and motion blur\n- Added performance monitoring with debug toggle to display render statistics\n</info added on 2025-04-26T14:40:23.643Z>",
+          "status": "done",
+          "parentTaskId": 17
+        },
+        {
+          "id": 4,
+          "title": "Add Responsive Behavior and Event Handling",
+          "description": "Implement resize handling and optional parallax effects based on user interaction",
+          "dependencies": [
+            3
+          ],
+          "details": "1. Add a resize event listener to adjust the canvas size when the window or container changes\n2. Implement logic to regenerate or reposition stars when the canvas is resized\n3. Create a parallax effect system that:\n   - Tracks mouse movement or scroll position\n   - Moves stars at different rates based on their size/depth\n   - Provides smooth transitions between positions\n4. Add configuration options to enable/disable parallax and adjust its sensitivity\n5. Ensure all event listeners are properly added and removed to prevent memory leaks\n6. Test responsiveness across different devices and screen sizes\n7. Optimize event handlers with debouncing/throttling for performance\n\n<info added on 2025-04-26T14:41:59.100Z>\nHere's additional technical information for your subtask:\n\n```typescript\n// Implementation notes for resize handling:\n// Use Phaser's built-in scale manager events for reliable resize detection\nthis.scene.scale.on('resize', this.handleResize, this);\n\n// Example handleResize implementation:\nprivate handleResize(gameSize: Phaser.Structs.Size): void {\n  this.width = gameSize.width;\n  this.height = gameSize.height;\n  \n  // Only regenerate if size changed significantly (optimization)\n  if (Math.abs(this.width - this.prevWidth) > 50 || Math.abs(this.height - this.prevHeight) > 50) {\n    this.regenerateStars();\n    this.prevWidth = this.width;\n    this.prevHeight = this.height;\n  }\n}\n\n// Parallax implementation using camera position:\nprivate applyParallax(): void {\n  if (!this.config.enableParallax) return;\n  \n  const camera = this.scene.cameras.main;\n  const parallaxFactor = this.config.parallaxFactor || 0.1;\n  \n  this.stars.forEach(star => {\n    // Deeper stars (brighter/larger) move slower for realistic depth effect\n    const depthFactor = 1 - (star.brightness * 0.5);\n    star.x -= camera.scrollX * parallaxFactor * depthFactor;\n    star.y -= camera.scrollY * parallaxFactor * depthFactor;\n    \n    // Wrap stars that move off-screen\n    this.wrapStarPosition(star);\n  });\n}\n\n// Viewport culling optimization:\nprivate isInViewport(x: number, y: number, buffer: number = 100): boolean {\n  const camera = this.scene.cameras.main;\n  return (\n    x >= camera.scrollX - buffer &&\n    x <= camera.scrollX + this.width + buffer &&\n    y >= camera.scrollY - buffer &&\n    y <= camera.scrollY + this.height + buffer\n  );\n}\n\n// Clean destroy method to prevent memory leaks:\npublic destroy(): void {\n  this.scene.scale.off('resize', this.handleResize, this);\n  this.graphics.destroy();\n  this.stars = [];\n}\n```\n\nThe parallax effect creates a sense of depth by moving stars at different rates based on their brightness/size. Viewport culling significantly improves performance by only rendering stars visible in the current view.\n</info added on 2025-04-26T14:41:59.100Z>",
+          "status": "done",
+          "parentTaskId": 17
+        },
+        {
+          "id": 5,
+          "title": "Create Public API and Documentation",
+          "description": "Finalize the module with a clean public API, configuration options, and comprehensive documentation",
+          "dependencies": [
+            1,
+            2,
+            3,
+            4
+          ],
+          "details": "1. Design and implement a clean public API with methods for:\n   - Initialization with configuration options\n   - Updating configuration at runtime\n   - Starting/stopping animation\n   - Manually triggering redraws\n   - Cleaning up resources\n2. Add comprehensive JSDoc comments for all public methods and properties\n3. Create a demo page showcasing different configurations and features\n4. Write README documentation with:\n   - Installation instructions\n   - Usage examples\n   - Configuration options reference\n   - Performance considerations\n   - Browser compatibility notes\n5. Add error handling with meaningful error messages\n6. Perform cross-browser testing and fix any compatibility issues\n7. Optimize bundle size and consider providing both ES modules and UMD formats",
+          "status": "pending",
+          "parentTaskId": 17
+        }
+      ]
     }
   ],
   "metadata": {

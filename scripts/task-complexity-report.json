@@ -1,0 +1,75 @@
+{
+  "meta": {
+    "generatedAt": "2025-04-26T14:36:46.576Z",
+    "tasksAnalyzed": 8,
+    "thresholdScore": 5,
+    "projectName": "Your Project Name",
+    "usedResearch": false
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 5,
+      "taskTitle": "Implement Advanced Physics Features",
+      "complexityScore": 8,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the implementation of advanced physics features including air resistance, collision physics, and cargo physics foundation into 5 specific, implementable subtasks with clear acceptance criteria for each",
+      "reasoning": "This task involves complex physics simulations with multiple interrelated systems (atmospheric density, air resistance, collision physics, cargo physics foundation, landing detection). Each component requires mathematical modeling and integration with the existing physics engine, making this a high-complexity task."
+    },
+    {
+      "taskId": 6,
+      "taskTitle": "Implement Cargo System and Physics",
+      "complexityScore": 7,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Divide the cargo system implementation into 6 concrete subtasks covering cargo item physics, storage mechanics, attachment constraints, pickup/delivery detection, and visual feedback systems",
+      "reasoning": "This task builds on the physics foundation but focuses specifically on cargo mechanics. It requires implementing multiple interacting systems (cargo items, storage, attachment, pickup/delivery) with both physics and gameplay components. The complexity comes from ensuring these systems work together seamlessly."
+    },
+    {
+      "taskId": 7,
+      "taskTitle": "Design and Implement Mission System",
+      "complexityScore": 6,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the mission system implementation into 5 distinct subtasks covering mission data structures, mission management, location markers, UI elements, and completion logic",
+      "reasoning": "This task involves creating a structured mission system with multiple components. While not as mathematically complex as physics tasks, it requires careful design of data structures and systems that will form the core gameplay loop. The interconnected nature of mission components adds moderate complexity."
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "Create Game UI and Feedback Systems",
+      "complexityScore": 6,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Divide the UI and feedback systems implementation into 6 specific subtasks covering HUD elements, physics state indicators, player action feedback, mission screens, tutorial elements, and pause functionality",
+      "reasoning": "This task involves designing and implementing multiple UI components that need to interact with various game systems. While each individual element may be straightforward, ensuring they all work together cohesively and provide clear feedback to the player adds complexity. The task spans both visual design and functional implementation."
+    },
+    {
+      "taskId": 9,
+      "taskTitle": "Implement Basic Level Design and Progression",
+      "complexityScore": 7,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the level design and progression implementation into 5 concrete subtasks covering initial level creation, level loading system, progression tracking, difficulty curve design, and level selection interface",
+      "reasoning": "This task combines technical implementation (level loading, progression tracking) with game design (creating varied levels, designing difficulty curve). The complexity comes from needing to create multiple distinct levels while ensuring they form a cohesive progression system that introduces mechanics at an appropriate pace."
+    },
+    {
+      "taskId": 10,
+      "taskTitle": "Implement Audio and Visual Polish",
+      "complexityScore": 5,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the audio and visual polish implementation into 4 specific subtasks covering sound effects, background music, visual effects, and animations/transitions",
+      "reasoning": "This task involves adding polish elements across multiple domains (audio, visual effects, animations). While each element is relatively straightforward to implement, the breadth of work and the need to ensure consistent style and quality across all elements adds moderate complexity."
+    },
+    {
+      "taskId": 11,
+      "taskTitle": "Implement Mouse Wheel Camera Zoom for Desktop Game View",
+      "complexityScore": 4,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Break down the mouse wheel camera zoom implementation into 4 specific subtasks covering event handling, zoom calculation, smooth transitions, and edge case handling",
+      "reasoning": "This task is focused on a single feature with well-defined requirements. While it involves some mathematical calculations for zoom and positioning, the scope is limited and the implementation is straightforward. The main complexity comes from ensuring smooth transitions and handling edge cases."
+    },
+    {
+      "taskId": 17,
+      "taskTitle": "Implement Client-Side Deterministic Star Field Background",
+      "complexityScore": 5,
+      "recommendedSubtasks": 4,
+      "expansionPrompt": "Divide the deterministic star field implementation into 4 concrete subtasks covering seeded random generation, rendering optimization, configuration system, and responsive behavior",
+      "reasoning": "This task requires implementing a procedural generation system with deterministic output. The complexity comes from ensuring consistent results across sessions while optimizing rendering performance. The mathematical aspects of seeded random generation and efficient canvas rendering add moderate complexity, but the scope is well-contained."
+    }
+  ]
+}

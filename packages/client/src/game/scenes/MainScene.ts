@@ -26,16 +26,20 @@ import { DebugHud } from "../../ui/DebugHud"; // Import the new HUD class
 import {
   Constants, // Import the new constant
 } from "@one-button-to-space/shared"; // Import shared constant
+// Import Starfield classes
+import { StarField } from "../effects/StarField";
+import { StarFieldRenderer } from "../effects/StarFieldRenderer";
+// Import shared physics logic using relative path
+import { PhysicsLogic } from "@one-button-to-space/shared";
+
+// --- Constants ---
 const {
   CLIENT_PHYSICS_CORRECTION_FACTOR,
   CLIENT_POSITION_CORRECTION_THRESHOLD,
   CLIENT_VELOCITY_CORRECTION_THRESHOLD,
   CLIENT_ANGLE_CORRECTION_THRESHOLD,
 } = Constants;
-// Import shared physics logic using relative path
-import { PhysicsLogic } from "@one-button-to-space/shared";
 
-// --- Constants ---
 const LOGGER_SOURCE = "🎬🌟"; // Chosen emojis for MainScene
 const STATE_SEND_INTERVAL_MS = 100; // Send state 10 times per second
 
@@ -46,6 +50,10 @@ export class MainScene extends Phaser.Scene {
   // --- Entities ---
   private rocket: Rocket | undefined = undefined;
   private planetObjects: Map<string, Planet> = new Map();
+
+  // --- Effects ---
+  private starfield!: StarField;
+  private starfieldRenderer!: StarFieldRenderer;
 
   // --- Controllers ---
   private zoomController!: ZoomController;
@@ -145,6 +153,9 @@ export class MainScene extends Phaser.Scene {
 
     // Update other controllers like zoom
     this.updateControllers(delta);
+
+    // Update effects like starfield
+    this.updateEffects(time, delta);
   }
 
   shutdown(): void {
@@ -155,6 +166,7 @@ export class MainScene extends Phaser.Scene {
     this.shutdownOrientation();
     this.shutdownPhysicsAndEntities();
     this.shutdownUI();
+    this.shutdownEffects(); // Add effects shutdown
 
     // Phaser handles input listener cleanup automatically
 
@@ -202,6 +214,24 @@ export class MainScene extends Phaser.Scene {
     Logger.info(LOGGER_SOURCE, "Setting up entity placeholders...");
     // Local Rocket creation is now deferred until the first server state update.
     // Camera follow is also deferred.
+
+    // --- Create Background Effects ---
+    this.starfield = new StarField({
+      seed: 12345, // Use a fixed seed for consistency during testing
+      density: 800, // Slightly denser field
+      minSize: 0.5,
+      maxSize: 1.5,
+      enableTwinkling: true,
+      twinkleSpeed: 0.05,
+      colorVariations: true,
+    });
+    this.starfieldRenderer = new StarFieldRenderer(this, this.starfield, {
+      depth: -100, // Ensure it's far behind everything
+      backgroundColor: null, // Make background transparent to see scene bg color
+      enableParallax: true,
+      parallaxFactor: 0.05, // More subtle parallax
+    });
+    Logger.info(LOGGER_SOURCE, "Starfield and renderer created.");
   }
 
   private setupControllers(): void {
@@ -371,9 +401,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   private updateControllers(delta: number): void {
-    if (this.zoomController) {
-      this.zoomController.update(delta);
-    }
+    this.zoomController.update(delta);
   }
 
   private updateMultiplayerState(time: number): void {
@@ -423,6 +451,12 @@ export class MainScene extends Phaser.Scene {
         density: density, // Pass calculated density
         currentTimeString: Logger.getCurrentTimestampString(),
       });
+    }
+  }
+
+  private updateEffects(time: number, delta: number): void {
+    if (this.starfieldRenderer) {
+      this.starfieldRenderer.update(time, delta);
     }
   }
 
@@ -940,10 +974,8 @@ export class MainScene extends Phaser.Scene {
   }
 
   private shutdownControllers(): void {
-    if (this.zoomController) {
-      this.zoomController.destroy();
-      Logger.info(LOGGER_SOURCE, "ZoomController destroyed.");
-    }
+    this.zoomController?.destroy();
+    Logger.info(LOGGER_SOURCE, "ZoomController destroyed.");
   }
 
   private shutdownOrientation(): void {
@@ -980,6 +1012,11 @@ export class MainScene extends Phaser.Scene {
       this.debugHud.destroy();
       Logger.info(LOGGER_SOURCE, "Debug HUD destroyed.");
     }
+  }
+
+  private shutdownEffects(): void {
+    this.starfieldRenderer?.destroy();
+    Logger.info(LOGGER_SOURCE, "StarfieldRenderer destroyed.");
   }
 
   // Helper method to send input messages
