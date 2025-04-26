@@ -10,6 +10,11 @@ const LOGGER_SOURCE = "✨🌌"; // Example emojis for StarFieldRenderer
 const STARFIELD_FIXED_WIDTH = 5000;
 const STARFIELD_FIXED_HEIGHT = 5000;
 
+// Define constants locally or import if exported from StarField
+const STARFIELD_TEXTURE_WIDTH = 5000;
+const STARFIELD_TEXTURE_HEIGHT = 5000;
+const STARFIELD_TEXTURE_KEY = "starfieldTexture";
+
 // Simplified config for static starfield
 interface StarFieldRendererConfig {
   backgroundColor: string | null; // e.g., '#000011' or null for transparent
@@ -26,7 +31,7 @@ const DEFAULT_RENDER_CONFIG: StarFieldRendererConfig = {
 export class StarFieldRenderer {
   private scene: Phaser.Scene;
   private starfield: StarField;
-  private renderTexture: Phaser.GameObjects.RenderTexture | null = null;
+  private tileSprite: Phaser.GameObjects.TileSprite | null = null;
   // Keep graphics for background fill if needed
   private backgroundGraphics: Phaser.GameObjects.Graphics | null = null;
   private config: StarFieldRendererConfig;
@@ -51,53 +56,44 @@ export class StarFieldRenderer {
       this.backgroundGraphics.setDepth(this.config.depth - 1); // Ensure background is behind stars
     }
 
-    // Create and draw the RenderTexture
-    this.createAndDrawStarTexture();
+    // Create the texture and then the TileSprite
+    this.createTextureAndTileSprite();
 
     // Bind the resize handler - Only needed for background fill resizing
     this.boundHandleResize = this.handleResize.bind(this);
     this.scene.scale.on("resize", this.boundHandleResize);
 
-    Logger.info(LOGGER_SOURCE, "Initialized RenderTexture StarFieldRenderer");
+    Logger.info(LOGGER_SOURCE, "Initialized TileSprite StarFieldRenderer");
   }
 
-  private createAndDrawStarTexture(): void {
-    // Destroy previous texture if it exists
-    if (this.renderTexture) {
-      this.renderTexture.destroy();
-    }
-
-    Logger.debug(
+  private createTextureAndTileSprite(): void {
+    // 1. Create a temporary RenderTexture
+    Logger.info(
       LOGGER_SOURCE,
-      `Creating RenderTexture ${STARFIELD_FIXED_WIDTH}x${STARFIELD_FIXED_HEIGHT}`
+      `Creating temporary RenderTexture ${STARFIELD_TEXTURE_WIDTH}x${STARFIELD_TEXTURE_HEIGHT}`
     );
-    this.renderTexture = this.scene.add.renderTexture(
-      0,
-      0, // Position of the texture itself in the world
-      STARFIELD_FIXED_WIDTH,
-      STARFIELD_FIXED_HEIGHT
+    const tempRenderTexture = this.scene.make.renderTexture(
+      {
+        width: STARFIELD_TEXTURE_WIDTH,
+        height: STARFIELD_TEXTURE_HEIGHT,
+        add: false, // Don't add the RT itself to the scene
+      },
+      false
     );
-    // Center the texture's origin so positioning it at (0,0) centers the starfield
-    this.renderTexture.setOrigin(0.5, 0.5);
-    this.renderTexture.setDepth(this.config.depth); // Set depth for the texture itself
 
+    // 2. Draw stars onto the temporary RenderTexture
     const stars = this.starfield.getStars();
-    Logger.debug(
+    Logger.info(
       LOGGER_SOURCE,
-      `Drawing ${stars.length} stars onto RenderTexture...`
+      `Drawing ${stars.length} stars onto temp RenderTexture...`
     );
-
-    // Temporary graphics object for drawing onto the RenderTexture
     const tempGraphics = this.scene.make.graphics({ x: 0, y: 0, add: false });
-
     stars.forEach((star) => {
       try {
         const starColor = Phaser.Display.Color.ValueToColor(star.color);
         tempGraphics.fillStyle(starColor.color, starColor.alphaGL);
-        // Adjust draw position because RenderTexture origin is top-left (0,0)
-        // We draw relative to the texture's center.
-        const drawX = star.x + STARFIELD_FIXED_WIDTH / 2;
-        const drawY = star.y + STARFIELD_FIXED_HEIGHT / 2;
+        const drawX = star.x + STARFIELD_TEXTURE_WIDTH / 2;
+        const drawY = star.y + STARFIELD_TEXTURE_HEIGHT / 2;
         tempGraphics.fillCircle(drawX, drawY, star.size);
       } catch (error) {
         Logger.warn(
@@ -106,26 +102,118 @@ export class StarFieldRenderer {
           error
         );
         tempGraphics.fillStyle(0xffffff, star.brightness);
-        const drawX = star.x + STARFIELD_FIXED_WIDTH / 2;
-        const drawY = star.y + STARFIELD_FIXED_HEIGHT / 2;
+        const drawX = star.x + STARFIELD_TEXTURE_WIDTH / 2;
+        const drawY = star.y + STARFIELD_TEXTURE_HEIGHT / 2;
         tempGraphics.fillCircle(drawX, drawY, star.size);
       }
     });
+    tempRenderTexture.draw(tempGraphics);
+    tempGraphics.destroy(); // Clean up graphics
+    Logger.info(
+      LOGGER_SOURCE,
+      "Finished drawing stars onto temp RenderTexture."
+    );
 
-    // Draw the graphics onto the RenderTexture
-    this.renderTexture.draw(tempGraphics);
+    // 3. Create an off-screen canvas and draw the RenderTexture onto it
+    const canvas = document.createElement("canvas"); // Use standard DOM method
+    canvas.width = STARFIELD_TEXTURE_WIDTH;
+    canvas.height = STARFIELD_TEXTURE_HEIGHT;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      Logger.error(
+        LOGGER_SOURCE,
+        "Failed to get 2D context from off-screen canvas"
+      );
+      tempRenderTexture.destroy();
+      return;
+    }
+    // Drawing the RenderTexture onto the canvas might require accessing its canvas or snapshotting
+    // Let's try snapshotting the whole texture
+    tempRenderTexture.snapshot(
+      (snapshotImage: Phaser.Display.Color | HTMLImageElement) => {
+        if (snapshotImage instanceof HTMLImageElement) {
+          ctx.drawImage(snapshotImage, 0, 0);
+          Logger.info(
+            LOGGER_SOURCE,
+            "Drew RenderTexture snapshot onto off-screen canvas."
+          );
 
-    // Clean up temporary graphics object
-    tempGraphics.destroy();
+          // 4. Add the canvas to the Texture Manager as a static texture
+          if (this.scene.textures.exists(STARFIELD_TEXTURE_KEY)) {
+            this.scene.textures.remove(STARFIELD_TEXTURE_KEY);
+            Logger.info(
+              LOGGER_SOURCE,
+              `Removed existing texture: ${STARFIELD_TEXTURE_KEY}`
+            );
+          }
+          this.scene.textures.addCanvas(STARFIELD_TEXTURE_KEY, canvas);
+          Logger.info(
+            LOGGER_SOURCE,
+            `Added canvas to texture manager with key: ${STARFIELD_TEXTURE_KEY}`
+          );
 
-    Logger.debug(LOGGER_SOURCE, "Finished drawing stars onto RenderTexture.");
+          // 5. Destroy the temporary RenderTexture (no longer needed)
+          tempRenderTexture.destroy();
+
+          // 6. Create the TileSprite (only if texture was added successfully)
+          if (this.scene.textures.exists(STARFIELD_TEXTURE_KEY)) {
+            this.createTileSpriteFromTexture();
+          } else {
+            Logger.error(
+              LOGGER_SOURCE,
+              `Failed to add canvas texture ${STARFIELD_TEXTURE_KEY}, cannot create TileSprite.`
+            );
+          }
+        } else {
+          Logger.error(
+            LOGGER_SOURCE,
+            "RenderTexture snapshot was not an HTMLImageElement"
+          );
+          tempRenderTexture.destroy(); // Clean up RT
+        }
+      }
+    );
+
+    // TileSprite creation is now handled within the snapshot callback
+    // Logger.info(LOGGER_SOURCE, "Created TileSprite from saved texture.");
+
+    // Initial draw of background
+    // this.drawBackgroundFill(); // Moved to createTileSpriteFromTexture
+  }
+
+  // Extracted TileSprite creation logic
+  private createTileSpriteFromTexture(): void {
+    // Destroy previous TileSprite if it exists
+    if (this.tileSprite) {
+      this.tileSprite.destroy();
+    }
+    const { width, height } = this.scene.scale; // Use initial screen size
+    this.tileSprite = this.scene.add.tileSprite(
+      0,
+      0,
+      width,
+      height,
+      STARFIELD_TEXTURE_KEY
+    );
+    this.tileSprite.setOrigin(0, 0);
+    this.tileSprite.setScrollFactor(0);
+    this.tileSprite.setDepth(this.config.depth);
+    Logger.info(LOGGER_SOURCE, "Created TileSprite from canvas texture.");
+
+    // Initial draw of background
+    this.drawBackgroundFill();
   }
 
   private handleResize(): void {
-    if (this.isDestroyed) return;
-    Logger.debug(LOGGER_SOURCE, `Handling resize event.`);
+    if (this.isDestroyed || !this.tileSprite) return;
+    const width = this.scene.scale.width;
+    const height = this.scene.scale.height;
+    Logger.info(LOGGER_SOURCE, `Handling resize event: ${width}x${height}`);
 
-    // Only need to redraw the background fill
+    // Resize the TileSprite to cover the new screen size
+    this.tileSprite.setSize(width, height);
+
+    // Redraw the background fill
     this.drawBackgroundFill();
   }
 
@@ -149,19 +237,12 @@ export class StarFieldRenderer {
     }
   }
 
-  // Render method becomes much simpler
+  // Render method is no longer needed as TileSprite handles rendering
+  /*
   public render(): void {
-    if (this.isDestroyed) return;
-
-    // Background fill needs to be redrawn if camera moves/zooms
-    this.drawBackgroundFill();
-
-    // The RenderTexture is a GameObject, Phaser handles rendering it based on camera
-    // Ensure it's visible (it should be by default)
-    if (this.renderTexture && !this.renderTexture.visible) {
-      this.renderTexture.setVisible(true);
-    }
+    ...
   }
+  */
 
   public updateConfig(newConfig: Partial<StarFieldRendererConfig>): void {
     if (this.isDestroyed) return;
@@ -170,22 +251,18 @@ export class StarFieldRenderer {
 
     this.config = { ...this.config, ...newConfig };
 
-    // Update depth if changed
-    if (this.renderTexture && oldDepth !== this.config.depth) {
-      this.renderTexture.setDepth(this.config.depth);
+    if (this.tileSprite && oldDepth !== this.config.depth) {
+      this.tileSprite.setDepth(this.config.depth);
     }
     if (this.backgroundGraphics && oldDepth !== this.config.depth) {
       this.backgroundGraphics.setDepth(this.config.depth - 1);
     }
 
-    // Handle background color change
     if (oldBgColor !== this.config.backgroundColor) {
       if (this.config.backgroundColor && !this.backgroundGraphics) {
-        // Create graphics if switching to having a background
         this.backgroundGraphics = this.scene.add.graphics();
         this.backgroundGraphics.setDepth(this.config.depth - 1);
       } else if (!this.config.backgroundColor && this.backgroundGraphics) {
-        // Destroy graphics if switching to no background
         this.backgroundGraphics.destroy();
         this.backgroundGraphics = null;
       }
@@ -193,55 +270,48 @@ export class StarFieldRenderer {
 
     Logger.info(
       LOGGER_SOURCE,
-      `RenderTexture Renderer config updated: ${JSON.stringify(this.config)}`
+      `TileSprite Renderer config updated: ${JSON.stringify(this.config)}`
     );
-    // Trigger redraw of background immediately
     this.drawBackgroundFill();
     // Note: Changes to StarField density/seed require recreating the StarField instance
-    // and then calling createAndDrawStarTexture() again on the renderer.
+    // and then calling createTextureAndTileSprite() again on the renderer.
   }
 
   public destroy(): void {
     if (this.isDestroyed) return;
     this.isDestroyed = true;
-    if (this.renderTexture) {
-      this.renderTexture.destroy();
-      this.renderTexture = null;
+    if (this.tileSprite) {
+      this.tileSprite.destroy();
+      this.tileSprite = null;
     }
     if (this.backgroundGraphics) {
       this.backgroundGraphics.destroy();
       this.backgroundGraphics = null;
     }
+    // Remove texture if it exists
+    if (this.scene && this.scene.textures.exists(STARFIELD_TEXTURE_KEY)) {
+      this.scene.textures.remove(STARFIELD_TEXTURE_KEY);
+    }
     if (this.scene && this.scene.scale && this.boundHandleResize) {
       this.scene.scale.off("resize", this.boundHandleResize);
     }
-    Logger.info(LOGGER_SOURCE, "Destroyed RenderTexture StarFieldRenderer");
+    Logger.info(LOGGER_SOURCE, "Destroyed TileSprite StarFieldRenderer");
   }
 
   // Update loop is now very simple
   public update(time: number, delta: number): void {
-    if (this.isDestroyed) return;
+    if (this.isDestroyed || !this.tileSprite) return;
 
-    // Redraw background fill every frame to cover camera movement/zoom
-    this.drawBackgroundFill();
+    // Update background fill position (if it exists)
+    this.drawBackgroundFill(); // Needs to happen every frame if camera moves
 
-    // Twinkling requires re-rendering the texture or using shaders/effects
-    // If StarField.update modified star brightness/color, we'd need to redraw the texture:
-    // this.starfield.update(time / 1000);
-    // this.redrawStarTexture(); // <--- This would be expensive! Keep twinkling off for now.
+    // Update the TileSprite's tilePosition based on camera scroll
+    const camera = this.scene.cameras.main;
+    this.tileSprite.setTilePosition(camera.scrollX, camera.scrollY);
 
-    // No explicit render call needed for the RenderTexture itself
-    // this.render(); // Becomes redundant as Phaser handles RT rendering
+    // No need to update StarField unless twinkling is re-enabled later
+    // No explicit render call needed for TileSprite
   }
 
-  // Optional: Add method to explicitly redraw texture if star properties change (e.g., for twinkling)
-  /*
-   private redrawStarTexture(): void {
-       if (!this.renderTexture || this.isDestroyed) return;
-       this.renderTexture.clear();
-       // Reuse temporary graphics drawing logic from createAndDrawStarTexture
-       // ... draw stars onto this.renderTexture ...
-       Logger.debug(LOGGER_SOURCE, "Redrawing stars onto RenderTexture.");
-   }
-   */
+  // Removed redrawStarTexture method
 }
