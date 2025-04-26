@@ -3,7 +3,6 @@ description: Comprehensive reference for Taskmaster MCP tools and CLI commands.
 globs: **/*
 alwaysApply: true
 ---
-
 # Taskmaster Tool & Command Reference
 
 This document provides a detailed reference for interacting with Taskmaster, covering both the recommended MCP tools (for integrations like Cursor) and the corresponding `task-master` CLI commands (for direct user interaction or fallback).
@@ -12,7 +11,7 @@ This document provides a detailed reference for interacting with Taskmaster, cov
 
 **Important:** Several MCP tools involve AI processing and are long-running operations that may take up to a minute to complete. When using these tools, always inform users that the operation is in progress and to wait patiently for results. The AI-powered tools include: `parse_prd`, `analyze_project_complexity`, `update_subtask`, `update_task`, `update`, `expand_all`, `expand_task`, and `add_task`.
 
-Always use Windows path encoding and assume we're developing on Windows unless explicitly told otherwise.
+**🚨 Critical Path Requirement:** Always use Windows path encoding (e.g., `C:\path\to\file`) for all path parameters, especially `projectRoot`. If the initial workspace path is provided as `/c%3A/...`, convert it **before** calling any tools. Example: Convert `/c%3A/dev/personal/one-button-to-space` to `C:\dev\personal\one-button-to-space`.
 
 ---
 
