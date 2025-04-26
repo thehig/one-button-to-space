@@ -512,9 +512,9 @@
       "id": 16,
       "title": "Upgrade Rocket Visuals and Implement Precise Collision Detection",
       "description": "Replace the placeholder rocket graphic with a high-quality image asset, implement a mesh-based collision detection system, and add animated thruster effects to enhance gameplay visuals and physics.",
-      "details": "This task involves three main components:\n\n1. **Rocket Asset Replacement**:\n   - Source or create a detailed rocket image asset (recommended dimensions: 128x256px with transparent background)\n   - Implement the new asset in the game's rendering system\n   - Ensure proper scaling and rotation of the new asset\n   - Maintain the rocket's center of mass at the appropriate position\n\n2. **Mesh-based Collision Detection**:\n   - Create a collision mesh that closely follows the contours of the new rocket asset\n   - Replace the current collision detection system (likely using simple shapes) with a mesh-based approach\n   - Implement efficient collision detection algorithms suitable for real-time gameplay\n   - Ensure collision response physics remain consistent with game design\n   - Add appropriate hitbox visualization for debug mode\n\n3. **Animated Thruster Effects**:\n   - Create or source a sprite sheet for thruster animation (recommended: 4-8 frames)\n   - Implement animation system for the thruster effects\n   - Tie animation state to player input (e.g., more intense animation when thrust is higher)\n   - Ensure proper positioning of thruster effects relative to the rocket\n   - Add appropriate particle effects to enhance the visual appeal\n\nPerformance considerations: The mesh-based collision should be optimized to maintain frame rate. Consider using simplified collision meshes rather than pixel-perfect collision if performance issues arise.",
-      "testStrategy": "Testing should verify all three components function correctly:\n\n1. **Visual Testing**:\n   - Verify the rocket asset displays correctly at different screen resolutions\n   - Confirm the rocket rotates smoothly without visual artifacts\n   - Ensure the thruster animation plays correctly when thrust is applied\n   - Check that the animation intensity corresponds to thrust level\n   - Verify thruster position remains fixed relative to the rocket during movement\n\n2. **Collision Testing**:\n   - Test collision detection with various game objects (asteroids, power-ups, boundaries)\n   - Verify collisions are detected accurately at the visual edges of the rocket\n   - Test edge cases: high-speed collisions, glancing collisions, multi-point collisions\n   - Ensure no false positives/negatives in collision detection\n   - Measure performance impact of new collision system (should maintain target FPS)\n\n3. **Integration Testing**:\n   - Verify rocket controls remain responsive with new visuals\n   - Test game balance hasn't been affected by collision changes\n   - Ensure save/load functionality works with the new rocket implementation\n   - Test on minimum spec hardware to verify performance\n\nCreate a debug visualization toggle to display collision meshes during testing.",
-      "status": "pending",
+      "details": "This task involves three main components:\n\n1. **Rocket Asset Replacement**:\n   - Source or create a detailed rocket image asset (recommended dimensions: 128x256px with transparent background)\n   - Implement the new asset in the game's rendering system\n   - Ensure proper scaling and rotation of the new asset\n   - Maintain the rocket's center of mass at the appropriate position\n\n2. **Mesh-based Collision Detection**:\n   - Create a collision mesh that closely follows the contours of the new rocket asset\n   - Replace the current collision detection system (likely using simple shapes) with a mesh-based approach\n   - Implement efficient collision detection algorithms suitable for real-time gameplay\n   - Ensure collision response physics remain consistent with game design\n   - Add appropriate hitbox visualization for debug mode\n\n3. **Animated Thruster Effects**:\n   - Create or source a sprite sheet for thruster animation (recommended: 4-8 frames)\n   - Implement animation system for the thruster effects\n   - Tie animation state to player input (e.g., more intense animation when thrust is higher)\n   - Ensure proper positioning of thruster effects relative to the rocket\n   - Add appropriate particle effects to enhance the visual appeal\n\nPerformance considerations: The mesh-based collision should be optimized to maintain frame rate. Consider using simplified collision meshes rather than pixel-perfect collision if performance issues arise.\n\n**Implementation Notes:**\n- **Visual Upgrade:** Replaced placeholder rectangle with `rocket.png` for improved visual fidelity. Player-specific coloring retained via `setTint()` for differentiation, choosing this over complex shaders for simplicity.\n- **Collision Accuracy:** Replaced rectangular physics body with a more accurate 7-point vertex-based shape (`fromVertices`) derived from the asset image to improve collision detection. Iteratively adjusted vertices and visual offset (`visualOffsetY`) to align physics and visual representation. Moved vertex definition to shared package for client-server consistency.\n- **Physics/Visual Link:** Removed client-side visual interpolation (decoupling `gameObject` from `targetX/Y/Angle`). Visuals now directly mirror the (server-corrected) physics body state, prioritizing physics accuracy over potential visual smoothing.\n- **Thruster Effect:** Replaced static graphics thruster with a flickering `Sprite` using two images (`thruster_001.png`, `thruster_002.png`) as a preliminary animated effect. Adjusted position, scale, depth, and flicker rate based on visual feedback. Particle effects deferred.",
+      "testStrategy": "Testing should verify all three components function correctly:\n\n1. **Visual Testing**:\n   - Verify the rocket asset displays correctly at different screen resolutions\n   - Confirm the rocket rotates smoothly without visual artifacts\n   - Ensure the thruster animation plays correctly when thrust is applied\n   - Check that the animation intensity corresponds to thrust level\n   - Verify thruster position remains fixed relative to the rocket during movement\n\n2. **Collision Testing**:\n   - Test collision detection with various game objects (asteroids, power-ups, boundaries)\n   - Verify collisions are detected accurately at the visual edges of the rocket\n   - Test edge cases: high-speed collisions, glancing collisions, multi-point collisions\n   - Ensure no false positives/negatives in collision detection\n   - Measure performance impact of new collision system (should maintain target FPS)\n\n3. **Integration Testing**:\n   - Verify rocket controls remain responsive with new visuals\n   - Test game balance hasn't been affected by collision changes\n   - Ensure save/load functionality works with the new rocket implementation\n   - Test on minimum spec hardware to verify performance\n   - Verify the physics-visual coupling works correctly with server corrections\n   - Test player color tinting across different game scenarios\n\nCreate a debug visualization toggle to display collision meshes during testing.",
+      "status": "done",
       "dependencies": [
         2
       ],
@@ -547,8 +547,8 @@
           "dependencies": [
             2
           ],
-          "details": "Implementation steps:\n1. Implement polygon-polygon intersection algorithms for collision detection\n2. Modify the game's collision detection system to use the new mesh-based approach\n3. Optimize the collision detection for performance (consider spatial partitioning if needed)\n4. Ensure collision response physics remain consistent with game design\n5. Add configuration options to adjust collision precision vs. performance\n\nTesting approach:\n- Test collision detection with various game objects and scenarios\n- Benchmark performance to ensure frame rate remains acceptable\n- Compare collision behavior with previous system to ensure consistency\n- Test edge cases like high-speed collisions and near-misses",
-          "status": "pending",
+          "details": "Implementation steps:\n1. Implement polygon-polygon intersection algorithms for collision detection\n2. Modify the game's collision detection system to use the new mesh-based approach\n3. Optimize the collision detection for performance (consider spatial partitioning if needed)\n4. Ensure collision response physics remain consistent with game design\n5. Add configuration options to adjust collision precision vs. performance\n6. Move vertex definition to shared package for client-server consistency\n7. Implement the 7-point vertex-based shape using `fromVertices` derived from the asset image\n8. Adjust vertices and visual offset (`visualOffsetY`) to align physics and visual representation\n\nTesting approach:\n- Test collision detection with various game objects and scenarios\n- Benchmark performance to ensure frame rate remains acceptable\n- Compare collision behavior with previous system to ensure consistency\n- Test edge cases like high-speed collisions and near-misses\n- Verify client-server consistency with the shared vertex definitions",
+          "status": "done",
           "parentTaskId": 16
         },
         {
@@ -559,7 +559,7 @@
             1
           ],
           "details": "Implementation steps:\n1. Create or source a sprite sheet for thruster animation (4-8 frames)\n2. Add the thruster assets to the project's resource folder\n3. Implement a sprite animation system if not already present\n4. Create animation sequences for different thruster states (idle, low power, full power)\n5. Determine proper positioning of thruster effects relative to the rocket\n\nTesting approach:\n- Verify all animation frames display correctly\n- Test animation timing and transitions between states\n- Ensure thruster position remains correct during rocket movement and rotation",
-          "status": "in-progress",
+          "status": "done",
           "parentTaskId": 16
         },
         {
@@ -570,7 +570,40 @@
             4
           ],
           "details": "Implementation steps:\n1. Modify the player input handling to trigger appropriate thruster animations\n2. Implement intensity scaling based on thrust level\n3. Add a particle system for thruster exhaust effects\n4. Configure particles to match the thruster animation state\n5. Optimize particle effects for performance\n6. Add sound effects that correspond to thruster intensity\n\nTesting approach:\n- Test responsiveness of thruster effects to player input\n- Verify particle effects render correctly and match thruster animations\n- Ensure performance remains stable with multiple particle effects active\n- Test on different hardware to ensure effects scale appropriately",
-          "status": "pending",
+          "status": "done",
+          "parentTaskId": 16
+        },
+        {
+          "id": 6,
+          "title": "Implement Direct Physics-Visual Coupling",
+          "description": "Remove client-side visual interpolation and ensure visuals directly mirror the physics body state for improved accuracy.",
+          "dependencies": [
+            3
+          ],
+          "details": "Implementation steps:\n1. Remove the existing client-side visual interpolation system that decouples `gameObject` from `targetX/Y/Angle`\n2. Modify rendering code to directly use the physics body state for visual representation\n3. Ensure server corrections to physics state are properly reflected in visuals\n4. Test for visual artifacts or jitter that might result from this change\n5. Document the design decision prioritizing physics accuracy over visual smoothing\n\nTesting approach:\n- Compare visual behavior before and after the change\n- Test under various network conditions to ensure server corrections display properly\n- Verify that physics and visuals remain in sync during gameplay\n- Assess if any visual smoothing is still needed in specific scenarios",
+          "status": "done",
+          "parentTaskId": 16
+        },
+        {
+          "id": 7,
+          "title": "Enhance Thruster Visual Effects",
+          "description": "Improve the current flickering thruster effect with more sophisticated animation and potential particle effects.",
+          "dependencies": [
+            5
+          ],
+          "details": "Implementation steps:\n1. Evaluate the current flickering `Sprite` implementation using two thruster images\n2. Refine the flicker rate, position, scale, and depth based on visual feedback\n3. Consider implementing a more complex animation sequence if needed\n4. Assess the feasibility of adding particle effects as originally planned\n5. If implementing particles, create a configurable system that scales with thrust level\n\nTesting approach:\n- Gather feedback on the visual appeal of the thruster effects\n- Test performance impact of any new visual effects added\n- Verify thruster effects remain properly positioned during all rocket movements\n- Ensure effects scale appropriately with different thrust levels",
+          "status": "done",
+          "parentTaskId": 16
+        },
+        {
+          "id": 8,
+          "title": "Implement Player-Specific Rocket Coloring",
+          "description": "Ensure the rocket coloring system using setTint() works correctly for player differentiation.",
+          "dependencies": [
+            1
+          ],
+          "details": "Implementation steps:\n1. Review the current implementation of player-specific coloring using `setTint()`\n2. Test the coloring system with various player configurations\n3. Document the decision to use tinting over more complex shader approaches\n4. Ensure tint colors are visually distinct and maintain the rocket's visual details\n5. Create a color palette that works well with the rocket asset\n\nTesting approach:\n- Verify all player colors render correctly and are visually distinct\n- Test color persistence through different game states\n- Ensure colors don't interfere with visual effects like thruster animations\n- Test on different displays to ensure colors remain distinguishable",
+          "status": "done",
           "parentTaskId": 16
         }
       ]

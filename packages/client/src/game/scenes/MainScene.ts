@@ -26,7 +26,12 @@ import { DebugHud } from "../../ui/DebugHud"; // Import the new HUD class
 import {
   Constants, // Import the new constant
 } from "@one-button-to-space/shared"; // Import shared constant
-const { PLAYER_THRUST_FORCE, CLIENT_PHYSICS_CORRECTION_FACTOR } = Constants;
+const {
+  CLIENT_PHYSICS_CORRECTION_FACTOR,
+  CLIENT_POSITION_CORRECTION_THRESHOLD,
+  CLIENT_VELOCITY_CORRECTION_THRESHOLD,
+  CLIENT_ANGLE_CORRECTION_THRESHOLD,
+} = Constants;
 // Import shared physics logic using relative path
 import { PhysicsLogic } from "@one-button-to-space/shared";
 
@@ -596,68 +601,87 @@ export class MainScene extends Phaser.Scene {
         if (targetRocket?.body) {
           const correctionFactor = CLIENT_PHYSICS_CORRECTION_FACTOR;
 
-          // --- Physics Body Correction (Handle Sparse Delta) ---
-          let needsPosUpdate = false;
-          let correctedPosX = targetRocket.body.position.x;
-          let correctedPosY = targetRocket.body.position.y;
+          // --- Physics Body Correction (Handle Sparse Delta with Thresholds) ---
 
-          if (typeof state?.x === "number") {
-            correctedPosX = Phaser.Math.Linear(
-              targetRocket.body.position.x,
-              state.x,
-              correctionFactor
-            );
-            needsPosUpdate = true;
-          }
-          if (typeof state?.y === "number") {
-            correctedPosY = Phaser.Math.Linear(
-              targetRocket.body.position.y,
-              state.y,
-              correctionFactor
-            );
-            needsPosUpdate = true;
-          }
-          if (needsPosUpdate) {
-            MatterBody.setPosition(targetRocket.body, {
-              x: correctedPosX,
-              y: correctedPosY,
-            });
-          }
+          // Position Correction
+          if (typeof state?.x === "number" || typeof state?.y === "number") {
+            const currentPos = targetRocket.body.position;
+            const serverX = state.x ?? currentPos.x;
+            const serverY = state.y ?? currentPos.y;
+            const diffX = Math.abs(currentPos.x - serverX);
+            const diffY = Math.abs(currentPos.y - serverY);
 
-          let needsVelUpdate = false;
-          let correctedVelX = targetRocket.body.velocity.x;
-          let correctedVelY = targetRocket.body.velocity.y;
-
-          if (typeof state?.vx === "number") {
-            correctedVelX = Phaser.Math.Linear(
-              targetRocket.body.velocity.x,
-              state.vx,
-              correctionFactor
-            );
-            needsVelUpdate = true;
-          }
-          if (typeof state?.vy === "number") {
-            correctedVelY = Phaser.Math.Linear(
-              targetRocket.body.velocity.y,
-              state.vy,
-              correctionFactor
-            );
-            needsVelUpdate = true;
-          }
-          if (needsVelUpdate) {
-            MatterBody.setVelocity(targetRocket.body, {
-              x: correctedVelX,
-              y: correctedVelY,
-            });
+            if (
+              diffX > CLIENT_POSITION_CORRECTION_THRESHOLD ||
+              diffY > CLIENT_POSITION_CORRECTION_THRESHOLD
+            ) {
+              const correctedPosX = Phaser.Math.Linear(
+                currentPos.x,
+                serverX,
+                correctionFactor
+              );
+              const correctedPosY = Phaser.Math.Linear(
+                currentPos.y,
+                serverY,
+                correctionFactor
+              );
+              MatterBody.setPosition(targetRocket.body, {
+                x: correctedPosX,
+                y: correctedPosY,
+              });
+            }
           }
 
+          // Velocity Correction
+          if (typeof state?.vx === "number" || typeof state?.vy === "number") {
+            const currentVel = targetRocket.body.velocity;
+            const serverVx = state.vx ?? currentVel.x;
+            const serverVy = state.vy ?? currentVel.y;
+            const diffVx = Math.abs(currentVel.x - serverVx);
+            const diffVy = Math.abs(currentVel.y - serverVy);
+
+            if (
+              diffVx > CLIENT_VELOCITY_CORRECTION_THRESHOLD ||
+              diffVy > CLIENT_VELOCITY_CORRECTION_THRESHOLD
+            ) {
+              const correctedVelX = Phaser.Math.Linear(
+                currentVel.x,
+                serverVx,
+                correctionFactor
+              );
+              const correctedVelY = Phaser.Math.Linear(
+                currentVel.y,
+                serverVy,
+                correctionFactor
+              );
+              MatterBody.setVelocity(targetRocket.body, {
+                x: correctedVelX,
+                y: correctedVelY,
+              });
+            }
+          }
+
+          // Angle Correction
           if (typeof state?.angle === "number") {
-            const correctedAngle = Phaser.Math.Angle.RotateTo(
-              targetRocket.body.angle,
-              state.angle,
-              correctionFactor
+            const currentAngle = targetRocket.body.angle;
+            const serverAngle = state.angle;
+            // Use Phaser's angle difference function for proper wrapping
+            const diffAngle = Phaser.Math.Angle.ShortestBetween(
+              Phaser.Math.RadToDeg(currentAngle), // Convert to degrees for ShortestBetween
+              Phaser.Math.RadToDeg(serverAngle)
             );
-            MatterBody.setAngle(targetRocket.body, correctedAngle);
+
+            if (
+              Math.abs(Phaser.Math.DegToRad(diffAngle)) > // Convert back to radians for threshold comparison
+              CLIENT_ANGLE_CORRECTION_THRESHOLD
+            ) {
+              const correctedAngle = Phaser.Math.Angle.RotateTo(
+                currentAngle,
+                serverAngle,
+                correctionFactor
+              );
+              MatterBody.setAngle(targetRocket.body, correctedAngle);
+            }
           }
           // --- End Physics Body Correction ---
 
