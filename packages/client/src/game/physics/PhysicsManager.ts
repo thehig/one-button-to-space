@@ -6,7 +6,7 @@ import { Body as MatterBody } from "matter-js";
 import { Vector as MatterVector } from "matter-js";
 // Remove global namespace import
 // import "matter-js";
-import { PlanetData } from "../../colyseus/schema/State";
+import { PlanetData } from "../../schema/State";
 import { Planet } from "../entities/Planet";
 import { Logger } from "@one-button-to-space/shared";
 // @ts-ignore - Allow importing from shared potentially outside rootDir

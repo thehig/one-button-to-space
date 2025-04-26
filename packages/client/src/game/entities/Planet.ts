@@ -8,7 +8,6 @@ import { CollisionCategory } from "@one-button-to-space/shared";
 import { createNoise2D } from "simplex-noise"; // Import noise library
 // @ts-ignore - Allow importing from shared potentially outside rootDir
 import { Logger } from "@one-button-to-space/shared"; // Updated path
-import { PlanetData } from "../../colyseus/schema/State"; // Import schema type
 
 // Define the source constant for logging
 const LOGGER_SOURCE = "🪐✨"; // Chosen emojis for Planet

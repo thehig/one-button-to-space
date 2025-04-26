@@ -6,8 +6,7 @@ import { generatePlanetDataFromName } from "../utils/PlanetGenerator";
 import { ServerPhysicsManager } from "../physics/ServerPhysicsManager";
 import { Logger } from "@one-button-to-space/shared";
 
-import { Schema } from "@one-button-to-space/shared";
-const { RoomState, PlayerState, PlanetData } = Schema;
+import { RoomState, PlayerState, PlanetData } from "../schema/State";
 
 import { PlayerInputMessage } from "@one-button-to-space/shared";
 import { PhysicsLogic } from "@one-button-to-space/shared";

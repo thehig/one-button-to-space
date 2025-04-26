@@ -2,7 +2,7 @@ import * as Colyseus from "colyseus.js";
 // Import the configuration file
 import { config } from "@one-button-to-space/shared";
 // Import the state schema definitions
-import { RoomState, PlayerState, PlanetData } from "../colyseus/schema/State"; // PlanetData now includes config
+import { RoomState, PlayerState, PlanetData } from "../schema/State"; // PlanetData now includes config
 import { Logger, LogLevel } from "@one-button-to-space/shared"; // Updated path
 // Import Player Input type
 import { PlayerInputMessage } from "@one-button-to-space/shared"; // Add this import
@@ -344,7 +344,7 @@ export class MultiplayerService {
     ); // Replaced console.log
     this.planetAddListeners.slice().forEach((listener) => {
       try {
-        listener(planetId, { ...data }); // Send a copy
+        listener(planetId, { ...data } as PlanetData); // Send a copy
       } catch (error) {
         console.error(
           "MultiplayerService: Error in planet add listener:",
@@ -361,7 +361,7 @@ export class MultiplayerService {
     ); // Replaced console.log
     this.planetUpdateListeners.slice().forEach((listener) => {
       try {
-        listener(planetId, { ...data }); // Send a copy
+        listener(planetId, { ...data } as PlanetData); // Send a copy
       } catch (error) {
         console.error(
           "MultiplayerService: Error in planet update listener:",
@@ -547,14 +547,14 @@ export class MultiplayerService {
 
           if (!localPlayerIds.has(playerId)) {
             Logger.debug(LOGGER_SOURCE, `Player joined: ${playerId}`); // Use constant
-            const clonedState = { ...playerState };
+            const clonedState = { ...playerState } as PlayerState;
             this.players.set(playerId, clonedState);
             this.notifyPlayerAdded(playerId, clonedState);
           } else {
             const localPlayer = this.players.get(playerId);
             // Basic check for update - consider deep comparison if needed
             if (JSON.stringify(localPlayer) !== JSON.stringify(playerState)) {
-              const clonedState = { ...playerState };
+              const clonedState = { ...playerState } as PlayerState;
               this.players.set(playerId, clonedState);
               this.notifyPlayerUpdated(playerId, clonedState);
             }
@@ -610,7 +610,7 @@ export class MultiplayerService {
             return;
           }
 
-          const clonedData = { ...planetData };
+          const clonedData = { ...planetData } as PlanetData;
           if (!localPlanetIds.has(planetId)) {
             Logger.debug(
               LOGGER_SOURCE,

@@ -99,6 +99,9 @@ importers:
 
   packages/client:
     dependencies:
+      '@colyseus/schema':
+        specifier: 'catalog:'
+        version: 3.0.35
       '@one-button-to-space/shared':
         specifier: workspace:*
         version: link:../shared

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@one-button-to-space/shared": "workspace:*",
+    "@colyseus/schema": "catalog:",
     "colyseus.js": "catalog:",
     "phaser": "catalog:",
     "simplex-noise": "catalog:"

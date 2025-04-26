@@ -14,7 +14,7 @@ import {
   ConnectionStatus,
   PhysicsUpdateListener,
 } from "../../services/MultiplayerService"; // Adjust path as needed, import instance
-import { PlayerState, PlanetData } from "../../colyseus/schema/State"; // Adjust path, ADD PlanetData
+import { PlayerState, PlanetData } from "../../schema/State"; // Adjust path, ADD PlanetData
 // Import PlayerInputMessage from shared types
 import { PlayerInputMessage } from "@one-button-to-space/shared"; // Corrected import path
 // Import matter-js to make MatterJS global namespace available
