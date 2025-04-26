@@ -32,15 +32,6 @@ export class Rocket {
   public ownerId: string;
   public isThrusting: boolean = false;
 
-  // --- Interpolation Targets (set by MainScene from server updates) ---
-  public targetX: number;
-  public targetY: number;
-  public targetAngle: number; // In radians
-  // Optional: Add target velocities if needed for more advanced interpolation/prediction
-  // public targetVx: number = 0;
-  // public targetVy: number = 0;
-  // public targetAngularVelocity: number = 0;
-
   // Define physics properties
   private rocketWidth = 40; // Slightly narrower than visual for better collision feel
   private rocketHeight = 100;
@@ -176,46 +167,19 @@ export class Rocket {
     this.thrustPolygon.setVisible(false);
     this.gameObject.add(this.thrustPolygon);
     Logger.info(LOGGER_SOURCE, `Thrust graphics added for ${ownerId}.`);
-
-    // Initialize target positions
-    this.targetX = x;
-    this.targetY = y;
-    this.targetAngle = initialAngle;
   }
 
   /**
-   * Updates the rocket's visual representation via interpolation.
+   * Updates the rocket's visual representation to match its physics body.
    * @param delta The time elapsed since the last frame in milliseconds.
    */
   update(delta: number): void {
-    const isLocalPlayer = this.ownerId === multiplayerService.getSessionId();
-
-    // Use different interpolation factors based on whether it's the local player
-    const lerpFactor = isLocalPlayer ? 0.7 : 0.2; // Faster follow for local
-    const angleLerpFactor = isLocalPlayer ? 0.7 : 0.2; // Faster follow for local
-
-    const adjustedLerp = lerpFactor * (delta / 16.666); // Frame-rate adjust
-    const adjustedAngleLerp = angleLerpFactor * (delta / 16.666);
-
-    // Always interpolate towards target state, but with adjusted factors
-    this.gameObject.x = Phaser.Math.Linear(
-      this.gameObject.x,
-      this.targetX,
-      adjustedLerp
-    );
-    this.gameObject.y = Phaser.Math.Linear(
-      this.gameObject.y,
-      this.targetY,
-      adjustedLerp
-    );
-
-    // Interpolate angle (use RotateTo for wrapping)
-    const targetVisualRotation = this.targetAngle;
-    this.gameObject.rotation = Phaser.Math.Angle.RotateTo(
-      this.gameObject.rotation, // Current visual rotation
-      targetVisualRotation, // Target visual rotation
-      adjustedAngleLerp // Smoothness factor
-    );
+    // ADD Direct setting from physics body
+    if (this.body) {
+      this.gameObject.x = this.body.position.x;
+      this.gameObject.y = this.body.position.y;
+      this.gameObject.rotation = this.body.angle;
+    }
 
     // Thrust visibility - Use the isThrusting property
     this.thrustPolygon?.setVisible(this.isThrusting);

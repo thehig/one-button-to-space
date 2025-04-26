@@ -72,7 +72,7 @@ Testing approach:
 - Test rotation and movement to ensure the rocket behaves as expected
 - Verify the rocket maintains proper scale across different screen resolutions
 
-## 2. Create Collision Mesh for Rocket [in-progress]
+## 2. Create Collision Mesh for Rocket [done]
 ### Dependencies: 16.1
 ### Description: Design and implement a collision mesh that accurately follows the contours of the new rocket asset for more precise collision detection.
 ### Details:

@@ -658,12 +658,6 @@ export class MainScene extends Phaser.Scene {
           }
           // --- End Physics Body Correction ---
 
-          // ALSO update the interpolation targets for the visual smoothing
-          if (typeof state?.x === "number") targetRocket.targetX = state.x;
-          if (typeof state?.y === "number") targetRocket.targetY = state.y;
-          if (typeof state?.angle === "number")
-            targetRocket.targetAngle = state.angle;
-
           // Set thrust state based on server update
           if (typeof state?.isThrusting === "boolean") {
             targetRocket.isThrusting = state.isThrusting;
@@ -694,21 +688,10 @@ export class MainScene extends Phaser.Scene {
             // We don't set velocity/angularVel for remote, let interpolation handle visuals
           }
 
-          // Set the target properties for interpolation (visuals will smoothly move towards this)
-          if (typeof state?.x === "number") targetRocket.targetX = state.x;
-          if (typeof state?.y === "number") targetRocket.targetY = state.y;
-          if (typeof state?.angle === "number")
-            targetRocket.targetAngle = state.angle;
           // Set thrust state based on server update
           if (typeof state?.isThrusting === "boolean") {
             targetRocket.isThrusting = state.isThrusting;
           }
-          // Optional: Target velocities for remote interpolation (if used by Rocket.update)
-          // if (typeof state.vx === "number") targetRocket.targetVx = state.vx;
-          // if (typeof state.vy === "number") targetRocket.targetVy = state.vy;
-          // if (typeof state.angularVelocity === "number") targetRocket.targetAngularVelocity = state.angularVelocity;
-
-          // REMOVED Obsolete TODO
         } else {
           // This could happen if a state update arrives before the player add notification?
           Logger.warn(
