@@ -537,7 +537,7 @@
             1
           ],
           "details": "Implementation steps:\n1. Analyze the new rocket asset to determine appropriate collision points\n2. Create a polygon-based collision mesh that follows the rocket's contours\n3. Implement a data structure to store the collision mesh vertices\n4. Add a utility function to transform the mesh based on rocket position and rotation\n5. Create a debug visualization mode to display the collision mesh\n\nTesting approach:\n- Use debug visualization to verify the mesh properly follows the rocket's shape\n- Test the mesh transformation with various rocket positions and rotations\n- Verify the collision mesh updates correctly during gameplay",
-          "status": "pending",
+          "status": "in-progress",
           "parentTaskId": 16
         },
         {

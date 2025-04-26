@@ -45,9 +45,8 @@ export class Rocket {
   private rocketWidth = 40; // Slightly narrower than visual for better collision feel
   private rocketHeight = 100;
   private rocketMass = 10;
-  // Visuals align with physics body directly
-  // Define offsets here for clarity
-  private visualOffsetY = 0; // Main visual centered on body
+  // Visual Offset: Adjust Y position of the image relative to the physics body center
+  private visualOffsetY = -11; // Try shifting image slightly more backward
 
   /**
    * Generates a deterministic hexadecimal color number from a string ID.
@@ -81,12 +80,23 @@ export class Rocket {
     this.scene = scene;
     this.ownerId = ownerId;
 
-    // --- 1. Create Physics Body ---
-    this.body = this.scene.matter.add.rectangle(
+    // --- Define Vertices for Collision Shape based on rocket.png ---
+    // Relative to center (0,0), physics body height=100
+    const rocketVertices = [
+      { x: 0, y: -50 }, // Nose tip
+      { x: 10, y: -40 }, // Right shoulder (narrower)
+      { x: 10, y: 35 }, // Right side base (narrower)
+      { x: 20, y: 50 }, // Right fin tip (slightly narrower)
+      { x: -20, y: 50 }, // Left fin tip (slightly narrower)
+      { x: -10, y: 35 }, // Left side base (narrower)
+      { x: -10, y: -40 }, // Left shoulder (narrower)
+    ];
+
+    // --- 1. Create Physics Body using Vertices ---
+    this.body = this.scene.matter.add.fromVertices(
       x,
       y,
-      this.rocketWidth,
-      this.rocketHeight,
+      rocketVertices, // Use the defined vertices
       {
         mass: this.rocketMass,
         friction: 0.05,
@@ -97,11 +107,13 @@ export class Rocket {
           category: CollisionCategory.ROCKET,
           mask: CollisionCategory.GROUND | CollisionCategory.ROCKET,
         },
+        // Consider chamfer if collisions feel too sharp later
+        // chamfer: { radius: 3 }
       }
     ) as MatterBody;
     Logger.info(
       LOGGER_SOURCE,
-      `Matter body created for ${ownerId} with filter:`,
+      `Matter body created from vertices for ${ownerId} with filter:`,
       this.body.collisionFilter
     );
     MatterBody.setAngle(this.body, initialAngle);
@@ -133,7 +145,7 @@ export class Rocket {
     */
 
     // ADD Rocket Image Visual using preloaded asset
-    this.rocketImage = this.scene.add.image(0, 0, "rocket");
+    this.rocketImage = this.scene.add.image(0, this.visualOffsetY, "rocket"); // Apply Y offset here
     this.rocketImage.setOrigin(0.5, 0.5); // Center the origin
     this.rocketImage.setDisplaySize(this.rocketWidth, this.rocketHeight); // Match physics size
     // Apply the generated color as a tint
