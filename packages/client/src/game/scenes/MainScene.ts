@@ -121,6 +121,9 @@ export class MainScene extends Phaser.Scene {
       return;
     }
 
+    // Calculate UPS from delta
+    const ups = delta > 0 ? 1000 / delta : 0; // Avoid division by zero
+
     // --- Apply Local Predicted Input Forces (BEFORE physics step/server correction) ---
     /* // REMOVED: Local force application to prevent judder
     if (this.isLocalThrusting && this.rocket?.body) {
@@ -141,8 +144,8 @@ export class MainScene extends Phaser.Scene {
 
     // Update local rocket visuals via interpolation (if it exists)
     if (this.rocket) {
-      this.rocket.update(delta); // Rocket update now only handles interpolation
-      this.updateUIElements(); // Update HUD
+      this.rocket.update(delta);
+      this.updateUIElements(ups); // Pass calculated UPS
     }
 
     // --- Update Remote Rockets ---
@@ -421,7 +424,7 @@ export class MainScene extends Phaser.Scene {
     // }
   }
 
-  private updateUIElements(): void {
+  private updateUIElements(currentUps: number): void {
     // Guard moved to the main update loop
     if (this.rocket?.body && this.debugHud) {
       // Check rocket and body exist
@@ -454,6 +457,7 @@ export class MainScene extends Phaser.Scene {
         density: density, // Pass calculated density
         currentTimeString: Logger.getCurrentTimestampString(),
         fps: fps, // Pass FPS
+        ups: currentUps, // Pass UPS
       });
     }
   }
