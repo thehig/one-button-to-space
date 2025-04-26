@@ -39,10 +39,10 @@ alwaysApply: true
     -   Do not make unrelated changes to files outside the scope of the active task/subtask.
     -   If changes to other files seem absolutely necessary, **ASK THE USER FOR PERMISSION FIRST.** Explain why you think the change is needed.
 
--   **‼️ VERY IMPORTANT: ALWAYS USE WINDOWS PATHING ‼️**
-    -   **Use backslashes (`\`) for directory separators.** Example: `src\components\Button.tsx`
-    -   **DO NOT use forward slashes (`/`)**.
-    -   This applies to all file paths provided in prompts, tool calls, code generation, and explanations.
+-   **🚨🚨🚨 ABSOLUTELY CRITICAL: ALWAYS USE WINDOWS PATHING 🚨🚨🚨**
+    -   **Use backslashes (`\`) for ALL directory separators.** Example: `packages\server\src\schema\State.ts`
+    -   **NEVER use forward slashes (`/`)**. This will break things.
+    -   This applies to **EVERYTHING**: file paths in prompts, code generation, explanations, tool call arguments, and **ESPECIALLY Taskmaster commands** (like `input` or `output` paths).
 
 ---
 
