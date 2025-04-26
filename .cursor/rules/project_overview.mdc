@@ -1,0 +1,55 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+## Project Overview
+
+-   **Type:** Typescript Monorepo
+-   **Package Manager:** pnpm
+-   **Structure:** Contains `client`, `server`, and `shared` packages. (Further details TBD)
+-   **Technology Stack:**
+    -   **Language:** TypeScript
+    -   **Server:** Node.js, Express, Colyseus
+    -   **Client:** React (with Vite), Phaser, Matter.js
+    -   **Shared:** @colyseus/schema
+
+---
+
+## Development Workflow (Task-Based)
+
+1.  **Select Task:** Identify the next task using `next_task`.
+2.  **Set Status:** Mark the chosen task/subtask as `in-progress` using `set_task_status`.
+3.  **Implement:** Work on the code changes required for the task.
+4.  **Commit Changes:**
+    -   Make one or more logical commits for the changes. Use clear commit messages referencing the task/subtask ID.
+5.  **Verify:** Ensure the implementation meets task requirements and passes any relevant tests (see [`tests.mdc`](mdc:.cursor/rules/tests.mdc)).
+6.  **Mark Done:** Set the task/subtask status to `done` using `set_task_status`.
+7.  **Final Commit:** Make a final commit marking the task as complete.
+
+---
+
+## Critical Reminders for LLMs
+
+-   **🛑 STOP 🛑: ALWAYS ASK FOR USER INPUT BEFORE STARTING A NEW TASK.**
+    -   Do not assume you should proceed to the next task automatically.
+    -   Confirm with the user before using `next_task` or selecting any task not explicitly assigned.
+
+-   **🛑 STOP 🛑: ONLY MODIFY FILES RELEVANT TO THE CURRENT TASK.**
+    -   Do not make unrelated changes to files outside the scope of the active task/subtask.
+    -   If changes to other files seem absolutely necessary, **ASK THE USER FOR PERMISSION FIRST.** Explain why you think the change is needed.
+
+-   **‼️ VERY IMPORTANT: ALWAYS USE WINDOWS PATHING ‼️**
+    -   **Use backslashes (`\`) for directory separators.** Example: `src\components\Button.tsx`
+    -   **DO NOT use forward slashes (`/`)**.
+    -   This applies to all file paths provided in prompts, tool calls, code generation, and explanations.
+
+---
+
+## Testing Guidance
+
+-   **User-Driven Testing:** Heavily rely on the user for testing at all stages.
+    -   Do not assume functionality works without user confirmation.
+    -   Proactively ask the user to test specific features or changes.
+    -   Inquire about edge cases or specific scenarios the user wants tested.
+-   Refer to [`tests.mdc`](mdc:.cursor/rules/tests.mdc) for general testing strategies, but prioritize user feedback and specific requests.
