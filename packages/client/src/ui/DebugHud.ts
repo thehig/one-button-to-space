@@ -11,6 +11,7 @@ interface HudData {
   angleDeg: number;
   density: number;
   currentTimeString: string;
+  fps: number; // Added FPS field
 }
 
 const VECTOR_SCALE = 5; // Adjust this to scale the vector line length
@@ -54,7 +55,8 @@ export class DebugHud {
         `Speed: ${data.speed.toFixed(2)}\n` +
         `Angle: ${data.angleDeg.toFixed(1)}°\n` +
         `Density: ${data.density.toFixed(4)}\n` +
-        `Time: ${data.currentTimeString}`
+        `Time: ${data.currentTimeString}\n` + // Added newline
+        `FPS: ${data.fps.toFixed(1)}` // Display FPS
     );
 
     // Update Velocity Vector

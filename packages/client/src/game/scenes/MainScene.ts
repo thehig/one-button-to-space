@@ -441,6 +441,9 @@ export class MainScene extends Phaser.Scene {
         }))
       );
 
+      // Get FPS
+      const fps = this.game.loop.actualFps;
+
       this.debugHud.update({
         posX: pos.x,
         posY: pos.y,
@@ -450,6 +453,7 @@ export class MainScene extends Phaser.Scene {
         angleDeg: angleDeg,
         density: density, // Pass calculated density
         currentTimeString: Logger.getCurrentTimestampString(),
+        fps: fps, // Pass FPS
       });
     }
   }
