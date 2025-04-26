@@ -106,6 +106,16 @@ export class MainScene extends Phaser.Scene {
 ```
 </info added on 2025-04-22T19:48:06.966Z>
 
+<info added on 2025-04-26T10:28:39.319Z>
+**Verification Notes (2024-07-27):**
+- Implemented as described.
+- `matter-js` types found in `devDependencies` (likely bundled with Phaser).
+- Phaser config in `main.ts` sets `default: 'matter'` and disables world gravity (`gravity: {x: 0, y: 0}`).
+- `PhysicsManager` found in `packages/client/src/game/physics` initializes Matter engine from scene (`scene.matter.world.engine`) and disables world gravity again.
+- `PhysicsManager` hooks its update logic into `scene.matter.world.on('beforeupdate', ...)`.
+- `MainScene` instantiates `PhysicsManager` in `setupPhysics()`.
+</info added on 2025-04-26T10:28:39.319Z>
+
 ## 2. Implement Rocket as Physics Body [done]
 ### Dependencies: 3.1
 ### Description: Create the rocket as a physics body with appropriate mass, shape, and physical properties.
@@ -118,6 +128,16 @@ export class MainScene extends Phaser.Scene {
 6. Connect the physics body to the rocket's visual representation
 7. Test by applying forces and verifying the rocket moves according to physics rules
 
+<info added on 2025-04-26T10:29:04.940Z>
+**Verification Notes (2024-07-27):**
+- Partially implemented (adapted for multiplayer).
+- `Rocket.ts` found in `packages/client/src/game/entities`.
+- Creates a `Matter.Body` using `scene.matter.add.rectangle` with appropriate properties (mass, friction, label, collisionFilter).
+- Contains a `Phaser.GameObjects.Container` for visuals.
+- **Deviation:** Does not use `scene.matter.add.gameObject`. Instead, `Rocket.update` interpolates the visual `Container` towards server-provided target position/angle (`targetX`, `targetY`, `targetAngle`).
+- **Deviation:** No client-side methods for applying forces (`applyForce`, `setAngularVelocity`). Input is sent to server, which controls the physics state.
+</info added on 2025-04-26T10:29:04.940Z>
+
 ## 3. Implement Collision Detection System [done]
 ### Dependencies: 3.1, 3.2
 ### Description: Set up collision detection for the rocket with other objects in the physics world.
@@ -129,6 +149,16 @@ export class MainScene extends Phaser.Scene {
 5. Add methods to detect and respond to landing conditions
 6. Create a system to track collision data for game logic
 7. Test by creating test objects and verifying collision detection works correctly
+
+<info added on 2025-04-26T10:29:24.914Z>
+**Verification Notes (2024-07-27):**
+- Implemented as described.
+- Collision categories (`ROCKET`, `GROUND`) defined in shared package (`@one-button-to-space/shared`) and imported.
+- `collisionFilter` properties (category and mask) are set on `Rocket` and `Planet` bodies during creation.
+- `MainScene` sets up collision handling in `setupCollisions()`.
+- `MainScene` listens for Matter collision events (`this.matter.world.on('collisionstart', ...)`).
+- A `handleCollisionStart` method exists in `MainScene` to process these events.
+</info added on 2025-04-26T10:29:24.914Z>
 
 ## 4. Create Planetary Body with Gravity [done]
 ### Dependencies: 3.1
@@ -270,6 +300,16 @@ For implementing the planetary body with gravity, here's a detailed implementati
    ```
 </info added on 2025-04-22T20:15:25.364Z>
 
+<info added on 2025-04-26T10:29:47.699Z>
+**Verification Notes (2024-07-27):**
+- Implemented as described.
+- `Planet.ts` found in `packages/client/src/game/entities`.
+- Creates a static (`isStatic: true`) `Matter.Body` using `scene.matter.add.circle` with configured radius, mass, and collision filter.
+- Generates a procedural visual using `simplex-noise` and applies it to a `Phaser.GameObjects.Sprite`.
+- Contains a `getDensityAt` method to calculate atmospheric density based on distance and config (`atmosphereHeight`, `surfaceDensity`).
+- **Note:** Gravity is not applied within `Planet.ts`. Instead, its body and mass are registered as a `GravitySource` with `PhysicsManager`, which handles the gravity calculation externally.
+</info added on 2025-04-26T10:29:47.699Z>
+
 ## 5. Implement Variable Gravity System [done]
 ### Dependencies: 3.1, 3.2, 3.4
 ### Description: Create a system for variable gravity that changes based on distance to celestial bodies.
@@ -301,4 +341,14 @@ Here's the implementation plan to add:
    - Call `this.physicsManager.registerGravitySource(this.planetBody, planetMass);`.
 4. **Test:** Verify rocket is pulled towards planet center.
 </info added on 2025-04-22T20:55:06.315Z>
+
+<info added on 2025-04-26T10:30:19.791Z>
+**Verification Notes (2024-07-27):**
+- Implemented as described.
+- Default world gravity is confirmed disabled in `main.ts` and `PhysicsManager`.
+- `PhysicsManager` maintains a list of `gravitySources`.
+- `PhysicsManager.update` (hooked to `beforeupdate`) iterates through dynamic bodies (currently just the registered `rocket`) and `gravitySources`.
+- Gravity force calculation and application logic (`calculateAndApplyGravity`) is delegated to the shared `@one-button-to-space/shared/PhysicsLogic` module.
+- Air resistance/drag calculation (`calculateDensityAt`) and application (`calculateAndApplyAirResistance`) are also delegated to the shared `PhysicsLogic` module, using density data potentially provided by multiple `Planet` objects.
+</info added on 2025-04-26T10:30:19.791Z>
 
