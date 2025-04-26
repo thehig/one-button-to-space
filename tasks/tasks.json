@@ -504,9 +504,76 @@
       "description": "Migrate client, server, and shared code into a monorepo structure using npm/yarn/pnpm workspaces for better code sharing and dependency management. Original files have been moved to a 'monorepo-conversion' directory to ensure a clean workspace.",
       "details": "## Implementation Steps:\n\n1. **Setup Root Configuration**\n   - Create/update root package.json with workspace definition (e.g., `\"workspaces\": [\"packages/*\"]`)\n   - Set up base tsconfig.json with common compiler options\n   - Add .gitignore for node_modules at root and package levels\n\n2. **Create Packages Structure**\n   - Create packages/ directory at project root\n   - Create subdirectories: packages/client/, packages/server/, packages/shared/\n\n3. **Migrate Client Code**\n   - Copy relevant client code from monorepo-conversion/src/ to packages/client/src/\n   - Copy client assets from monorepo-conversion/public/ to packages/client/public/\n   - Create client package.json with appropriate dependencies (reference original package.json)\n   - Add dependency on shared package (e.g., `\"@one-button-to-space/shared\": \"*\"`)\n   - Create client-specific tsconfig.json extending from root\n   - Update build paths and scripts\n\n4. **Migrate Server Code**\n   - Copy server code from monorepo-conversion/server/ to packages/server/src/\n   - Create server package.json with appropriate dependencies (reference original package.json)\n   - Add dependency on shared package\n   - Create server-specific tsconfig.json extending from root\n   - Update build paths and scripts\n\n5. **Set Up Shared Package**\n   - Copy shared code from monorepo-conversion/shared/ to packages/shared/src/\n   - Create package.json with name `@one-button-to-space/shared`\n   - Configure for proper TypeScript declarations\n   - Set up build process to generate distributable files\n\n6. **Refactor Import Statements**\n   - Update all imports in client and server to use the shared package\n   - Replace relative imports (../../shared) with package imports (@one-button-to-space/shared)\n\n7. **Package Installation**\n   - Run workspace-aware install from root (npm/yarn/pnpm install)\n   - Verify node_modules structure and hoisting\n\n8. **Root Scripts Configuration**\n   - Add scripts to root package.json for managing workspaces:\n     - `\"build\": \"npm run build --workspaces\"`\n     - `\"dev\": \"npm run dev --workspaces --parallel\"`\n     - `\"test\": \"npm run test --workspaces\"`\n     - Add other workspace management scripts as needed\n\n9. **Update CI/CD Pipeline**\n   - Modify CI/CD configuration to work with monorepo structure\n   - Update build and deployment scripts\n\n10. **Configuration Files Migration**\n    - Review and migrate relevant configuration from monorepo-conversion/config/ to appropriate packages\n    - Update paths and references in configuration files to match new structure\n\n11. **Cleanup**\n    - After successful testing, remove the temporary monorepo-conversion directory",
       "testStrategy": "## Testing Approach:\n\n1. **Build Verification**\n   - Run `npm run build` at root level\n   - Verify all packages build successfully without errors\n   - Check that output directories contain expected files\n\n2. **Functionality Testing**\n   - Start both client and server applications\n   - Verify all core functionality works as before\n   - Test all major user flows to ensure nothing broke during migration\n   - Compare behavior with the original implementation in monorepo-conversion directory\n\n3. **Shared Code Propagation Test**\n   - Make a change to a type or function in the shared package\n   - Rebuild all packages (`npm run build`)\n   - Verify the change is correctly reflected in both client and server\n   - Test functionality that depends on the modified shared code\n\n4. **Package Dependency Test**\n   - Add a new function or type to the shared package\n   - Import and use it in both client and server\n   - Verify it works correctly in both places\n\n5. **Development Workflow Test**\n   - Test the development workflow with the new structure\n   - Verify hot reloading works correctly\n   - Ensure developers can easily run and test individual packages\n\n6. **CI Pipeline Test**\n   - Run the updated CI pipeline\n   - Verify all build, test, and deployment steps complete successfully\n\n7. **Side-by-Side Comparison**\n   - Run the original application from monorepo-conversion directory\n   - Run the new monorepo version\n   - Compare functionality, performance, and behavior to ensure equivalence",
-      "status": "in-progress",
+      "status": "done",
       "dependencies": [],
       "priority": "medium"
+    },
+    {
+      "id": 16,
+      "title": "Upgrade Rocket Visuals and Implement Precise Collision Detection",
+      "description": "Replace the placeholder rocket graphic with a high-quality image asset, implement a mesh-based collision detection system, and add animated thruster effects to enhance gameplay visuals and physics.",
+      "details": "This task involves three main components:\n\n1. **Rocket Asset Replacement**:\n   - Source or create a detailed rocket image asset (recommended dimensions: 128x256px with transparent background)\n   - Implement the new asset in the game's rendering system\n   - Ensure proper scaling and rotation of the new asset\n   - Maintain the rocket's center of mass at the appropriate position\n\n2. **Mesh-based Collision Detection**:\n   - Create a collision mesh that closely follows the contours of the new rocket asset\n   - Replace the current collision detection system (likely using simple shapes) with a mesh-based approach\n   - Implement efficient collision detection algorithms suitable for real-time gameplay\n   - Ensure collision response physics remain consistent with game design\n   - Add appropriate hitbox visualization for debug mode\n\n3. **Animated Thruster Effects**:\n   - Create or source a sprite sheet for thruster animation (recommended: 4-8 frames)\n   - Implement animation system for the thruster effects\n   - Tie animation state to player input (e.g., more intense animation when thrust is higher)\n   - Ensure proper positioning of thruster effects relative to the rocket\n   - Add appropriate particle effects to enhance the visual appeal\n\nPerformance considerations: The mesh-based collision should be optimized to maintain frame rate. Consider using simplified collision meshes rather than pixel-perfect collision if performance issues arise.",
+      "testStrategy": "Testing should verify all three components function correctly:\n\n1. **Visual Testing**:\n   - Verify the rocket asset displays correctly at different screen resolutions\n   - Confirm the rocket rotates smoothly without visual artifacts\n   - Ensure the thruster animation plays correctly when thrust is applied\n   - Check that the animation intensity corresponds to thrust level\n   - Verify thruster position remains fixed relative to the rocket during movement\n\n2. **Collision Testing**:\n   - Test collision detection with various game objects (asteroids, power-ups, boundaries)\n   - Verify collisions are detected accurately at the visual edges of the rocket\n   - Test edge cases: high-speed collisions, glancing collisions, multi-point collisions\n   - Ensure no false positives/negatives in collision detection\n   - Measure performance impact of new collision system (should maintain target FPS)\n\n3. **Integration Testing**:\n   - Verify rocket controls remain responsive with new visuals\n   - Test game balance hasn't been affected by collision changes\n   - Ensure save/load functionality works with the new rocket implementation\n   - Test on minimum spec hardware to verify performance\n\nCreate a debug visualization toggle to display collision meshes during testing.",
+      "status": "pending",
+      "dependencies": [
+        2
+      ],
+      "priority": "high",
+      "subtasks": [
+        {
+          "id": 1,
+          "title": "Source and Integrate New Rocket Asset",
+          "description": "Source or create a high-quality rocket image and integrate it into the game's rendering system, replacing the current placeholder graphic.",
+          "dependencies": [],
+          "details": "Implementation steps:\n1. Source or create a detailed rocket image (128x256px with transparent background)\n2. Add the new asset to the project's resource folder\n3. Update the asset loading code to reference the new rocket image\n4. Modify the rendering code to use the new asset instead of the placeholder\n5. Ensure proper scaling and rotation of the new asset\n6. Verify the rocket's center of mass is correctly positioned\n\nTesting approach:\n- Visually confirm the new rocket renders correctly in different game states\n- Test rotation and movement to ensure the rocket behaves as expected\n- Verify the rocket maintains proper scale across different screen resolutions",
+          "status": "pending",
+          "parentTaskId": 16
+        },
+        {
+          "id": 2,
+          "title": "Create Collision Mesh for Rocket",
+          "description": "Design and implement a collision mesh that accurately follows the contours of the new rocket asset for more precise collision detection.",
+          "dependencies": [
+            1
+          ],
+          "details": "Implementation steps:\n1. Analyze the new rocket asset to determine appropriate collision points\n2. Create a polygon-based collision mesh that follows the rocket's contours\n3. Implement a data structure to store the collision mesh vertices\n4. Add a utility function to transform the mesh based on rocket position and rotation\n5. Create a debug visualization mode to display the collision mesh\n\nTesting approach:\n- Use debug visualization to verify the mesh properly follows the rocket's shape\n- Test the mesh transformation with various rocket positions and rotations\n- Verify the collision mesh updates correctly during gameplay",
+          "status": "pending",
+          "parentTaskId": 16
+        },
+        {
+          "id": 3,
+          "title": "Implement Mesh-based Collision Detection System",
+          "description": "Replace the current collision detection with a mesh-based system that uses the new collision mesh for more accurate collision detection.",
+          "dependencies": [
+            2
+          ],
+          "details": "Implementation steps:\n1. Implement polygon-polygon intersection algorithms for collision detection\n2. Modify the game's collision detection system to use the new mesh-based approach\n3. Optimize the collision detection for performance (consider spatial partitioning if needed)\n4. Ensure collision response physics remain consistent with game design\n5. Add configuration options to adjust collision precision vs. performance\n\nTesting approach:\n- Test collision detection with various game objects and scenarios\n- Benchmark performance to ensure frame rate remains acceptable\n- Compare collision behavior with previous system to ensure consistency\n- Test edge cases like high-speed collisions and near-misses",
+          "status": "pending",
+          "parentTaskId": 16
+        },
+        {
+          "id": 4,
+          "title": "Create Thruster Animation Assets and System",
+          "description": "Design and implement the animation system for rocket thrusters, including creating or sourcing appropriate sprite sheets.",
+          "dependencies": [
+            1
+          ],
+          "details": "Implementation steps:\n1. Create or source a sprite sheet for thruster animation (4-8 frames)\n2. Add the thruster assets to the project's resource folder\n3. Implement a sprite animation system if not already present\n4. Create animation sequences for different thruster states (idle, low power, full power)\n5. Determine proper positioning of thruster effects relative to the rocket\n\nTesting approach:\n- Verify all animation frames display correctly\n- Test animation timing and transitions between states\n- Ensure thruster position remains correct during rocket movement and rotation",
+          "status": "pending",
+          "parentTaskId": 16
+        },
+        {
+          "id": 5,
+          "title": "Integrate Thruster Effects with Player Input",
+          "description": "Connect the thruster animation system to player input and add particle effects to enhance visual appeal.",
+          "dependencies": [
+            4
+          ],
+          "details": "Implementation steps:\n1. Modify the player input handling to trigger appropriate thruster animations\n2. Implement intensity scaling based on thrust level\n3. Add a particle system for thruster exhaust effects\n4. Configure particles to match the thruster animation state\n5. Optimize particle effects for performance\n6. Add sound effects that correspond to thruster intensity\n\nTesting approach:\n- Test responsiveness of thruster effects to player input\n- Verify particle effects render correctly and match thruster animations\n- Ensure performance remains stable with multiple particle effects active\n- Test on different hardware to ensure effects scale appropriately",
+          "status": "pending",
+          "parentTaskId": 16
+        }
+      ]
     }
   ],
   "metadata": {

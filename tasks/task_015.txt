@@ -1,6 +1,6 @@
 # Task ID: 15
 # Title: Refactor Project to Monorepo Workspace Structure
-# Status: in-progress
+# Status: done
 # Dependencies: None
 # Priority: medium
 # Description: Migrate client, server, and shared code into a monorepo structure using npm/yarn/pnpm workspaces for better code sharing and dependency management. Original files have been moved to a 'monorepo-conversion' directory to ensure a clean workspace.
