@@ -1,7 +1,4 @@
 import Matter from "matter-js";
-// @ts-ignore - Allow importing from potentially outside rootDir
-import { Planet } from "@game/entities/Planet"; // Assuming Planet needs to be imported
-// @ts-ignore - Allow importing from potentially outside rootDir
 import { G, DRAG_COEFFICIENT } from "./Constants";
 
 // Define a simplified structure for gravity sources for the shared function

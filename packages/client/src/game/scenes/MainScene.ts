@@ -4,7 +4,6 @@ import { Rocket } from "../entities/Rocket"; // Correct relative path & Removed 
 // Use Phaser's Matter Body type and Matter Composite for removal
 import { Composite as MatterComposite } from "matter-js"; // Keep for Composite
 import { DeviceOrientationManager } from "../../utils/DeviceOrientationManager"; // Correct relative path
-// @ts-ignore - Allow importing from shared potentially outside rootDir
 import { CollisionCategory } from "@one-button-to-space/shared"; // Import shared categories
 import { ZoomController } from "../controllers/ZoomController";
 // Multiplayer Imports
@@ -24,7 +23,6 @@ import { Body as MatterBody } from "matter-js";
 import { Planet, PlanetConfig } from "../entities/Planet"; // Import Planet and PlanetConfig
 import { Logger, LogLevel } from "@one-button-to-space/shared"; // Updated path
 import { DebugHud } from "../../ui/DebugHud"; // Import the new HUD class
-// @ts-ignore
 import {
   Constants, // Import the new constant
 } from "@one-button-to-space/shared"; // Import shared constant
@@ -74,6 +72,9 @@ export class MainScene extends Phaser.Scene {
 
   preload(): void {
     Logger.debug(LOGGER_SOURCE, "MainScene preload called");
+    // Load the new rocket image
+    this.load.image("rocket", "assets/images/rocket.png");
+    Logger.info(LOGGER_SOURCE, "Loaded rocket asset.");
   }
 
   create(): void {

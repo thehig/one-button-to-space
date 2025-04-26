@@ -9,10 +9,7 @@ import { Vector as MatterVector } from "matter-js";
 import { PlanetData } from "../../schema/State";
 import { Planet } from "../entities/Planet";
 import { Logger } from "@one-button-to-space/shared";
-// @ts-ignore - Allow importing from shared potentially outside rootDir
 import { PhysicsLogic } from "@one-button-to-space/shared";
-// @ts-ignore - Allow importing from shared potentially outside rootDir
-import { G, DRAG_COEFFICIENT } from "@one-button-to-space/shared"; // G and DRAG_COEFFICIENT are no longer needed here
 
 const LOGGER_SOURCE = "⚛️⚙️";
 

@@ -526,7 +526,7 @@
           "description": "Source or create a high-quality rocket image and integrate it into the game's rendering system, replacing the current placeholder graphic.",
           "dependencies": [],
           "details": "Implementation steps:\n1. Source or create a detailed rocket image (128x256px with transparent background)\n2. Add the new asset to the project's resource folder\n3. Update the asset loading code to reference the new rocket image\n4. Modify the rendering code to use the new asset instead of the placeholder\n5. Ensure proper scaling and rotation of the new asset\n6. Verify the rocket's center of mass is correctly positioned\n\nTesting approach:\n- Visually confirm the new rocket renders correctly in different game states\n- Test rotation and movement to ensure the rocket behaves as expected\n- Verify the rocket maintains proper scale across different screen resolutions",
-          "status": "pending",
+          "status": "done",
           "parentTaskId": 16
         },
         {

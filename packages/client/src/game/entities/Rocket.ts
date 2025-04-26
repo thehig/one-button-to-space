@@ -1,11 +1,8 @@
 import Phaser from "phaser";
 import { Body as MatterBody, Vector as MatterVector } from "matter-js";
-// @ts-ignore - Allow importing from shared potentially outside rootDir
 import { CollisionCategory } from "@one-button-to-space/shared";
-// @ts-ignore - Allow importing from shared potentially outside rootDir
 import { Logger } from "@one-button-to-space/shared";
 // Import the singleton instance
-// @ts-ignore - Allow importing from potentially outside rootDir
 import { multiplayerService } from "../../services/MultiplayerService";
 
 // Define the source constant for logging
@@ -28,17 +25,11 @@ const CollisionCategory = {
 
 export class Rocket {
   private scene: Phaser.Scene;
-  // Change gameObject to be a Container
   public gameObject: Phaser.GameObjects.Container;
-  // Use imported MatterBody type
   public body: MatterBody;
-  // Keep main rocket shape reference if needed internally
-  private rocketShape!: Phaser.GameObjects.Rectangle;
-  // Add property for the thrust visual (using Graphics)
-  private thrustPolygon!: Phaser.GameObjects.Graphics | null; // Change type hint
-  // Add property to store the owner's ID
+  private rocketImage!: Phaser.GameObjects.Image;
+  private thrustPolygon!: Phaser.GameObjects.Graphics | null;
   public ownerId: string;
-  // Add property to track thrust state (set externally)
   public isThrusting: boolean = false;
 
   // --- Interpolation Targets (set by MainScene from server updates) ---
@@ -88,9 +79,9 @@ export class Rocket {
     initialAngle: number = 0
   ) {
     this.scene = scene;
-    this.ownerId = ownerId; // Store the owner ID
+    this.ownerId = ownerId;
 
-    // --- 1. Create Physics Body (angle 0 = right) ---
+    // --- 1. Create Physics Body ---
     this.body = this.scene.matter.add.rectangle(
       x,
       y,
@@ -104,7 +95,6 @@ export class Rocket {
         label: `rocket-${ownerId}`,
         collisionFilter: {
           category: CollisionCategory.ROCKET,
-          // Update mask to collide with GROUND AND other ROCKETs
           mask: CollisionCategory.GROUND | CollisionCategory.ROCKET,
         },
       }
@@ -114,26 +104,25 @@ export class Rocket {
       `Matter body created for ${ownerId} with filter:`,
       this.body.collisionFilter
     );
-    // Set initial angle for the physics body
     MatterBody.setAngle(this.body, initialAngle);
 
-    // --- 2. Create Container (matches body angle) ---
+    // --- 2. Create Container ---
     this.gameObject = this.scene.add.container(x, y);
     Logger.info(LOGGER_SOURCE, `Container created for ${ownerId}`, { x, y });
 
     // --- 3. Create Visuals and Add to Container ---
-    // Generate color based on owner ID
+    // REMOVE Color generation - REINSTATE this line
     const rocketColor = this._generateColorFromId(this.ownerId);
 
-    // Rocket Body Visual - Use generated color
+    // REMOVE Rectangle creation
+    /*
     this.rocketShape = this.scene.add.rectangle(
       0,
       0,
       this.rocketWidth,
-      this.rocketHeight + 10, // Make visual slightly taller than physics body
-      rocketColor // Use the generated color
+      this.rocketHeight + 10,
+      rocketColor
     );
-    // Visual created wider-than-tall to match physics body at angle 0.
     this.gameObject.add(this.rocketShape);
     Logger.info(
       LOGGER_SOURCE,
@@ -141,35 +130,45 @@ export class Rocket {
         .toString(16)
         .padStart(6, "0")}.`
     );
+    */
 
-    // Create Thrust Polygon Visual
-    const thrustBaseY = this.rocketHeight / 2 + 5; // Y-coordinate for the top base of the flame
-    const thrustHeight = 20; // Height of the flame
-    const thrustWidth = this.rocketWidth * 0.6; // Width of the flame base
+    // ADD Rocket Image Visual using preloaded asset
+    this.rocketImage = this.scene.add.image(0, 0, "rocket");
+    this.rocketImage.setOrigin(0.5, 0.5); // Center the origin
+    this.rocketImage.setDisplaySize(this.rocketWidth, this.rocketHeight); // Match physics size
+    // Apply the generated color as a tint
+    this.rocketImage.setTint(rocketColor);
+    this.gameObject.add(this.rocketImage);
+    Logger.info(
+      LOGGER_SOURCE,
+      `Rocket image added for ${ownerId} with tint 0x${rocketColor
+        .toString(16)
+        .padStart(6, "0")}.`
+    );
 
-    // --- Create Thrust Visual using Graphics Object ---
+    // Create Thrust Polygon Visual - Adjust Y relative to image origin/size
+    const thrustBaseY = this.rocketHeight * 0.5 + 5; // Relative to container center
+    const thrustHeight = 20;
+    const thrustWidth = this.rocketWidth * 0.6;
+
     this.thrustPolygon = this.scene.add.graphics();
-    // Set the position of the Graphics object itself
-    this.thrustPolygon.x = 0; // Center horizontally
-    this.thrustPolygon.y = thrustBaseY; // Position top of flame correctly
-
-    // Define drawing commands relative to the Graphics object's origin (0,0)
+    this.thrustPolygon.x = 0;
+    this.thrustPolygon.y = thrustBaseY;
     this.thrustPolygon.fillStyle(0xffa500, 1); // Orange color
     this.thrustPolygon.beginPath();
-    this.thrustPolygon.moveTo(-thrustWidth / 2, 0); // Start at top-left of flame base
-    this.thrustPolygon.lineTo(thrustWidth / 2, 0); // Line to top-right of flame base
-    this.thrustPolygon.lineTo(0, thrustHeight); // Line to bottom tip of flame
+    this.thrustPolygon.moveTo(-thrustWidth / 2, 0);
+    this.thrustPolygon.lineTo(thrustWidth / 2, 0);
+    this.thrustPolygon.lineTo(0, thrustHeight);
     this.thrustPolygon.closePath();
     this.thrustPolygon.fillPath();
-
-    this.thrustPolygon.setVisible(false); // Initially hidden
+    this.thrustPolygon.setVisible(false);
     this.gameObject.add(this.thrustPolygon);
     Logger.info(LOGGER_SOURCE, `Thrust graphics added for ${ownerId}.`);
 
-    // Initialize target positions to starting positions
+    // Initialize target positions
     this.targetX = x;
     this.targetY = y;
-    this.targetAngle = initialAngle; // Use initial angle from server
+    this.targetAngle = initialAngle;
   }
 
   /**

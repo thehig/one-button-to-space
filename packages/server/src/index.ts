@@ -3,7 +3,6 @@ import http from "http";
 import express from "express";
 import { Server } from "colyseus";
 import { monitor } from "@colyseus/monitor"; // Optional: For monitoring dashboard
-// @ts-ignore - Shared code outside rootDir, suppress TS6059 for build
 import { Logger, LogLevel } from "@one-button-to-space/shared";
 
 // Import your Room definitions
