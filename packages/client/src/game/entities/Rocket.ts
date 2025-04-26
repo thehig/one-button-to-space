@@ -33,7 +33,7 @@ export class Rocket {
   public gameObject: Phaser.GameObjects.Container;
   public body: MatterBody;
   private rocketImage!: Phaser.GameObjects.Image;
-  private thrustPolygon!: Phaser.GameObjects.Graphics | null;
+  private thrustSprite!: Phaser.GameObjects.Sprite;
   public ownerId: string;
   public isThrusting: boolean = false;
 
@@ -156,11 +156,11 @@ export class Rocket {
         .padStart(6, "0")}.`
     );
 
-    // Create Thrust Polygon Visual - Adjust Y relative to image origin/size
+    // Create Thrust Polygon Visual - REMOVE OLD GRAPHICS CODE
+    /*
     const thrustBaseY = this.rocketHeight * 0.5 + 5; // Relative to container center
     const thrustHeight = 20;
     const thrustWidth = this.rocketWidth * 0.6;
-
     this.thrustPolygon = this.scene.add.graphics();
     this.thrustPolygon.x = 0;
     this.thrustPolygon.y = thrustBaseY;
@@ -174,6 +174,22 @@ export class Rocket {
     this.thrustPolygon.setVisible(false);
     this.gameObject.add(this.thrustPolygon);
     Logger.info(LOGGER_SOURCE, `Thrust graphics added for ${ownerId}.`);
+    */
+
+    // ADD Thrust Sprite Visual
+    const thrustBaseY = this.rocketHeight * 0.5 - 5; // Position slightly overlapping bottom rocket image
+    this.thrustSprite = this.scene.add.sprite(0, thrustBaseY, "thruster_001");
+    this.thrustSprite.setOrigin(0.5, 0); // Origin at top-center of sprite
+    // Optional: Scale the thruster sprite if needed - ADD SCALE
+    this.thrustSprite.setScale(0.75);
+    this.thrustSprite.setVisible(false); // Initially hidden
+    this.gameObject.add(this.thrustSprite);
+    Logger.info(LOGGER_SOURCE, `Thrust sprite added for ${ownerId}.`);
+
+    // Ensure thruster sprite is behind the rocket image within the container
+    this.gameObject.sendToBack(this.thrustSprite);
+
+    // Initialize target positions - REMOVED
   }
 
   /**
@@ -188,8 +204,19 @@ export class Rocket {
       this.gameObject.rotation = this.body.angle;
     }
 
-    // Thrust visibility - Use the isThrusting property
-    this.thrustPolygon?.setVisible(this.isThrusting);
+    // Thrust visibility - Use the isThrusting property and flicker
+    if (this.isThrusting) {
+      this.thrustSprite.setVisible(true);
+      // Simple flicker based on current time (toggle every ~50ms for faster flicker)
+      const flickerRate = 50;
+      const showFrame1 =
+        Math.floor(this.scene.time.now / flickerRate) % 2 === 0;
+      this.thrustSprite.setTexture(
+        showFrame1 ? "thruster_001" : "thruster_002"
+      );
+    } else {
+      this.thrustSprite.setVisible(false);
+    }
   }
 
   // Add destroy method for cleanup

@@ -74,7 +74,10 @@ export class MainScene extends Phaser.Scene {
     Logger.debug(LOGGER_SOURCE, "MainScene preload called");
     // Load the new rocket image
     this.load.image("rocket", "assets/images/rocket.png");
-    Logger.info(LOGGER_SOURCE, "Loaded rocket asset.");
+    // Load the thruster images
+    this.load.image("thruster_001", "assets/images/thruster_001.png");
+    this.load.image("thruster_002", "assets/images/thruster_002.png");
+    Logger.info(LOGGER_SOURCE, "Loaded rocket and thruster assets.");
   }
 
   create(): void {

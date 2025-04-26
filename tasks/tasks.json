@@ -559,7 +559,7 @@
             1
           ],
           "details": "Implementation steps:\n1. Create or source a sprite sheet for thruster animation (4-8 frames)\n2. Add the thruster assets to the project's resource folder\n3. Implement a sprite animation system if not already present\n4. Create animation sequences for different thruster states (idle, low power, full power)\n5. Determine proper positioning of thruster effects relative to the rocket\n\nTesting approach:\n- Verify all animation frames display correctly\n- Test animation timing and transitions between states\n- Ensure thruster position remains correct during rocket movement and rotation",
-          "status": "pending",
+          "status": "in-progress",
           "parentTaskId": 16
         },
         {

@@ -105,7 +105,7 @@ Testing approach:
 - Compare collision behavior with previous system to ensure consistency
 - Test edge cases like high-speed collisions and near-misses
 
-## 4. Create Thruster Animation Assets and System [pending]
+## 4. Create Thruster Animation Assets and System [in-progress]
 ### Dependencies: 16.1
 ### Description: Design and implement the animation system for rocket thrusters, including creating or sourcing appropriate sprite sheets.
 ### Details:
