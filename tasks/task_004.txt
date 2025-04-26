@@ -3,9 +3,9 @@
 # Status: done
 # Dependencies: 3
 # Priority: high
-# Description: Develop the core control mechanisms: single-touch thrust and device tilt for world orientation.
+# Description: Develop the core control mechanisms: single-touch thrust and device tilt for rocket orientation via server communication.
 # Details:
-Implement touch/click event listeners to activate the rocket's main thruster. Apply appropriate force to the rocket in its current facing direction when thrust is activated. Set up accelerometer API integration to detect device tilt. Translate tilt data into changes in the world's gravity direction. Implement fallback keyboard controls for desktop testing (e.g., arrow keys for tilt, spacebar for thrust). Add visual feedback for thrust activation (e.g., flame effect, particle system).
+Implement touch/click event listeners to send 'thrust_start' and 'thrust_stop' events to the server when the rocket's main thruster is activated/deactivated. Set up accelerometer API integration to detect device tilt and send 'set_angle' events to the server. Implement spacebar as fallback control for thrust on desktop. The Rocket class should toggle a visual flame effect based on the 'isThrusting' state received from the server. The rocket's orientation will be controlled by the target angle received from the server based on device tilt data.
 
 # Test Strategy:
-Test thrust activation on both touch and click events. Verify that the rocket moves in the correct direction when thrust is applied. Test accelerometer integration on mobile devices. Ensure the world tilts correctly in response to device movement. Verify fallback controls work properly on desktop.
+Test thrust activation on both touch and click events, verifying 'thrust_start' and 'thrust_stop' events are sent to the server. Verify that the rocket's flame effect toggles correctly based on server 'isThrusting' state. Test accelerometer integration on mobile devices, ensuring 'set_angle' events are sent to the server. Verify spacebar fallback control works properly for thrust on desktop. Confirm the rocket rotates to the correct orientation based on server responses to tilt input.
