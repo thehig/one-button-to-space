@@ -6,6 +6,9 @@ import { generatePlanetDataFromName } from "../utils/PlanetGenerator";
 import { ServerPhysicsManager } from "../physics/ServerPhysicsManager";
 import { Logger } from "@one-button-to-space/shared";
 
+// Import shared rocket vertices
+import { rocketVertices, CollisionCategory } from "@one-button-to-space/shared";
+
 import { RoomState, PlayerState, PlanetData } from "../schema/State";
 
 import { PlayerInputMessage } from "@one-button-to-space/shared";
@@ -598,16 +601,20 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
     player.cargo = "";
 
     // Create the physics body for the player
-    const playerBody = Matter.Bodies.rectangle(
+    const playerBody = Matter.Bodies.fromVertices(
       player.x,
       player.y,
-      PLAYER_WIDTH,
-      PLAYER_HEIGHT,
+      rocketVertices, // Use shared vertices
       {
         mass: PLAYER_MASS,
         frictionAir: PLAYER_FRICTION_AIR,
-        label: client.sessionId, // Use sessionId as label for easy lookup?
-        // TODO: Set collision filters if needed
+        label: `rocket-${client.sessionId}`, // Use correct label format
+        collisionFilter: {
+          category: CollisionCategory.ROCKET,
+          mask: CollisionCategory.GROUND | CollisionCategory.ROCKET,
+        },
+        // Add angular damping if needed (Constants might define this)
+        // angularDamping: PLAYER_ANGULAR_DAMPING // Example
       }
     );
     Matter.Body.setAngle(playerBody, player.angle);

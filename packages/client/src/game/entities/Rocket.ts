@@ -1,8 +1,13 @@
 import Phaser from "phaser";
 import { Body as MatterBody, Vector as MatterVector } from "matter-js";
+// @ts-ignore - Allow importing from shared potentially outside rootDir
 import { CollisionCategory } from "@one-button-to-space/shared";
+// @ts-ignore - Allow importing from shared potentially outside rootDir
 import { Logger } from "@one-button-to-space/shared";
+// Import the shared rocket vertices
+import { rocketVertices } from "@one-button-to-space/shared";
 // Import the singleton instance
+// @ts-ignore - Allow importing from potentially outside rootDir
 import { multiplayerService } from "../../services/MultiplayerService";
 
 // Define the source constant for logging
@@ -72,22 +77,24 @@ export class Rocket {
     this.ownerId = ownerId;
 
     // --- Define Vertices for Collision Shape based on rocket.png ---
-    // Relative to center (0,0), physics body height=100
+    // REMOVE Local Definition
+    /*
     const rocketVertices = [
-      { x: 0, y: -50 }, // Nose tip
-      { x: 10, y: -40 }, // Right shoulder (narrower)
-      { x: 10, y: 35 }, // Right side base (narrower)
-      { x: 20, y: 50 }, // Right fin tip (slightly narrower)
-      { x: -20, y: 50 }, // Left fin tip (slightly narrower)
-      { x: -10, y: 35 }, // Left side base (narrower)
+      { x: 0,   y: -50 }, // Nose tip
+      { x: 10,  y: -40 }, // Right shoulder (narrower)
+      { x: 10,  y:  35 }, // Right side base (narrower)
+      { x: 20,  y:  50 }, // Right fin tip (slightly narrower)
+      { x: -20, y:  50 }, // Left fin tip (slightly narrower)
+      { x: -10, y:  35 }, // Left side base (narrower)
       { x: -10, y: -40 }, // Left shoulder (narrower)
     ];
+    */
 
     // --- 1. Create Physics Body using Vertices ---
     this.body = this.scene.matter.add.fromVertices(
       x,
       y,
-      rocketVertices, // Use the defined vertices
+      rocketVertices, // Use IMPORTED vertices
       {
         mass: this.rocketMass,
         friction: 0.05,
