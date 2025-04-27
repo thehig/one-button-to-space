@@ -448,6 +448,8 @@ export class MainScene extends Phaser.Scene {
       const mps = this.multiplayerService?.getMps() ?? 0;
       // GET OMPS
       const omps = this.multiplayerService?.getOmps() ?? 0;
+      // GET RTT
+      const rtt = this.multiplayerService?.getRtt() ?? 0;
 
       const hudData = {
         posX: pos.x,
@@ -462,6 +464,7 @@ export class MainScene extends Phaser.Scene {
         ups: currentUps,
         mps: mps, // Pass MPS
         omps: omps, // Pass OMPS
+        rtt: rtt, // Pass RTT
       };
       this.debugHud.update(hudData);
     }

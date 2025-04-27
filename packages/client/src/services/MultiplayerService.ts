@@ -35,6 +35,7 @@ export type PhysicsUpdateListener = (
 
 // --- MPS Calculation Constants ---
 const MPS_SAMPLE_SIZE = 60; // Number of intervals to average for MPS
+const PING_INTERVAL_MS = 2000; // Send ping every 2 seconds
 
 export class MultiplayerService {
   private client: Colyseus.Client | null = null;
@@ -74,6 +75,11 @@ export class MultiplayerService {
   private currentOmps: number = 0;
   private lastOutputMessageTime: number = 0;
 
+  // --- ADDED: Ping/RTT Properties ---
+  private pingIntervalId: NodeJS.Timeout | null = null;
+  private pingStartTime: number = 0; // 0 indicates no ping in flight
+  private currentRtt: number = 0;
+
   constructor() {
     Logger.info(LOGGER_SOURCE, "MultiplayerService instantiated."); // Use constant
     // Load configuration
@@ -92,6 +98,9 @@ export class MultiplayerService {
     this.currentOmps = 0;
     this.lastOutputMessageTime = 0;
     this.outputMessageTimestamps = [];
+    // Initialize RTT values
+    this.pingStartTime = 0;
+    this.currentRtt = 0;
   }
 
   public async connect(): Promise<void> {
@@ -137,6 +146,7 @@ export class MultiplayerService {
       // TODO: Notify status listeners -- Handled by setConnectionStatus
 
       this.setupRoomListeners();
+      this.startPingLoop(); // Start ping loop on successful connection
     } catch (e) {
       // Use private method to set status and notify listeners
       this.setConnectionStatus("error");
@@ -178,6 +188,10 @@ export class MultiplayerService {
     this.currentOmps = 0;
     this.lastOutputMessageTime = 0;
     this.outputMessageTimestamps = [];
+    // Stop ping loop and reset RTT on disconnect
+    this.stopPingLoop();
+    this.pingStartTime = 0;
+    this.currentRtt = 0;
   }
 
   public isConnected(): boolean {
@@ -532,6 +546,11 @@ export class MultiplayerService {
     return this.currentOmps;
   }
 
+  // --- ADDED: Public getter for RTT ---
+  public getRtt(): number {
+    return this.currentRtt;
+  }
+
   // --- Centralized MPS Counter Update ---
   private updateMpsCounter(): void {
     const now = Date.now();
@@ -578,7 +597,65 @@ export class MultiplayerService {
     }
     this.lastOutputMessageTime = now;
   }
-  // --- END ADDED METHOD ---
+
+  // --- ADDED: Ping/Pong Methods ---
+  private startPingLoop(): void {
+    this.stopPingLoop(); // Ensure no existing loop is running
+    Logger.info(
+      LOGGER_SOURCE,
+      `Starting ping loop (interval: ${PING_INTERVAL_MS}ms)`
+    );
+    this.pingIntervalId = setInterval(() => {
+      this.sendPing();
+    }, PING_INTERVAL_MS);
+  }
+
+  private stopPingLoop(): void {
+    if (this.pingIntervalId) {
+      clearInterval(this.pingIntervalId);
+      this.pingIntervalId = null;
+      Logger.info(LOGGER_SOURCE, "Stopped ping loop.");
+    }
+  }
+
+  private sendPing(): void {
+    if (!this.isConnected() || this.pingStartTime !== 0) {
+      // Don't send if not connected or if a ping is already in flight
+      if (this.pingStartTime !== 0) {
+        Logger.warn(
+          LOGGER_SOURCE,
+          "Skipping ping send, previous ping still in flight."
+        );
+      }
+      return;
+    }
+
+    this.pingStartTime = Date.now();
+    try {
+      // Logger.debug(LOGGER_SOURCE, `Sending ping with timestamp: ${this.pingStartTime}`);
+      this.room?.send("ping", { timestamp: this.pingStartTime });
+    } catch (error) {
+      console.error("MultiplayerService: Failed to send ping:", error);
+      this.pingStartTime = 0; // Reset start time on send error
+    }
+  }
+
+  private handlePong(message: { timestamp: number }): void {
+    // Logger.debug(LOGGER_SOURCE, "Received pong:", message);
+    if (message.timestamp === this.pingStartTime && this.pingStartTime !== 0) {
+      this.currentRtt = Date.now() - this.pingStartTime;
+      // Logger.debug(LOGGER_SOURCE, `Calculated RTT: ${this.currentRtt}ms`);
+      this.pingStartTime = 0; // Reset, ready for next ping
+    } else {
+      Logger.warn(
+        LOGGER_SOURCE,
+        `Received pong with mismatched or invalid timestamp. PongTs: ${message.timestamp}, StartTs: ${this.pingStartTime}`
+      );
+      // Optionally reset pingStartTime here too if a mismatched pong means the original is lost
+      // this.pingStartTime = 0;
+    }
+  }
+  // --- END Ping/Pong Methods ---
 
   private setupRoomListeners(): void {
     if (!this.room) {
@@ -785,6 +862,12 @@ export class MultiplayerService {
     this.room.onMessage("server_announcement", (message) => {
       Logger.info(LOGGER_SOURCE, `Server Announcement: ${message}`);
     });
+
+    // --- ADDED: Pong listener ---
+    this.room.onMessage("pong", (message: { timestamp: number }) => {
+      this.handlePong(message);
+    });
+    // --- END Pong listener ---
   }
 }
 

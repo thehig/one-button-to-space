@@ -15,6 +15,7 @@ interface HudData {
   ups: number; // Added UPS
   mps: number; // Added MPS
   omps: number; // ADDED OMPS
+  rtt: number; // ADDED RTT
 }
 
 const VECTOR_SCALE = 5; // Adjust this to scale the vector line length
@@ -62,7 +63,8 @@ export class DebugHud {
         `FPS: ${data.fps.toFixed(1)}\n` +
         `UPS: ${data.ups.toFixed(1)}\n` +
         `MPS: ${data.mps.toFixed(1)}\n` +
-        `OMPS: ${data.omps.toFixed(1)}`
+        `OMPS: ${data.omps.toFixed(1)}\n` +
+        `RTT: ${data.rtt.toFixed(0)}ms`
     );
 
     // Update Velocity Vector

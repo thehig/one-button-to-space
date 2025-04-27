@@ -540,6 +540,16 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
       */
     });
 
+    // --- ADDED: Ping/Pong Handler ---
+    this.onMessage<{ timestamp: number }>("ping", (client, message) => {
+      // Immediately send back a pong message to the specific client
+      // Echo the original timestamp to allow the client to calculate RTT
+      client.send("pong", { timestamp: message.timestamp });
+      // Optional: Log ping reception if needed for debugging
+      // Logger.debug(LOGGER_SOURCE, `Received ping from ${client.sessionId}, sending pong.`);
+    });
+    // --- END Ping/Pong Handler ---
+
     Logger.info(LOGGER_SOURCE, "Message handlers registered.");
     Logger.debug(LOGGER_SOURCE, `onCreate finished for room ${this.roomId}`);
   }
