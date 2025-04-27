@@ -10,8 +10,8 @@ import { ZoomController } from "../controllers/ZoomController";
 import {
   MultiplayerService,
   multiplayerService,
-  ConnectionStatus,
-  PhysicsUpdateListener,
+  type ConnectionStatus, // Explicitly import as type
+  type PhysicsUpdateListener, // Explicitly import as type
 } from "../../services/MultiplayerService"; // Adjust path as needed, import instance
 import { PlayerState, PlanetData } from "../../schema/State"; // Adjust path, ADD PlanetData
 // Import PlayerInputMessage from shared types
@@ -31,6 +31,11 @@ import { StarField } from "../effects/StarField";
 import { StarFieldRenderer } from "../effects/StarFieldRenderer";
 // Import shared physics logic using relative path
 import { PhysicsLogic } from "@one-button-to-space/shared";
+import { TimeManager } from "../core/TimeManager"; // Existing import
+
+// --- Import Custom ECS Core ---
+import { GameObject } from "../core/GameObject";
+import { SpriteRenderer } from "../components/SpriteRenderer";
 
 // --- Constants ---
 const {
@@ -46,6 +51,7 @@ const STATE_SEND_INTERVAL_MS = 100; // Send state 10 times per second
 export class MainScene extends Phaser.Scene {
   // --- Physics ---
   private physicsManager!: PhysicsManager;
+  private timeManager!: TimeManager;
 
   // --- Entities ---
   private rocket: Rocket | undefined = undefined;
@@ -78,6 +84,9 @@ export class MainScene extends Phaser.Scene {
   // --- New Member Variables ---
   private lastSentAngle: number | undefined = undefined;
 
+  // --- Custom ECS Management ---
+  private managedGameObjects: Map<number, GameObject> = new Map(); // Use ID for key
+
   constructor() {
     super({ key: "MainScene" });
     Logger.debug(LOGGER_SOURCE, "MainScene constructor called");
@@ -97,6 +106,7 @@ export class MainScene extends Phaser.Scene {
     Logger.debug(LOGGER_SOURCE, "MainScene create called");
 
     this.attemptScreenLock();
+    this.setupTiming();
     this.setupPhysics();
     this.setupCamera();
     this.createEntities();
@@ -109,9 +119,30 @@ export class MainScene extends Phaser.Scene {
 
     // Initial pass of planet map after multiplayer might have added some
     this.physicsManager.setPlanetObjectsMap(this.planetObjects);
+
+    // --- Call Start on Custom GameObjects ---
+    // Must be called AFTER all initial setup in create is done
+    this.managedGameObjects.forEach((go) => {
+      if (go.active) {
+        go._internalStart();
+      }
+    });
+    Logger.info(LOGGER_SOURCE, "Called _internalStart on managed GameObjects.");
+    // ---------------------------------------
   }
 
   update(time: number, delta: number): void {
+    // --- Update Time Manager FIRST ---
+    this.timeManager.update(time, delta); // Provides deltaTimeS
+
+    // --- Custom ECS Variable Update ---
+    this.managedGameObjects.forEach((go) => {
+      if (go.active) {
+        go._internalUpdate(this.timeManager.deltaTimeS);
+      }
+    });
+    // -----------------------------------
+
     // Get latest orientation state before input handling
     const targetAngleRad =
       this.orientationManager.getTargetRocketAngleRadians();
@@ -121,48 +152,53 @@ export class MainScene extends Phaser.Scene {
       return;
     }
 
-    // Calculate UPS from delta
-    const ups = delta > 0 ? 1000 / delta : 0; // Avoid division by zero
-
-    // --- Apply Local Predicted Input Forces (BEFORE physics step/server correction) ---
-    /* // REMOVED: Local force application to prevent judder
-    if (this.isLocalThrusting && this.rocket?.body) {
-      const localBody = this.rocket.body;
-      // Use body angle directly (assuming angle 0 = UP)
-      const angle = localBody.angle;
-      const forceMagnitude = PLAYER_THRUST_FORCE;
-      const force = {
-        x: Math.sin(angle) * forceMagnitude,
-        y: -Math.cos(angle) * forceMagnitude,
-      }; // Apply force in the direction the body is pointing (UP = angle 0)
-      MatterBody.applyForce(localBody, localBody.position, force);
-    }
-    */
-
     // Handle sending input based on current state (including polled orientation)
     this.handleAndSendInput(targetAngleRad);
 
+    // --- Variable Update / Rendering ---
+    const alpha = this.timeManager.interpolationAlpha; // Use alpha for rendering interpolation
+
     // Update local rocket visuals via interpolation (if it exists)
     if (this.rocket) {
-      this.rocket.update(delta);
-      this.updateUIElements(ups); // Pass calculated UPS
+      this.rocket.update(this.timeManager.deltaTimeS, alpha);
+      this.updateUIElements(this.timeManager.currentFps);
     }
 
     // --- Update Remote Rockets ---
     this.remotePlayers.forEach((remoteRocket) => {
-      remoteRocket.update(delta); // Call update for interpolation
+      remoteRocket.update(this.timeManager.deltaTimeS, alpha);
     });
     // ---------------------------
 
-    // Update other controllers like zoom
-    this.updateControllers(delta);
+    // Update other controllers like zoom (variable update is fine for these)
+    this.updateControllers(this.timeManager.deltaTimeS);
 
-    // Update effects like starfield
-    this.updateEffects(time, delta);
+    // Update effects like starfield (variable update)
+    this.updateEffects(
+      this.timeManager.totalElapsedTimeS,
+      this.timeManager.deltaTimeS
+    );
   }
 
   shutdown(): void {
     Logger.info(LOGGER_SOURCE, "MainScene shutting down...");
+
+    // --- Destroy Custom GameObjects ---
+    // Iterate over a copy in case destroy modifies the map
+    [...this.managedGameObjects.values()].forEach((go) => {
+      try {
+        go.destroy();
+      } catch (error) {
+        Logger.error(
+          LOGGER_SOURCE,
+          `Error destroying GameObject ${go.name} (ID: ${go.id}):`,
+          error
+        );
+      }
+    });
+    this.managedGameObjects.clear();
+    Logger.info(LOGGER_SOURCE, "Destroyed managed GameObjects.");
+    // ----------------------------------
 
     this.shutdownMultiplayer();
     this.shutdownControllers();
@@ -172,6 +208,8 @@ export class MainScene extends Phaser.Scene {
     this.shutdownEffects(); // Add effects shutdown
 
     // Phaser handles input listener cleanup automatically
+    // Unhook matterupdate listener if needed? Phaser might handle this too.
+    this.matter.world.off("matterupdate"); // Be safe and remove listener
 
     Logger.info(LOGGER_SOURCE, "MainScene shutdown complete.");
   }
@@ -201,6 +239,11 @@ export class MainScene extends Phaser.Scene {
         "Screen Orientation API lock() not supported."
       );
     }
+  }
+
+  private setupTiming(): void {
+    this.timeManager = new TimeManager();
+    Logger.info(LOGGER_SOURCE, "TimeManager initialized for scene.");
   }
 
   private setupPhysics(): void {
@@ -238,7 +281,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   private setupControllers(): void {
-    this.zoomController = new ZoomController(this);
+    this.zoomController = new ZoomController(this, this.cameras.main);
     Logger.info(LOGGER_SOURCE, "ZoomController initialized.");
   }
 
@@ -246,25 +289,36 @@ export class MainScene extends Phaser.Scene {
     Logger.info(LOGGER_SOURCE, "Initializing MultiplayerService...");
     this.multiplayerService = multiplayerService;
 
-    // Use service listener for player add (covers initial sync & joins)
+    // Use the service's add...Listener methods
     this.multiplayerService.addPlayerAddListener(
       this.handlePlayerInitialAdd.bind(this)
-    );
-    this.multiplayerService.addPlayerRemoveListener(
-      this.handlePlayerRemove.bind(this)
     );
     this.multiplayerService.addPhysicsUpdateListener(
       this.handlePhysicsUpdate.bind(this)
     );
+    this.multiplayerService.addPlayerRemoveListener(
+      this.handlePlayerRemove.bind(this)
+    );
     this.multiplayerService.addStatusListener(
       this.handleConnectionStatusChange.bind(this)
     );
-    this.multiplayerService.addPlanetAddListener(this.handlePlanetAdd);
-    this.multiplayerService.addPlanetRemoveListener(this.handlePlanetRemove);
+    this.multiplayerService.addPlanetAddListener(this.handlePlanetAdd); // Assumes handlePlanetAdd is already bound or is an arrow function
+    this.multiplayerService.addPlanetRemoveListener(this.handlePlanetRemove); // Assumes handlePlanetRemove is already bound or is an arrow function
 
-    this.multiplayerService.connect().catch((err) => {
-      Logger.error(LOGGER_SOURCE, "Initial connection failed:", err);
-    });
+    try {
+      this.multiplayerService.connect();
+      Logger.info(
+        LOGGER_SOURCE,
+        "Attempting to connect to multiplayer server..."
+      );
+    } catch (error) {
+      Logger.error(
+        LOGGER_SOURCE,
+        "Failed to initiate multiplayer connection:",
+        error
+      );
+      this.handleConnectionStatusChange(ConnectionStatus.Disconnected);
+    }
   }
 
   private setupInput(): void {
@@ -403,8 +457,8 @@ export class MainScene extends Phaser.Scene {
     // Visual updates happen in Rocket.update() called from the main update loop.
   }
 
-  private updateControllers(delta: number): void {
-    this.zoomController.update(delta);
+  private updateControllers(deltaTimeS: number): void {
+    this.zoomController.update(deltaTimeS);
   }
 
   private updateMultiplayerState(time: number): void {
@@ -424,7 +478,7 @@ export class MainScene extends Phaser.Scene {
     // }
   }
 
-  private updateUIElements(currentUps: number): void {
+  private updateUIElements(currentFps: number): void {
     if (this.rocket?.body && this.debugHud) {
       // Check rocket and body exist
       const pos = this.rocket.body.position;
@@ -461,7 +515,7 @@ export class MainScene extends Phaser.Scene {
         density: density, // Pass calculated density
         currentTimeString: Logger.getCurrentTimestampString(),
         fps: fps,
-        ups: currentUps,
+        ups: this.timeManager.currentUps, // Use TimeManager UPS
         mps: mps, // Pass MPS
         omps: omps, // Pass OMPS
         rtt: rtt, // Pass RTT
@@ -1117,4 +1171,34 @@ export class MainScene extends Phaser.Scene {
     //   this.physicsManager.updateGravityFromOrientation(orientation.beta); // Incorrect method
     // }
   }
+
+  // --- Custom GameObject Management Helpers ---
+  public addGameObject(gameObject: GameObject): void {
+    if (this.managedGameObjects.has(gameObject.id)) {
+      Logger.warn(
+        LOGGER_SOURCE,
+        `GameObject ${gameObject.name} (ID: ${gameObject.id}) already managed by this scene.`
+      );
+      return;
+    }
+    this.managedGameObjects.set(gameObject.id, gameObject);
+    // Note: _internalStart is called later in create() after all setup
+  }
+
+  public removeGameObject(gameObject: GameObject): void {
+    if (!this.managedGameObjects.has(gameObject.id)) {
+      Logger.warn(
+        LOGGER_SOURCE,
+        `GameObject ${gameObject.name} (ID: ${gameObject.id}) not managed by this scene.`
+      );
+      return;
+    }
+    gameObject.destroy(); // Ensure its destroy logic runs
+    this.managedGameObjects.delete(gameObject.id);
+  }
+
+  public getGameObjectById(id: number): GameObject | undefined {
+    return this.managedGameObjects.get(id);
+  }
+  // -----------------------------------------
 }
