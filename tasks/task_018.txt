@@ -3,39 +3,40 @@
 # Status: pending
 # Dependencies: None
 # Priority: medium
-# Description: Design and implement a foundational client-side architecture that separates physics, logic, and rendering into independent update loops with different rates, while organizing game objects into a scene management system with separate render layers.
+# Description: Design and implement a foundational client-side architecture that integrates a lightweight Entity-Component System within the existing Phaser framework, while organizing game objects into layers and supporting variable update rates.
 # Details:
-This task involves restructuring the client-side game engine to follow best practices for 2D game development, performance and maintainability:
+This task involves enhancing the client-side game architecture by implementing a custom Entity-Component System within Phaser's structure for better organization and maintainability:
 
 1. Variable Update Rate System:
-   - Implement a time management system that tracks delta time between frames
-   - Create separate update loops for game logic (fixed timestep) and rendering (variable, potentially V-sync limited)
+   - Leverage Phaser's time management system that tracks delta time between frames
+   - Utilize Phaser's update loop for standard updates and Matter's 'matterupdate' event for fixed updates
    - Implement interpolation between states for smooth rendering at higher framerates
-   - Design a central TimeManager class to provide timing information to all systems
+   - Use Phaser's time management facilities while adding custom TimeManager functionality as needed
 
-2. Scene/State Management:
-   - Create a SceneManager class that maintains a collection of active game objects
-   - Implement scene loading/unloading functionality with proper resource management
-   - Design a state transition system for different game states (menu, gameplay, etc.)
-   - Add support for hierarchical object relationships (parent-child transforms)
+2. Entity-Component System:
+   - Create a GameObject class that manages components and hierarchical relationships
+   - Implement IComponent interface with standard lifecycle methods (awake, start, update, fixedUpdate, destroy)
+   - Design components to have access to the Phaser Scene they belong to
+   - Support parent-child relationships between GameObjects with transform inheritance
+   - Ensure GameObjects can be composed to create complex entities
 
-3. Dedicated Update Manager:
-   - Develop an UpdateManager that orchestrates the execution order of systems
-   - Implement component registration for different update phases (early, standard, late)
-   - Create a priority system for controlling update sequence within each phase
-   - Add support for pausing specific systems independently
+3. Phaser Integration:
+   - Use Phaser's MainScene to drive component updates
+   - Create bridge components (like SpriteRenderer) that connect GameObject state to Phaser objects
+   - Leverage Phaser's existing systems for physics, input, and rendering
+   - Ensure proper creation, updating, and destruction of Phaser objects through component lifecycle
 
 4. Layered Rendering:
-   - Separate rendering into distinct layers (specifically game world and UI/HUD)
+   - Implement logical layering (Background, Game, HUD) using Phaser's built-in techniques
+   - Utilize Phaser's Container objects, depth property, and camera system
    - Ensure UI elements remain fixed while game camera moves
-   - Create a camera system that can render to specific layers
-   - Design a compositing system to combine layers with appropriate blending
+   - Organize rendering layers for proper compositing and depth sorting
 
 5. 2D Game Development Best Practices:
-   - Implement efficient sprite batching for improved rendering performance
-   - Create a robust collision detection system appropriate for 2D games
-   - Design a flexible animation system for sprite-based animations
-   - Implement proper camera controls and viewport management for 2D space
+   - Leverage Phaser's sprite batching for improved rendering performance
+   - Utilize Matter.js physics through Phaser's integration
+   - Create flexible animation components that work with Phaser's animation system
+   - Implement proper camera controls using Phaser's camera API
 
 6. Code Cleanup and Organization:
    - Enforce consistent naming conventions and code style
@@ -49,32 +50,32 @@ Testing should verify both individual components and their integration:
 
 1. Time and Update Rate Testing:
    - Unit test the TimeManager to ensure accurate delta time calculation
-   - Verify logic updates occur at fixed intervals regardless of frame rate
+   - Verify logic updates occur at fixed intervals via Matter's 'matterupdate' event
    - Test rendering at different frame rates (30, 60, 144 fps) to confirm smooth motion
    - Create a visualization tool that displays the actual update rates of each system
    - Stress test with intentional frame drops to ensure stability
 
-2. Scene/State Management Testing:
-   - Verify objects are correctly added to and removed from scenes
-   - Test state transitions for memory leaks and proper resource cleanup
-   - Benchmark scene loading times with different numbers of objects
+2. Entity-Component System Testing:
+   - Verify components are correctly added to and removed from GameObjects
+   - Test lifecycle methods (awake, start, update, fixedUpdate, destroy) execute in correct order
+   - Benchmark performance with different numbers of components and GameObjects
    - Verify parent-child relationships maintain proper transformations
 
-3. Update System Testing:
-   - Create mock components that log their update order
-   - Verify components execute in the correct sequence based on priority
-   - Test pausing specific systems while others continue
-   - Measure performance impact of the update manager overhead
+3. Phaser Integration Testing:
+   - Test bridge components correctly create and manage Phaser objects
+   - Verify component updates properly sync with Phaser's update cycle
+   - Test proper cleanup of Phaser resources when components are destroyed
+   - Measure performance impact of the component system overhead
 
 4. Render Layer Testing:
-   - Create a test scene with objects on different layers (game world vs HUD)
+   - Create a test scene with objects on different layers (Background, Game, HUD)
    - Verify UI elements remain fixed while game camera moves
-   - Test proper layering of game elements and UI components
+   - Test proper layering using Phaser's depth property and containers
    - Verify performance with many objects across different layers
 
 5. 2D Specific Testing:
-   - Test sprite batching performance with varying numbers of sprites
-   - Verify collision detection accuracy and performance
+   - Test Phaser's sprite batching performance with varying numbers of sprites
+   - Verify collision detection accuracy and performance using Matter.js
    - Test animation system with different sprite-based animations
    - Verify camera controls and viewport management in 2D space
 
@@ -113,128 +114,169 @@ Testing approach:
 - Verify consistent fixed update calls regardless of framerate
 - Test interpolation with moving objects at different framerates
 
-## 2. Develop SceneManager and GameObject Hierarchy System [pending]
+## 2. Implement GameObject and IComponent System [pending]
 ### Dependencies: 18.1
-### Description: Create the scene management infrastructure that organizes game objects and handles their relationships, lifecycle, and state transitions.
+### Description: Create a lightweight Entity-Component System with GameObject and IComponent classes that integrate with Phaser's existing structure.
 ### Details:
 Implementation details:
 1. Design and implement core classes:
-   - GameObject base class with transform properties
-   - Component base class for behavior attachment
-   - SceneManager to maintain active objects collection
+   - GameObject class with transform properties and component management
+   - IComponent interface with lifecycle methods (awake, start, update, fixedUpdate, destroy)
+   - Component base class implementing IComponent
 2. Implement hierarchical transform system:
    - Parent-child relationships between GameObjects
    - Local and world transform calculations
    - Propagation of transform changes through hierarchy
-3. Create scene lifecycle management:
-   - Scene loading/unloading functionality
-   - Resource acquisition and release during transitions
-   - Scene state (active, paused, background)
-4. Implement a game state system:
-   - State machine for game states (menu, gameplay, etc.)
-   - State transition handling with enter/exit events
-   - State-specific update and render methods
-5. Add object pooling for frequently created/destroyed objects
+3. Create Phaser integration points:
+   - Provide components access to the Phaser Scene they belong to
+   - Connect GameObject lifecycle to Phaser's update cycle
+   - Ensure proper cleanup when GameObjects are destroyed
+4. Implement component management:
+   - Methods to add, get, and remove components
+   - Type-safe component retrieval
+   - Component dependency resolution
+5. Add GameObject pooling for frequently created/destroyed objects
 
 Testing approach:
 - Unit test parent-child transform calculations
-- Create test scenes and verify proper loading/unloading
+- Test component lifecycle methods execution order
+- Verify proper integration with Phaser's update cycle
 - Test object lifecycle through creation and destruction
-- Verify state transitions work correctly with appropriate callbacks
-- Performance test with large numbers of objects in hierarchy
+- Performance test with large numbers of objects and components
 
-## 3. Create UpdateManager with Phased Execution System [pending]
-### Dependencies: 18.1, 18.2
-### Description: Develop the update management system that orchestrates the execution order of different game systems and components with priority-based phasing.
+## 3. Develop Bridge Components for Phaser Integration [pending]
+### Dependencies: 18.2
+### Description: Create components that bridge between the GameObject/Component system and Phaser's objects and systems.
 ### Details:
 Implementation details:
-1. Design the UpdateManager class:
-   - Define update phases (early, standard, late)
-   - Create registration system for components/systems
-   - Implement priority queues for each phase
-2. Implement the update execution pipeline:
-   - Process each phase in sequence
-   - Sort systems by priority within each phase
-   - Pass appropriate time values to each system
-3. Create interfaces for updatable components:
-   - IEarlyUpdatable, IUpdatable, ILateUpdatable
-   - IFixedUpdatable for physics-based updates
-4. Add system pause functionality:
-   - Individual system pause/resume
-   - Global pause with selective system exclusions
-5. Implement debug visualization of update sequence
+1. Design and implement bridge components:
+   - SpriteRenderer component that creates and manages Phaser.GameObjects.Sprite
+   - PhysicsBody component that integrates with Matter.js physics
+   - InputHandler component for Phaser input events
+   - AnimationController for Phaser's animation system
+2. Implement synchronization logic:
+   - Update Phaser object transforms based on GameObject transform
+   - Forward relevant Phaser events to components
+   - Handle proper creation and destruction of Phaser objects
+3. Create utility components:
+   - CameraFollow component
+   - TweenComponent for Phaser's tween system
+   - SoundComponent for audio management
+4. Implement component communication:
+   - Event system for component-to-component communication
+   - Method to find and interact with components on other GameObjects
+5. Add debugging tools:
+   - Visual representation of GameObject hierarchy
+   - Component inspector for runtime debugging
 
 Testing approach:
-- Unit test priority-based execution order
-- Create test components for each update phase
-- Verify correct execution sequence across phases
-- Test pausing specific systems while others continue
-- Performance test with many registered systems
+- Test creation and management of Phaser objects through components
+- Verify proper synchronization between GameObject and Phaser object transforms
+- Test event forwarding from Phaser to components
+- Verify proper cleanup of Phaser resources when components are destroyed
+- Performance test with many bridge components active simultaneously
 
-## 4. Implement Layered Rendering System with Camera Management [pending]
+## 4. Implement Layered Rendering Using Phaser Techniques [pending]
 ### Dependencies: 18.2, 18.3
-### Description: Create a rendering architecture that supports multiple layers with independent cameras, enabling separation between game world and UI elements.
+### Description: Create a system for organizing game objects into logical layers (Background, Game, HUD) using Phaser's built-in capabilities.
 ### Details:
 Implementation details:
-1. Design the rendering layer system:
-   - Create enumeration of render layers (Background, World, UI, etc.)
-   - Implement layer masks for filtering what each camera renders
-   - Develop render queue for sorting objects by layer and render priority
-2. Implement camera system:
-   - Create Camera class with viewport and projection properties
-   - Support multiple active cameras with layer assignments
-   - Implement camera following behavior for game objects
-3. Develop the renderer pipeline:
-   - Clear and prepare render targets
-   - Render each layer with appropriate camera
-   - Composite layers together with proper blending
-4. Create specialized UI rendering:
-   - Screen-space positioning for UI elements
-   - Resolution-independent positioning (anchors, pivots)
-   - UI element clipping and masking
-5. Implement render settings management:
-   - Quality presets for different performance targets
-   - Post-processing effect attachment to cameras
+1. Design the layer organization system:
+   - Define standard layers (Background, Game, HUD, etc.)
+   - Create utility functions for assigning objects to layers
+   - Implement layer-specific containers using Phaser.GameObjects.Container
+2. Utilize Phaser's depth system:
+   - Assign depth ranges for each logical layer
+   - Create helper functions to manage depth within layers
+   - Implement automatic depth sorting within layers when needed
+3. Configure Phaser cameras for layers:
+   - Set up main camera for game world
+   - Configure UI camera that ignores world movement
+   - Implement camera culling and bounds for optimization
+4. Create specialized UI components:
+   - UIElement base component for HUD objects
+   - Layout components for positioning UI elements
+   - Responsive UI scaling for different screen sizes
+5. Implement layer-specific rendering effects:
+   - Layer-specific post-processing using Phaser's pipeline system
+   - Parallax scrolling for background layers
+   - Transition effects between layers
 
 Testing approach:
 - Visual tests with objects on different layers
 - Verify UI elements remain fixed while game camera moves
-- Test camera transitions and multiple camera setups
-- Verify proper layer compositing with transparency
-- Performance test with many objects across different layers
+- Test proper depth sorting within and between layers
+- Verify performance with many objects across different layers
+- Test responsive UI layout on different screen sizes
 
-## 5. Optimize Rendering with Sprite Batching and Implement Animation System [pending]
-### Dependencies: 18.4
-### Description: Enhance rendering performance through sprite batching and implement a flexible animation system for sprite-based animations.
+## 5. Optimize Performance and Implement Advanced Component Features [pending]
+### Dependencies: 18.3, 18.4
+### Description: Enhance the component system with advanced features and optimize performance for handling many game objects and components.
 ### Details:
 Implementation details:
-1. Implement sprite batching system:
-   - Group sprites by texture/material for batch rendering
-   - Create dynamic vertex buffers for sprite geometry
-   - Implement batch breaking detection for different render states
-   - Add automatic batch optimization for similar sprites
-2. Design sprite animation system:
-   - Create SpriteAnimator component
-   - Support for frame-based and time-based animations
-   - Animation state machine with transitions
-   - Event triggers at specific animation frames
-3. Implement sprite atlas support:
-   - Load and manage sprite sheets
-   - Extract individual sprites from atlas
-   - Support for sprite packing optimization
-4. Add special rendering effects:
-   - Sprite color tinting
-   - Fade in/out transitions
-   - Outline/glow effects
-5. Implement debug visualization tools:
-   - Display batch statistics
-   - Visualize sprite bounds
-   - Animation timeline preview
+1. Implement performance optimizations:
+   - Component update batching for similar components
+   - Lazy initialization of components
+   - Selective component updates based on visibility or distance
+   - GameObject and component pooling system
+2. Add advanced component features:
+   - Component templates/prefabs for reusable configurations
+   - Serialization/deserialization of component state
+   - Runtime component hot-swapping
+   - Component inheritance for specialized behavior
+3. Implement debugging and profiling tools:
+   - Component performance metrics
+   - Visual debugging of component state
+   - Logging system for component lifecycle events
+   - Memory usage tracking
+4. Create specialized utility components:
+   - State machine component for complex behaviors
+   - Pathfinding component integrated with Phaser
+   - Timer and coroutine components
+   - Object spawner and manager components
+5. Implement advanced rendering components:
+   - Particle system component
+   - Shader-based effects component
+   - Dynamic lighting component
+   - Sprite animation with advanced features
 
 Testing approach:
-- Performance benchmarks comparing batched vs. unbatched rendering
-- Visual tests for various animation sequences
-- Verify correct animation transitions and event triggers
-- Test with large sprite atlases and many animated objects
-- Profile memory usage with different sprite management approaches
+- Performance benchmarks with varying numbers of objects and components
+- Memory usage profiling during extended gameplay
+- Visual verification of advanced rendering effects
+- Stress testing with complex component interactions
+- Profile CPU usage across different component types
+
+## 6. Integrate TimeManager with Phaser and Matter.js Events [pending]
+### Dependencies: 18.1, 18.2
+### Description: Connect the existing TimeManager with Phaser's update cycle and Matter.js events to drive component updates.
+### Details:
+Implementation details:
+1. Integrate TimeManager with Phaser:
+   - Connect TimeManager to Phaser's update cycle
+   - Use Phaser's time values for consistent timing
+   - Maintain TimeManager's API for backward compatibility
+2. Set up fixed update with Matter.js:
+   - Listen to Matter.js 'beforeUpdate' events for physics timing
+   - Trigger component fixedUpdate methods on physics steps
+   - Ensure consistent physics simulation regardless of frame rate
+3. Implement update scheduling:
+   - Drive component lifecycle methods from Phaser's scene update
+   - Ensure proper order of execution (awake, start, update)
+   - Handle component enabling/disabling during runtime
+4. Add time scaling features:
+   - Support for slow-motion effects
+   - Time pausing that affects components appropriately
+   - Independent time scale for different object groups
+5. Create time-based utilities:
+   - Interval and timeout functions that respect game time
+   - Frame counting and time measurement tools
+   - Performance monitoring based on update timing
+
+Testing approach:
+- Verify consistent component updates at different frame rates
+- Test fixed updates occur at the expected frequency
+- Measure timing accuracy compared to expected intervals
+- Test time scaling and pausing functionality
+- Verify proper component lifecycle method execution order
 
