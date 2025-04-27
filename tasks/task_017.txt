@@ -1,6 +1,6 @@
 # Task ID: 17
 # Title: Implement Client-Side Deterministic Star Field Background
-# Status: pending
+# Status: done
 # Dependencies: None
 # Priority: medium
 # Description: Create a procedurally generated star field background that renders consistently across sessions using a deterministic algorithm. The effect should be performant and visually appealing.
@@ -254,7 +254,7 @@ public destroy(): void {
 The parallax effect creates a sense of depth by moving stars at different rates based on their brightness/size. Viewport culling significantly improves performance by only rendering stars visible in the current view.
 </info added on 2025-04-26T14:41:59.100Z>
 
-## 5. Create Public API and Documentation [pending]
+## 5. Create Public API and Documentation [done]
 ### Dependencies: 17.1, 17.2, 17.3, 17.4
 ### Description: Finalize the module with a clean public API, configuration options, and comprehensive documentation
 ### Details:

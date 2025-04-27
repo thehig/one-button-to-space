@@ -1,0 +1,240 @@
+# Task ID: 18
+# Title: Implement Game Engine Architecture with Variable Update Rates and Layered Rendering
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Design and implement a foundational client-side architecture that separates physics, logic, and rendering into independent update loops with different rates, while organizing game objects into a scene management system with separate render layers.
+# Details:
+This task involves restructuring the client-side game engine to follow best practices for 2D game development, performance and maintainability:
+
+1. Variable Update Rate System:
+   - Implement a time management system that tracks delta time between frames
+   - Create separate update loops for game logic (fixed timestep) and rendering (variable, potentially V-sync limited)
+   - Implement interpolation between states for smooth rendering at higher framerates
+   - Design a central TimeManager class to provide timing information to all systems
+
+2. Scene/State Management:
+   - Create a SceneManager class that maintains a collection of active game objects
+   - Implement scene loading/unloading functionality with proper resource management
+   - Design a state transition system for different game states (menu, gameplay, etc.)
+   - Add support for hierarchical object relationships (parent-child transforms)
+
+3. Dedicated Update Manager:
+   - Develop an UpdateManager that orchestrates the execution order of systems
+   - Implement component registration for different update phases (early, standard, late)
+   - Create a priority system for controlling update sequence within each phase
+   - Add support for pausing specific systems independently
+
+4. Layered Rendering:
+   - Separate rendering into distinct layers (specifically game world and UI/HUD)
+   - Ensure UI elements remain fixed while game camera moves
+   - Create a camera system that can render to specific layers
+   - Design a compositing system to combine layers with appropriate blending
+
+5. 2D Game Development Best Practices:
+   - Implement efficient sprite batching for improved rendering performance
+   - Create a robust collision detection system appropriate for 2D games
+   - Design a flexible animation system for sprite-based animations
+   - Implement proper camera controls and viewport management for 2D space
+
+6. Code Cleanup and Organization:
+   - Enforce consistent naming conventions and code style
+   - Implement proper memory management with appropriate patterns
+   - Add comprehensive error handling and logging
+   - Ensure systems use interfaces/abstract classes for better decoupling
+   - Document all major systems with clear API documentation
+
+# Test Strategy:
+Testing should verify both individual components and their integration:
+
+1. Time and Update Rate Testing:
+   - Unit test the TimeManager to ensure accurate delta time calculation
+   - Verify logic updates occur at fixed intervals regardless of frame rate
+   - Test rendering at different frame rates (30, 60, 144 fps) to confirm smooth motion
+   - Create a visualization tool that displays the actual update rates of each system
+   - Stress test with intentional frame drops to ensure stability
+
+2. Scene/State Management Testing:
+   - Verify objects are correctly added to and removed from scenes
+   - Test state transitions for memory leaks and proper resource cleanup
+   - Benchmark scene loading times with different numbers of objects
+   - Verify parent-child relationships maintain proper transformations
+
+3. Update System Testing:
+   - Create mock components that log their update order
+   - Verify components execute in the correct sequence based on priority
+   - Test pausing specific systems while others continue
+   - Measure performance impact of the update manager overhead
+
+4. Render Layer Testing:
+   - Create a test scene with objects on different layers (game world vs HUD)
+   - Verify UI elements remain fixed while game camera moves
+   - Test proper layering of game elements and UI components
+   - Verify performance with many objects across different layers
+
+5. 2D Specific Testing:
+   - Test sprite batching performance with varying numbers of sprites
+   - Verify collision detection accuracy and performance
+   - Test animation system with different sprite-based animations
+   - Verify camera controls and viewport management in 2D space
+
+6. Integration Testing:
+   - Create a benchmark scene that exercises all systems together
+   - Profile CPU/GPU usage to identify bottlenecks
+   - Test on different hardware configurations
+   - Implement automated tests that verify the correct interaction between all systems
+
+# Subtasks:
+## 1. Implement TimeManager and Core Engine Loop Structure [done]
+### Dependencies: None
+### Description: Create the foundational time management system and core engine loop structure that will support variable update rates for different systems.
+### Details:
+Implementation details:
+1. Create a TimeManager class that tracks:
+   - Total elapsed time
+   - Delta time between frames
+   - Fixed timestep accumulator
+   - Current FPS calculation
+2. Implement the main engine loop with separate update paths:
+   - Fixed update for physics/logic (typically 60Hz)
+   - Variable update for rendering (synced to display)
+3. Create an EngineConfiguration class to store timing constants:
+   - Fixed timestep duration
+   - Maximum allowed delta time
+   - Target framerate options
+4. Implement basic interpolation utilities for smooth rendering:
+   - Linear interpolation between physics states
+   - Calculation of interpolation factor based on accumulator
+5. Add FPS limiting/vsync options
+
+Testing approach:
+- Unit test TimeManager calculations with simulated time inputs
+- Create a simple test application that displays timing statistics
+- Verify consistent fixed update calls regardless of framerate
+- Test interpolation with moving objects at different framerates
+
+## 2. Develop SceneManager and GameObject Hierarchy System [pending]
+### Dependencies: 18.1
+### Description: Create the scene management infrastructure that organizes game objects and handles their relationships, lifecycle, and state transitions.
+### Details:
+Implementation details:
+1. Design and implement core classes:
+   - GameObject base class with transform properties
+   - Component base class for behavior attachment
+   - SceneManager to maintain active objects collection
+2. Implement hierarchical transform system:
+   - Parent-child relationships between GameObjects
+   - Local and world transform calculations
+   - Propagation of transform changes through hierarchy
+3. Create scene lifecycle management:
+   - Scene loading/unloading functionality
+   - Resource acquisition and release during transitions
+   - Scene state (active, paused, background)
+4. Implement a game state system:
+   - State machine for game states (menu, gameplay, etc.)
+   - State transition handling with enter/exit events
+   - State-specific update and render methods
+5. Add object pooling for frequently created/destroyed objects
+
+Testing approach:
+- Unit test parent-child transform calculations
+- Create test scenes and verify proper loading/unloading
+- Test object lifecycle through creation and destruction
+- Verify state transitions work correctly with appropriate callbacks
+- Performance test with large numbers of objects in hierarchy
+
+## 3. Create UpdateManager with Phased Execution System [pending]
+### Dependencies: 18.1, 18.2
+### Description: Develop the update management system that orchestrates the execution order of different game systems and components with priority-based phasing.
+### Details:
+Implementation details:
+1. Design the UpdateManager class:
+   - Define update phases (early, standard, late)
+   - Create registration system for components/systems
+   - Implement priority queues for each phase
+2. Implement the update execution pipeline:
+   - Process each phase in sequence
+   - Sort systems by priority within each phase
+   - Pass appropriate time values to each system
+3. Create interfaces for updatable components:
+   - IEarlyUpdatable, IUpdatable, ILateUpdatable
+   - IFixedUpdatable for physics-based updates
+4. Add system pause functionality:
+   - Individual system pause/resume
+   - Global pause with selective system exclusions
+5. Implement debug visualization of update sequence
+
+Testing approach:
+- Unit test priority-based execution order
+- Create test components for each update phase
+- Verify correct execution sequence across phases
+- Test pausing specific systems while others continue
+- Performance test with many registered systems
+
+## 4. Implement Layered Rendering System with Camera Management [pending]
+### Dependencies: 18.2, 18.3
+### Description: Create a rendering architecture that supports multiple layers with independent cameras, enabling separation between game world and UI elements.
+### Details:
+Implementation details:
+1. Design the rendering layer system:
+   - Create enumeration of render layers (Background, World, UI, etc.)
+   - Implement layer masks for filtering what each camera renders
+   - Develop render queue for sorting objects by layer and render priority
+2. Implement camera system:
+   - Create Camera class with viewport and projection properties
+   - Support multiple active cameras with layer assignments
+   - Implement camera following behavior for game objects
+3. Develop the renderer pipeline:
+   - Clear and prepare render targets
+   - Render each layer with appropriate camera
+   - Composite layers together with proper blending
+4. Create specialized UI rendering:
+   - Screen-space positioning for UI elements
+   - Resolution-independent positioning (anchors, pivots)
+   - UI element clipping and masking
+5. Implement render settings management:
+   - Quality presets for different performance targets
+   - Post-processing effect attachment to cameras
+
+Testing approach:
+- Visual tests with objects on different layers
+- Verify UI elements remain fixed while game camera moves
+- Test camera transitions and multiple camera setups
+- Verify proper layer compositing with transparency
+- Performance test with many objects across different layers
+
+## 5. Optimize Rendering with Sprite Batching and Implement Animation System [pending]
+### Dependencies: 18.4
+### Description: Enhance rendering performance through sprite batching and implement a flexible animation system for sprite-based animations.
+### Details:
+Implementation details:
+1. Implement sprite batching system:
+   - Group sprites by texture/material for batch rendering
+   - Create dynamic vertex buffers for sprite geometry
+   - Implement batch breaking detection for different render states
+   - Add automatic batch optimization for similar sprites
+2. Design sprite animation system:
+   - Create SpriteAnimator component
+   - Support for frame-based and time-based animations
+   - Animation state machine with transitions
+   - Event triggers at specific animation frames
+3. Implement sprite atlas support:
+   - Load and manage sprite sheets
+   - Extract individual sprites from atlas
+   - Support for sprite packing optimization
+4. Add special rendering effects:
+   - Sprite color tinting
+   - Fade in/out transitions
+   - Outline/glow effects
+5. Implement debug visualization tools:
+   - Display batch statistics
+   - Visualize sprite bounds
+   - Animation timeline preview
+
+Testing approach:
+- Performance benchmarks comparing batched vs. unbatched rendering
+- Visual tests for various animation sequences
+- Verify correct animation transitions and event triggers
+- Test with large sprite atlases and many animated objects
+- Profile memory usage with different sprite management approaches
+
