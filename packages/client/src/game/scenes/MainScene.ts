@@ -425,7 +425,6 @@ export class MainScene extends Phaser.Scene {
   }
 
   private updateUIElements(currentUps: number): void {
-    // Guard moved to the main update loop
     if (this.rocket?.body && this.debugHud) {
       // Check rocket and body exist
       const pos = this.rocket.body.position;
@@ -444,10 +443,13 @@ export class MainScene extends Phaser.Scene {
         }))
       );
 
-      // Get FPS
+      // Get FPS, UPS, MPS
       const fps = this.game.loop.actualFps;
+      const mps = this.multiplayerService?.getMps() ?? 0;
+      // GET OMPS
+      const omps = this.multiplayerService?.getOmps() ?? 0;
 
-      this.debugHud.update({
+      const hudData = {
         posX: pos.x,
         posY: pos.y,
         velX: vel.x,
@@ -456,9 +458,43 @@ export class MainScene extends Phaser.Scene {
         angleDeg: angleDeg,
         density: density, // Pass calculated density
         currentTimeString: Logger.getCurrentTimestampString(),
-        fps: fps, // Pass FPS
-        ups: currentUps, // Pass UPS
-      });
+        fps: fps,
+        ups: currentUps,
+        mps: mps, // Pass MPS
+        omps: omps, // Pass OMPS
+      };
+      this.debugHud.update(hudData);
+    }
+
+    // Update Connection Status Text
+    let text = "Status: Initializing...";
+    let color = "#ffffff"; // Default white
+
+    if (this.multiplayerService) {
+      switch (this.multiplayerService.getConnectionStatus()) {
+        case "connected":
+          color = "#00ff00"; // Green
+          text = `Status: Connected (ID: ${this.multiplayerService.getSessionId()})`;
+          break;
+        case "connecting":
+          color = "#ffff00"; // Yellow
+          break;
+        case "disconnected":
+          color = "#ff0000"; // Red
+          text = "Status: Disconnected";
+          this.cleanupMultiplayerEntities(); // Clear visuals on disconnect
+          break;
+        case "error":
+          color = "#ff0000"; // Red
+          text = "Status: Error";
+          this.cleanupMultiplayerEntities(); // Also clear on error
+          break;
+      }
+    }
+
+    if (this.connectionStatusText) {
+      this.connectionStatusText.setText(text);
+      this.connectionStatusText.setColor(color);
     }
   }
 

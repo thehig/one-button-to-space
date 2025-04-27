@@ -33,6 +33,9 @@ export type PhysicsUpdateListener = (
   updateData: { [sessionId: string]: Partial<PlayerState> } // Type for the broadcasted data
 ) => void;
 
+// --- MPS Calculation Constants ---
+const MPS_SAMPLE_SIZE = 60; // Number of intervals to average for MPS
+
 export class MultiplayerService {
   private client: Colyseus.Client | null = null;
   // Use the imported RoomState type
@@ -61,6 +64,16 @@ export class MultiplayerService {
   // Listeners for physics updates
   private physicsUpdateListeners: PhysicsUpdateListener[] = [];
 
+  // --- MPS Calculation Properties ---
+  private messageTimestamps: number[] = [];
+  private currentMps: number = 0;
+  private lastMessageTime: number = 0;
+
+  // --- ADDED: OMPS Calculation Properties ---
+  private outputMessageTimestamps: number[] = [];
+  private currentOmps: number = 0;
+  private lastOutputMessageTime: number = 0;
+
   constructor() {
     Logger.info(LOGGER_SOURCE, "MultiplayerService instantiated."); // Use constant
     // Load configuration
@@ -72,6 +85,13 @@ export class MultiplayerService {
       `MultiplayerService configured: Server=${this.serverUrl}, Room=${this.roomName}`
     );
     // TODO: Add fallback if config loading fails?
+    this.currentMps = 0;
+    this.lastMessageTime = 0;
+    this.messageTimestamps = [];
+    // Initialize OMPS values
+    this.currentOmps = 0;
+    this.lastOutputMessageTime = 0;
+    this.outputMessageTimestamps = [];
   }
 
   public async connect(): Promise<void> {
@@ -150,6 +170,14 @@ export class MultiplayerService {
     // if (oldStatus !== 'disconnected') {
     //    // TODO: Notify status listeners
     // }
+    // Reset MPS tracking on leave
+    this.currentMps = 0;
+    this.lastMessageTime = 0;
+    this.messageTimestamps = [];
+    // Reset OMPS tracking on leave
+    this.currentOmps = 0;
+    this.lastOutputMessageTime = 0;
+    this.outputMessageTimestamps = [];
   }
 
   public isConnected(): boolean {
@@ -482,18 +510,75 @@ export class MultiplayerService {
     // TODO: Add validation for the inputMessage structure?
     // Log the input being sent for debugging
     Logger.debug(LOGGER_SOURCE, "Sending player_input:", inputMessage); // Logger call
-    // console.debug("[TEMP TEST] Raw console.debug: Sending player_input:", inputMessage); // <-- Remove direct console.debug
-    // Logger.info(LOGGER_SOURCE, "[TEMP TEST] Sending player_input:", inputMessage); // Remove temporary info log
 
     try {
       // Type for the message being sent
       this.room?.send("player_input", inputMessage);
-      // Logger.debug(LOGGER_SOURCE, 'MultiplayerService: Sent player input:', inputMessage); // Optional: Verbose logging
+      this.updateOmpsCounter(); // Track outgoing message
     } catch (error) {
       console.error("MultiplayerService: Failed to send player input:", error);
       // TODO: Handle error
     }
   }
+
+  public getMps(): number {
+    // Simply return the calculated value. The calculation is done in updateMpsCounter.
+    return this.currentMps;
+  }
+
+  // --- ADDED: Public getter for OMPS ---
+  public getOmps(): number {
+    // Simply return the calculated value. The calculation is done in updateOmpsCounter.
+    return this.currentOmps;
+  }
+
+  // --- Centralized MPS Counter Update ---
+  private updateMpsCounter(): void {
+    const now = Date.now();
+    if (this.lastMessageTime > 0) {
+      const interval = now - this.lastMessageTime;
+      this.messageTimestamps.push(interval);
+      if (this.messageTimestamps.length > MPS_SAMPLE_SIZE) {
+        this.messageTimestamps.shift(); // Remove oldest
+      }
+
+      if (this.messageTimestamps.length > 0) {
+        const totalInterval = this.messageTimestamps.reduce((a, b) => a + b, 0);
+        const avgInterval = totalInterval / this.messageTimestamps.length;
+        this.currentMps = avgInterval > 0 ? 1000 / avgInterval : 0;
+      } else {
+        this.currentMps = 0;
+      }
+    }
+    this.lastMessageTime = now;
+  }
+
+  // --- ADDED: Centralized OMPS Counter Update ---
+  private updateOmpsCounter(): void {
+    const now = Date.now();
+    if (this.lastOutputMessageTime > 0) {
+      const interval = now - this.lastOutputMessageTime;
+      this.outputMessageTimestamps.push(interval);
+      if (this.outputMessageTimestamps.length > MPS_SAMPLE_SIZE) {
+        this.outputMessageTimestamps.shift(); // Remove oldest
+      }
+
+      if (this.outputMessageTimestamps.length > 0) {
+        const totalInterval = this.outputMessageTimestamps.reduce(
+          (a, b) => a + b,
+          0
+        );
+        const avgInterval = totalInterval / this.outputMessageTimestamps.length;
+        this.currentOmps = avgInterval > 0 ? 1000 / avgInterval : 0;
+        // Optional: Add debug log if needed
+        // Logger.debug(LOGGER_SOURCE, `OMPS Calc: timestamps=${this.outputMessageTimestamps.length}, avgInterval=${avgInterval.toFixed(2)}, currentOmps=${this.currentOmps.toFixed(2)}`);
+      } else {
+        this.currentOmps = 0;
+      }
+    }
+    this.lastOutputMessageTime = now;
+  }
+  // --- END ADDED METHOD ---
 
   private setupRoomListeners(): void {
     if (!this.room) {
@@ -511,6 +596,7 @@ export class MultiplayerService {
 
     // Listener for the entire state synchronization - THIS WILL HANDLE EVERYTHING
     this.room.onStateChange((state: RoomState) => {
+      this.updateMpsCounter(); // Track message receipt
       Logger.debug(LOGGER_SOURCE, "Received full state update."); // Use constant
 
       // --- Player Sync (Full State Check) ---
@@ -673,33 +759,31 @@ export class MultiplayerService {
     this.room.onMessage(
       "physics_update",
       (updateData: { [sessionId: string]: Partial<PlayerState> }) => {
+        this.updateMpsCounter(); // Track message receipt
         this.notifyPhysicsUpdateListeners(updateData);
       }
     );
 
-    // --- Add Listener for World Creation Time ---
+    // World Creation Time Listener
     this.room.onMessage("worldCreationTime", (timestamp: number) => {
+      this.updateMpsCounter(); // Track message receipt
       if (typeof timestamp === "number") {
         Logger.setWorldCreationTime(timestamp);
         Logger.info(
           LOGGER_SOURCE,
-          `World creation time received and set: ${timestamp}`
+          `World creation time received: ${timestamp}`
         );
       } else {
         Logger.warn(
           LOGGER_SOURCE,
-          `Received invalid world creation time type: ${typeof timestamp}`
+          `Invalid worldCreationTime type: ${typeof timestamp}`
         );
       }
     });
-    // -------------------------------------------
 
-    // REMOVED Schema-specific listeners (onAdd, onRemove, onChange)
-    // Relying solely on onStateChange for synchronization
-
-    // --- Custom Messages ---
+    // Custom Messages (example)
     this.room.onMessage("server_announcement", (message) => {
-      Logger.info(LOGGER_SOURCE, `Server Announcement: ${message}`); // Use constant
+      Logger.info(LOGGER_SOURCE, `Server Announcement: ${message}`);
     });
   }
 }
