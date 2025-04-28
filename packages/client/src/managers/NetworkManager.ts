@@ -26,16 +26,37 @@ export class NetworkManager extends BaseManager {
 
   private constructor() {
     super();
-    // Determine server endpoint based on environment
-    const endpoint = import.meta.env.DEV
-      ? "ws://localhost:2567" // Local development server
-      : // IMPORTANT: Replace with your actual production WebSocket endpoint
-        "wss://your-production-server.com";
+    // Determine server endpoint
+    // 1. Prioritize VITE_SERVER_URL environment variable
+    // 2. Fallback to localhost for development
+    // 3. Fallback to placeholder for production
+    const envServerUrl = import.meta.env.VITE_SERVER_URL;
+    let endpoint: string;
+
+    if (envServerUrl) {
+      endpoint = envServerUrl;
+      Logger.info(
+        LOGGER_SOURCE,
+        `Using server URL from environment: ${endpoint}`
+      );
+    } else if (import.meta.env.DEV) {
+      endpoint = "ws://localhost:2567"; // Local development server
+      Logger.info(
+        LOGGER_SOURCE,
+        `Using default development server URL: ${endpoint}`
+      );
+    } else {
+      // IMPORTANT: Replace with your actual production WebSocket endpoint placeholder
+      // or ensure VITE_SERVER_URL is set in the production build environment
+      endpoint = "wss://your-production-server.com"; // Default production placeholder
+      Logger.warn(
+        LOGGER_SOURCE,
+        `VITE_SERVER_URL not set, using default production placeholder: ${endpoint}`
+      );
+    }
+
     this.client = new Client(endpoint);
-    Logger.info(
-      LOGGER_SOURCE,
-      `NetworkManager initialized for endpoint: ${endpoint}`
-    );
+    // Logger.info removed here, logged within the if/else blocks now
   }
 
   public static getInstance(): NetworkManager {
