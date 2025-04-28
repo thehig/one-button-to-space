@@ -267,7 +267,7 @@ export class Logger {
       case LogLevel.TRACE: // Fall through to use console.log
       case LogLevel.DEBUG:
       case LogLevel.INFO:
-        console.info(prefix, message, ...optionalParams);
+        console.log(prefix, message, ...optionalParams);
         break;
       case LogLevel.WARN:
         console.warn(prefix, message, ...optionalParams);

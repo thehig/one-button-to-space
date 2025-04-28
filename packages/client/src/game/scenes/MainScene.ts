@@ -403,7 +403,7 @@ export class MainScene extends Phaser.Scene {
             null,
             Phaser.Math.RadToDeg(targetAngleRad)
           );
-          Logger.debug(
+          Logger.trace(
             LOGGER_SOURCE,
             `Pointer Move: Set simulated gamma for angle=${targetAngleRad.toFixed(
               2

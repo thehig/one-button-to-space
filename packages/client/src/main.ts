@@ -10,7 +10,7 @@ import { Logger, LogLevel } from "@one-button-to-space/shared"; // Corrected imp
 const blacklistedSources = new Set<string>([
   "🧭📱", // DeviceOrientationManager
 ]);
-Logger.setFilters(LogLevel.TRACE, undefined, blacklistedSources); // Pass undefined for allowlist to keep default behavior
+Logger.setFilters(LogLevel.DEBUG, undefined, blacklistedSources); // Pass undefined for allowlist to keep default behavior
 
 Logger.info("🚀", "Application main entry point reached.");
 
