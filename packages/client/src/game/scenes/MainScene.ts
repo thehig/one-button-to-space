@@ -457,7 +457,7 @@ export class MainScene extends Phaser.Scene {
   }
 
   private updateControllers(deltaTimeS: number): void {
-    this.zoomController.update(deltaTimeS);
+    // Add other controller updates here if needed
   }
 
   private updateMultiplayerState(time: number): void {

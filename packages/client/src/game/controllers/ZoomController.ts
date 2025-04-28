@@ -4,44 +4,51 @@ import Phaser from "phaser";
 // Define the source constant for logging
 const LOGGER_SOURCE = "🔍🎮"; // Chosen emojis for ZoomController
 
+// Define the fixed zoom levels
+const DEFAULT_ZOOM_LEVELS: number[] = [0.1, 0.25, 0.5, 0.75, 1.0, 1.5, 2.0];
+const INITIAL_ZOOM_INDEX = 2; // Index corresponding to 0.5 in the array
+
 export class ZoomController {
   private scene: Phaser.Scene;
-  private currentZoom: number = 0.5; // Start at the new minimum
-  private targetZoom: number = 0.5; // Target zoom level for interpolation, start at new minimum
-  private readonly minZoom: number = 0.1; // Zoom less than 1 is zooming out
-  private readonly maxZoom: number = 2.0; // Double the maximum zoom
-  private readonly zoomStep: number = 0.4; // Increase step size (8x larger)
-  private readonly smoothFactor: number = 0.1; // Interpolation speed factor
-  private readonly epsilon: number = 0.001; // Threshold to stop interpolation
-  private boundWheelHandler: (e: WheelEvent) => void; // For correct listener removal
+  private readonly zoomLevels: number[];
+  private currentZoom: number;
+  private targetLevelIndex: number; // Index in zoomLevels array
+  private boundWheelHandler: (e: WheelEvent) => void;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, zoomLevels: number[] = DEFAULT_ZOOM_LEVELS) {
     this.scene = scene;
-    // No longer need to initialize targetZoom here as it's set with currentZoom
-    // this.targetZoom = this.currentZoom;
-    this.boundWheelHandler = this.handleWheelEvent.bind(this); // Store bound handler
+    this.zoomLevels = zoomLevels;
+
+    if (
+      INITIAL_ZOOM_INDEX < 0 ||
+      INITIAL_ZOOM_INDEX >= this.zoomLevels.length
+    ) {
+      Logger.warn(
+        LOGGER_SOURCE,
+        `Initial zoom index ${INITIAL_ZOOM_INDEX} is out of bounds for zoom levels array. Resetting to 0.`
+      );
+      this.targetLevelIndex = 0;
+    } else {
+      this.targetLevelIndex = INITIAL_ZOOM_INDEX;
+    }
+
+    this.currentZoom =
+      this.zoomLevels[this.targetLevelIndex] ?? this.zoomLevels[0]!;
+
+    this.boundWheelHandler = this.handleWheelEvent.bind(this);
     this.init();
   }
 
   private init(): void {
     const canvas = this.scene.game.canvas;
-
-    // --- ADDED: Make canvas focusable ---
-    canvas.setAttribute("tabindex", "0"); // Or -1 if tabbing isn't desired
-    // --- END ADDED ---
-
-    // Use the stored bound handler
+    canvas.setAttribute("tabindex", "0");
     canvas.addEventListener("wheel", this.boundWheelHandler, {
-      passive: false, // Need passive: false to call preventDefault()
+      passive: false,
     });
   }
 
   private handleWheelEvent(event: WheelEvent): void {
-    // --- REMOVED DEBUG LOG ---
     Logger.debug(LOGGER_SOURCE, "Wheel event received:", event);
-    // --- END REMOVED DEBUG LOG ---
-
-    // --- RE-ADD FOCUS DEBUG LOG ---
     Logger.debug(
       LOGGER_SOURCE,
       "[Focus Check] Active Element:",
@@ -49,111 +56,73 @@ export class ZoomController {
       "Canvas:",
       this.scene.game.canvas
     );
-    // --- END RE-ADD FOCUS DEBUG LOG ---
-
-    // Only process wheel events when canvas has focus
-    /* --- REMOVED FOCUS CHECK ---
-    if (document.activeElement !== this.scene.game.canvas) {
-      // Add a log here for clarity if focus is still an issue
-      Logger.debug(LOGGER_SOURCE, 'Canvas does not have focus, ignoring wheel event. Active:', document.activeElement);
-      return;
-    }
-    --- END REMOVED FOCUS CHECK --- */
 
     // Prevent default browser scroll/zoom behavior
     event.preventDefault();
 
-    // Calculate new zoom level based on wheel direction
-    // Negative deltaY means scroll up (zoom in), positive means scroll down (zoom out)
+    // Determine zoom direction
     const zoomDirection = -Math.sign(event.deltaY);
-    // Calculate the new target based on currentZoom at the time of the event
-    const newTargetZoom = this.currentZoom + zoomDirection * this.zoomStep;
 
-    // Set the target zoom, applying constraints
-    this.targetZoom = Phaser.Math.Clamp(
-      newTargetZoom,
-      this.minZoom,
-      this.maxZoom
+    // Calculate the new target level index
+    const newIndex = this.targetLevelIndex + zoomDirection;
+
+    // Clamp the index within the bounds of the zoomLevels array
+    const clampedIndex = Phaser.Math.Clamp(
+      newIndex,
+      0,
+      this.zoomLevels.length - 1
     );
 
-    // We no longer apply zoom directly here or log the level immediately
-    /* --- REMOVED ---
-    // Apply zoom constraints
-    const previousZoom = this.currentZoom;
-    this.currentZoom = Phaser.Math.Clamp(
-      targetZoom,
-      this.minZoom,
-      this.maxZoom
-    );
-
-    if (this.currentZoom !== previousZoom) {
-      console.log("Zoom level:", this.currentZoom.toFixed(2));
-      // TODO: Apply zoom to camera in a later step
+    // If the target index has changed, update the target zoom value
+    if (clampedIndex !== this.targetLevelIndex) {
+      this.targetLevelIndex = clampedIndex;
+      this.currentZoom = this.zoomLevels[this.targetLevelIndex]!;
+      this.scene.cameras.main.setZoom(this.currentZoom); // Apply zoom immediately
+      Logger.debug(
+        LOGGER_SOURCE,
+        `New target zoom level set: Index=${
+          this.targetLevelIndex
+        }, Value=${this.currentZoom.toFixed(3)}` // Log applied zoom
+      );
     }
-    --- END REMOVED --- */
-  }
-
-  public update(delta: number): void {
-    // Adjust smooth factor based on delta time for frame rate independence
-    // Assuming 60 FPS (16.666ms per frame) as the baseline
-    const adjustedSmoothFactor = this.smoothFactor * (delta / 16.666);
-
-    // Check if current zoom is already close enough to the target
-    if (Math.abs(this.currentZoom - this.targetZoom) < this.epsilon) {
-      // Snap to target if very close to prevent floating point issues
-      if (this.currentZoom !== this.targetZoom) {
-        this.currentZoom = this.targetZoom;
-        this.scene.cameras.main.setZoom(this.currentZoom);
-        Logger.debug(
-          LOGGER_SOURCE,
-          `Zoom Level Applied: ${this.currentZoom.toFixed(3)}`
-        ); // Replaced console.log with debug
-      }
-      return; // No need to interpolate further
-    }
-
-    // Interpolate current zoom towards the target zoom
-    this.currentZoom = Phaser.Math.Linear(
-      this.currentZoom,
-      this.targetZoom,
-      adjustedSmoothFactor
-    );
-
-    // Apply the interpolated zoom to the camera
-    Logger.debug(
-      LOGGER_SOURCE,
-      `Zoom Level Applied: ${this.currentZoom.toFixed(3)}`
-    ); // Replaced console.log with debug
-    this.scene.cameras.main.setZoom(this.currentZoom);
-    // console.log(`Zoom interpolating: Current=${this.currentZoom.toFixed(3)}, Target=${this.targetZoom.toFixed(3)}`); // Optional debug
   }
 
   public getZoomLevel(): number {
     return this.currentZoom;
   }
 
+  // Helper to find the closest zoom level index to a given value
+  private findNearestZoomIndex(level: number): number {
+    return this.zoomLevels.reduce(
+      (prevIndex, currLevel, currIndex) => {
+        const prevDiff = Math.abs(this.zoomLevels[prevIndex]! - level);
+        const currDiff = Math.abs(currLevel - level);
+        return currDiff < prevDiff ? currIndex : prevIndex;
+      },
+      0 // Start with index 0 as the initial best guess
+    );
+  }
+
   public setZoomLevel(level: number): void {
-    // Set the target zoom level for interpolation
-    this.targetZoom = Phaser.Math.Clamp(level, this.minZoom, this.maxZoom);
-    // Remove console log, zoom is applied in update()
-    /* --- REMOVED ---
-    const previousZoom = this.currentZoom;
-    this.currentZoom = Phaser.Math.Clamp(level, this.minZoom, this.maxZoom);
-    if (this.currentZoom !== previousZoom) {
-      console.log("Zoom level set to:", this.currentZoom.toFixed(2));
-    }
-    --- END REMOVED --- */
+    // Snap to the nearest fixed zoom level
+    const nearestIndex = this.findNearestZoomIndex(level);
+    // Immediately apply the snapped zoom level
+    this.setZoomLevelImmediate(this.zoomLevels[nearestIndex]!); // Reuse immediate logic
   }
 
   public setZoomLevelImmediate(level: number): void {
-    this.currentZoom = Phaser.Math.Clamp(level, this.minZoom, this.maxZoom);
-    this.targetZoom = this.currentZoom; // Sync target
+    const nearestIndex = this.findNearestZoomIndex(level);
+    this.targetLevelIndex = nearestIndex;
+    this.currentZoom = this.zoomLevels[nearestIndex]!;
     this.scene.cameras.main.setZoom(this.currentZoom); // Apply immediately
     Logger.info(
       LOGGER_SOURCE,
-      "Zoom set immediately to:",
-      this.currentZoom.toFixed(2)
-    ); // Replaced console.log with info
+      `setZoomLevelImmediate: Snapped ${level.toFixed(
+        3
+      )} to nearest level ${this.currentZoom.toFixed(
+        3
+      )} (Index: ${nearestIndex})`
+    );
   }
 
   public destroy(): void {
