@@ -17,7 +17,6 @@
     "dotenv": "catalog:",
     "express": "catalog:",
     "@types/express": "catalog:",
-    "@colyseus/schema": "catalog:",
     "@colyseus/auth": "catalog:",
     "@colyseus/core": "catalog:",
     "@colyseus/loadtest": "catalog:",

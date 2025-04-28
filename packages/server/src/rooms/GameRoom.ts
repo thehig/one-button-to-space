@@ -610,11 +610,11 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
     }
     player.cargo = "";
 
-    // Create the physics body for the player
+    // Create the player's physics body using Matter.js
     const playerBody = Matter.Bodies.fromVertices(
       player.x,
       player.y,
-      rocketVertices, // Use shared vertices
+      [rocketVertices], // Wrap vertices in an extra array layer
       {
         mass: PLAYER_MASS,
         frictionAir: PLAYER_FRICTION_AIR,
@@ -652,12 +652,45 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
       `Player ${client.sessionId} state and physics body created.`
     );
 
-    // Send world creation time to the new client
-    client.send("worldCreationTime", Logger.getWorldCreationTime());
+    // Send initial world creation time using Date.now()
+    client.send("worldCreationTime", Date.now());
     Logger.info(
       LOGGER_SOURCE,
       `Sent world creation time to ${client.sessionId}`
     );
+
+    // --- REGISTER MESSAGE HANDLERS FOR THIS CLIENT --- //
+
+    // Handler for player input
+    this.onMessage<PlayerInputMessage>("playerInput", (client, message) => {
+      // TODO: Implement input handling logic based on message.input
+      // ... comments ...
+
+      // Example: Store thrust state based on the correct input type
+      if (message.input === "thrust_start") {
+        this.playerThrustState.set(client.sessionId, true);
+      } else if (message.input === "thrust_stop") {
+        this.playerThrustState.set(client.sessionId, false);
+      }
+      // Handle 'set_angle' if needed, potentially using message.value
+
+      // Optional: Queue input for processing in physics loop (more complex)
+      // ... queueing logic ...
+
+      // For now, just log that input was received using correct properties
+      Logger.trace(
+        LOGGER_SOURCE,
+        `Received input from ${client.sessionId}: seq=${message.seq}, input=${message.input}, value=${message.value}`
+      );
+    });
+
+    // Add handlers for other message types here (e.g., chat, actions)
+
+    Logger.debug(
+      LOGGER_SOURCE,
+      `Registered message handlers for ${client.sessionId}`
+    );
+
     Logger.debug(
       LOGGER_SOURCE,
       `onJoin: ${client.sessionId} finished joining.`

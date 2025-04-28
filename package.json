@@ -16,7 +16,8 @@
   },
   "dependencies": {
     "cross-env": "^7.0.3",
-    "matter-js": "catalog:"
+    "matter-js": "catalog:",
+    "@colyseus/schema": "catalog:"
   },
   "devDependencies": {
     "@types/matter-js": "catalog:",
