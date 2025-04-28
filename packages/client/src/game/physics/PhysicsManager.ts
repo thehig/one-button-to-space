@@ -1,170 +1,234 @@
 import Phaser from "phaser";
-import { Rocket } from "../entities/Rocket";
-// Use direct import for Body
-import { Body as MatterBody } from "matter-js";
-// Keep Vector import if needed
-import { Vector as MatterVector } from "matter-js";
-// Remove global namespace import
-// import "matter-js";
+import {
+  Body as MatterBody,
+  Engine as MatterEngine,
+  Vector as MatterVector,
+  Composite as MatterComposite,
+} from "matter-js";
 import { PlanetData } from "../../schema/State";
 import { Planet } from "../entities/Planet";
 import { Logger } from "@one-button-to-space/shared";
 import { PhysicsLogic } from "@one-button-to-space/shared";
+import { ComponentBase } from "../core/IComponent";
+import { GameObject } from "../core/GameObject";
+import { PhysicsBody } from "../components/PhysicsBody";
 
 const LOGGER_SOURCE = "⚛️⚙️";
 
-// Define local BodyType alias using the direct import
 type BodyType = MatterBody;
 
-// Update GravitySource interface
 interface GravitySource {
-  body: BodyType; // Uses alias to direct import
-  mass: number;
-  position: Phaser.Math.Vector2; // Keep Phaser Vector2 for convenience? Or use MatterVector/simple obj? Let's keep for now.
+  body: BodyType;
+  planetGameObject: Planet;
 }
 
 /**
- * Manages custom physics interactions, specifically variable gravity.
- * Replaces Phaser's default world gravity. Uses shared PhysicsLogic.
+ * Manages global physics settings and applies forces like gravity and drag.
+ * Acts as a component attached to a scene-level GameObject.
  */
-export class PhysicsManager {
-  private scene: Phaser.Scene;
-  // Use direct MatterBody type for engine reference if possible,
-  // otherwise keep specific MatterJS.Engine or fallback to any if needed
-  // For now, assuming scene.matter.world.engine is compatible with MatterBody context
-  private matterEngine: any; // Revisit this type if needed
-  private rocket: Rocket | null = null;
-  private gravitySources: GravitySource[] = [];
-  // UPDATE map type to store Planet instances
-  private syncedPlanetObjects: Map<string, Planet> = new Map();
-  // REMOVE local constants, use imported ones if needed (they are in PhysicsLogic now)
-  // private readonly G = 0.005;
-  // private readonly DRAG_COEFFICIENT = 0.01;
+export class PhysicsManager extends ComponentBase {
+  private matterEngine!: MatterEngine;
+  private gravitySources: Map<number, GravitySource> = new Map();
 
-  constructor(scene: Phaser.Scene) {
-    this.scene = scene;
-    if (!scene.matter.world || !scene.matter.world.engine) {
-      throw new Error("Matter world or engine not initialized in the scene!");
+  awake(): void {
+    super.awake();
+    if (!this.gameObject || !this.gameObject.scene) {
+      Logger.error(
+        LOGGER_SOURCE,
+        "PhysicsManager component requires a valid GameObject with a Scene."
+      );
+      this.active = false;
+      return;
     }
-    this.matterEngine = scene.matter.world.engine;
-    Logger.info(LOGGER_SOURCE, "Initialized with Matter engine.");
-
-    this.scene.matter.world.setGravity(0, 0);
-    Logger.info(LOGGER_SOURCE, "Default Matter world gravity disabled.");
-    this.scene.matter.world.on("beforeupdate", this.update, this);
-    Logger.info(LOGGER_SOURCE, "Update loop registered with beforeupdate.");
-  }
-
-  // Method to register the player's rocket
-  registerRocket(rocket: Rocket): void {
-    this.rocket = rocket;
-    Logger.info(LOGGER_SOURCE, "Rocket registered.");
-  }
-
-  // REMOVE registerPlanets method
-  // registerPlanets(planets: Planet[]): void {
-  //   this.planets = planets;
-  //   logger.debug("PhysicsManager", `Registered ${planets.length} planets.`); // Example
-  // }
-
-  // ADD method to receive the map of synced planet objects from MainScene
-  // UPDATE map type signature to accept Map<string, Planet>
-  setPlanetObjectsMap(map: Map<string, Planet>): void {
-    this.syncedPlanetObjects = map;
-    Logger.info(
-      LOGGER_SOURCE,
-      `Received synced planet objects map with ${map.size} planets.`
-    );
-  }
-
-  // Method to register a gravity source (like a planet)
-  // MODIFY signature to accept PlanetData instead of just mass
-  // Removed optional atmosphere parameters
-  addGravitySource(body: BodyType, planetData: PlanetData): void {
     if (
-      !body ||
-      typeof body.position === "undefined" ||
-      !planetData ||
-      typeof planetData.mass !== "number"
+      !this.gameObject.scene.matter.world ||
+      !this.gameObject.scene.matter.world.engine
     ) {
       Logger.error(
         LOGGER_SOURCE,
-        "Invalid gravity source arguments:",
-        body,
-        planetData
+        "Matter world or engine not initialized in the scene!"
+      );
+      this.active = false;
+      return;
+    }
+    this.matterEngine = this.gameObject.scene.matter.world.engine;
+    Logger.info(LOGGER_SOURCE, "Initialized with Matter engine.");
+
+    this.gameObject.scene.matter.world.setGravity(0, 0);
+    Logger.info(LOGGER_SOURCE, "Default Matter world gravity disabled.");
+
+    this.setWorldBounds(-2000, -2000, 4000, 4000, 64, true, true, true, true);
+  }
+
+  start(): void {
+    super.start();
+    this.findAndRegisterInitialPlanets();
+    Logger.info(
+      LOGGER_SOURCE,
+      "PhysicsManager started, initial planets registered."
+    );
+  }
+
+  fixedUpdate(fixedDeltaTimeS: number): void {
+    super.fixedUpdate(fixedDeltaTimeS);
+    if (!this.active) return;
+
+    const physicsEntities = this.findAllPhysicsBodies();
+
+    const simpleGravitySources = Array.from(this.gravitySources.values()).map(
+      (source) => ({
+        position: { x: source.body.position.x, y: source.body.position.y },
+        mass: source.planetGameObject.config.mass,
+      })
+    );
+
+    physicsEntities.forEach((entityBody) => {
+      PhysicsLogic.calculateAndApplyGravity(entityBody, simpleGravitySources);
+
+      const planetDataForDensity = Array.from(this.gravitySources.values()).map(
+        (source) => ({
+          x: source.body.position.x,
+          y: source.body.position.y,
+          radius: source.planetGameObject.config.radius,
+          atmosphereHeight: source.planetGameObject.config.atmosphereHeight,
+          surfaceDensity: source.planetGameObject.config.surfaceDensity,
+        })
+      );
+      const density = PhysicsLogic.calculateDensityAt(
+        entityBody.position,
+        planetDataForDensity
+      );
+      PhysicsLogic.calculateAndApplyAirResistance(entityBody, density);
+    });
+  }
+
+  private findAllPhysicsBodies(): BodyType[] {
+    const bodies: BodyType[] = [];
+    this.gameObject.scene.managedGameObjects.forEach((go) => {
+      if (go.active && go.isStarted) {
+        const physicsBodyComp = go.getComponent(PhysicsBody);
+        if (physicsBodyComp?.body && physicsBodyComp.active) {
+          if (!physicsBodyComp.body.isStatic) {
+            bodies.push(physicsBodyComp.body);
+          }
+        }
+      }
+    });
+    return bodies;
+  }
+
+  private findAndRegisterInitialPlanets(): void {
+    this.gameObject.scene.managedGameObjects.forEach((go) => {
+      if (go instanceof Planet && go.active) {
+        const physicsBodyComp = go.getComponent(PhysicsBody);
+        if (physicsBodyComp?.body) {
+          this.addGravitySource(physicsBodyComp.body, go);
+        }
+      }
+    });
+  }
+
+  public addBody(body: BodyType): void {
+    Logger.debug(
+      LOGGER_SOURCE,
+      `Body ${body.id} registered (already added by factory).`
+    );
+  }
+
+  public removeBody(body: BodyType): void {
+    try {
+      MatterComposite.remove(this.matterEngine.world, body);
+      Logger.info(LOGGER_SOURCE, `Body ${body.id} removed from Matter world.`);
+    } catch (error) {
+      Logger.error(LOGGER_SOURCE, `Error removing body ${body.id}:`, error);
+    }
+    if (this.gravitySources.has(body.id)) {
+      this.removeGravitySource(body);
+    }
+  }
+
+  public addGravitySource(
+    planetBody: BodyType,
+    planetGameObject: Planet
+  ): void {
+    if (!planetBody || !planetGameObject) {
+      Logger.error(LOGGER_SOURCE, "Invalid arguments for addGravitySource");
+      return;
+    }
+    if (this.gravitySources.has(planetBody.id)) {
+      Logger.warn(
+        LOGGER_SOURCE,
+        `Gravity source Body ID ${planetBody.id} already registered.`
       );
       return;
     }
+
     const gravitySource: GravitySource = {
-      body: body,
-      mass: planetData.mass,
-      position: new Phaser.Math.Vector2(body.position.x, body.position.y),
+      body: planetBody,
+      planetGameObject: planetGameObject,
     };
-    this.gravitySources.push(gravitySource);
-    Logger.info(LOGGER_SOURCE, `Gravity source added: ID=${body.id}`);
+    this.gravitySources.set(planetBody.id, gravitySource);
+    Logger.info(
+      LOGGER_SOURCE,
+      `Gravity source added: Planet '${planetGameObject.name}' (Body ID=${planetBody.id})`
+    );
   }
 
-  // The main update loop, called before Matter steps the simulation
-  private update(event: { timestamp: number; delta: number }): void {
-    // Only apply shared physics logic if the local rocket exists
-    if (!this.rocket?.body) {
-      return;
-    }
-    const rocketMatterBody = this.rocket.body;
-
-    // --- Use Shared Gravity Logic ---
-    // Map local GravitySource[] to SimpleGravitySource[] for the shared function
-    const simpleGravitySources = this.gravitySources.map((source) => ({
-      position: { x: source.body.position.x, y: source.body.position.y }, // Get current position
-      mass: source.mass,
-    }));
-    PhysicsLogic.calculateAndApplyGravity(
-      rocketMatterBody,
-      simpleGravitySources
-    );
-
-    // --- Use Shared Air Resistance Logic ---
-    // Call the correct function and map Planet instances to the expected structure
-    const density = PhysicsLogic.calculateDensityAt(
-      rocketMatterBody.position,
-      Array.from(this.syncedPlanetObjects.values()).map((p) => ({
-        x: p.body.position.x,
-        y: p.body.position.y,
-        radius: p.radius,
-        atmosphereHeight: p.atmosphereHeight,
-        surfaceDensity: p.surfaceDensity,
-      }))
-    );
-    PhysicsLogic.calculateAndApplyAirResistance(rocketMatterBody, density);
-
-    // logger.debug("PhysicsManager", "Update loop executed."); // Optional debug log
-  }
-
-  // Method to remove a gravity source if needed
-  // Use consistent BodyType for the body parameter
-  removeGravitySource(bodyToRemove: BodyType): void {
-    const initialLength = this.gravitySources.length;
-    this.gravitySources = this.gravitySources.filter(
-      (source) => source.body.id !== bodyToRemove.id
-    );
-    if (this.gravitySources.length < initialLength) {
+  public removeGravitySource(bodyToRemove: BodyType): void {
+    if (this.gravitySources.has(bodyToRemove.id)) {
+      this.gravitySources.delete(bodyToRemove.id);
       Logger.info(
         LOGGER_SOURCE,
-        `Removed gravity source with ID: ${bodyToRemove.id}`
+        `Removed gravity source with Body ID: ${bodyToRemove.id}`
       );
     } else {
       Logger.warn(
         LOGGER_SOURCE,
-        `Gravity source ID ${bodyToRemove.id} not found.`
+        `Gravity source Body ID ${bodyToRemove.id} not found for removal.`
       );
     }
   }
 
-  // Cleanup method when the scene shuts down
+  public setWorldBounds(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    thickness: number = 60,
+    left: boolean = true,
+    right: boolean = true,
+    top: boolean = true,
+    bottom: boolean = true
+  ): void {
+    if (this.gameObject?.scene?.matter?.world) {
+      this.gameObject.scene.matter.world.setBounds(
+        x,
+        y,
+        width,
+        height,
+        thickness,
+        left,
+        right,
+        top,
+        bottom
+      );
+      Logger.info(LOGGER_SOURCE, "Matter world bounds set.", {
+        x,
+        y,
+        width,
+        height,
+      });
+    } else {
+      Logger.error(
+        LOGGER_SOURCE,
+        "Cannot set world bounds - scene or matter world not available."
+      );
+    }
+  }
+
   destroy(): void {
-    this.scene.matter.world.off("beforeupdate", this.update, this);
-    this.rocket = null;
-    this.gravitySources = [];
-    Logger.info(LOGGER_SOURCE, "Destroyed and listeners removed.");
+    this.gravitySources.clear();
+    Logger.info(LOGGER_SOURCE, "Destroyed and resources cleared.");
+    super.destroy();
   }
 }

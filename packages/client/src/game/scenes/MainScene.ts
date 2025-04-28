@@ -10,7 +10,7 @@ import { ZoomController } from "../controllers/ZoomController";
 import {
   MultiplayerService,
   multiplayerService,
-  type ConnectionStatus, // Explicitly import as type
+  type ConnectionStatus, // Re-added 'type' keyword
   type PhysicsUpdateListener, // Explicitly import as type
 } from "../../services/MultiplayerService"; // Adjust path as needed, import instance
 import { PlayerState, PlanetData } from "../../schema/State"; // Adjust path, ADD PlanetData
@@ -36,6 +36,7 @@ import { TimeManager } from "../core/TimeManager"; // Existing import
 // --- Import Custom ECS Core ---
 import { GameObject } from "../core/GameObject";
 import { SpriteRenderer } from "../components/SpriteRenderer";
+import { PhysicsBody } from "../components/PhysicsBody"; // Import PhysicsBody
 
 // --- Constants ---
 const {
@@ -50,7 +51,8 @@ const STATE_SEND_INTERVAL_MS = 100; // Send state 10 times per second
 
 export class MainScene extends Phaser.Scene {
   // --- Physics ---
-  private physicsManager!: PhysicsManager;
+  private sceneRoot!: GameObject;
+  private physicsManagerComponent!: PhysicsManager;
   private timeManager!: TimeManager;
 
   // --- Entities ---
@@ -67,15 +69,16 @@ export class MainScene extends Phaser.Scene {
   // --- Input ---
   private thrustKey!: Phaser.Input.Keyboard.Key;
   private isPointerDown: boolean = false;
-  private isLocalThrusting: boolean = false; // Add flag for local thrust prediction
+  private isLocalThrusting: boolean = false;
   private orientationManager!: DeviceOrientationManager;
-  private inputSequenceNumber: number = 0; // Add sequence number counter
+  private inputSequenceNumber: number = 0;
 
   // --- Multiplayer ---
   private multiplayerService!: MultiplayerService;
   private remotePlayers: Map<string, Rocket> = new Map();
   private lastStateSendTime: number = 0;
   private readonly stateSendInterval: number = STATE_SEND_INTERVAL_MS;
+  private localPlayerId: string | null = null;
 
   // --- UI ---
   private connectionStatusText!: Phaser.GameObjects.Text;
@@ -85,7 +88,7 @@ export class MainScene extends Phaser.Scene {
   private lastSentAngle: number | undefined = undefined;
 
   // --- Custom ECS Management ---
-  private managedGameObjects: Map<number, GameObject> = new Map(); // Use ID for key
+  private managedGameObjects: Map<number, GameObject> = new Map();
 
   constructor() {
     super({ key: "MainScene" });
@@ -111,69 +114,72 @@ export class MainScene extends Phaser.Scene {
     this.setupCamera();
     this.createEntities();
     this.setupControllers();
-    this.initializeMultiplayer(); // Needs to happen before planet map is passed
+    this.initializeMultiplayer();
     this.setupInput();
     this.setupOrientation();
     this.createUI();
     this.setupCollisions();
 
     // Initial pass of planet map after multiplayer might have added some
-    this.physicsManager.setPlanetObjectsMap(this.planetObjects);
+    this.physicsManagerComponent.setPlanetObjectsMap(this.planetObjects);
 
-    // --- Call Start on Custom GameObjects ---
-    // Must be called AFTER all initial setup in create is done
+    // --- Call Awake & Start on Custom GameObjects ---
+    Logger.info(
+      LOGGER_SOURCE,
+      "Calling _internalAwake on managed GameObjects..."
+    );
     this.managedGameObjects.forEach((go) => {
-      if (go.active) {
+      if (go.active && !go.isAwake) {
+        go._internalAwake();
+      }
+    });
+    Logger.info(
+      LOGGER_SOURCE,
+      "Calling _internalStart on managed GameObjects..."
+    );
+    this.managedGameObjects.forEach((go) => {
+      if (go.active && go.isAwake && !go.isStarted) {
         go._internalStart();
       }
     });
-    Logger.info(LOGGER_SOURCE, "Called _internalStart on managed GameObjects.");
-    // ---------------------------------------
+    Logger.info(LOGGER_SOURCE, "GameObject awake/start complete.");
+    // ---------------------------------------------
   }
 
   update(time: number, delta: number): void {
     // --- Update Time Manager FIRST ---
-    this.timeManager.update(time, delta); // Provides deltaTimeS
+    this.timeManager.update(time, delta);
 
     // --- Custom ECS Variable Update ---
     this.managedGameObjects.forEach((go) => {
-      if (go.active) {
+      if (go.active && go.isStarted) {
         go._internalUpdate(this.timeManager.deltaTimeS);
       }
     });
     // -----------------------------------
 
-    // Get latest orientation state before input handling
     const targetAngleRad =
       this.orientationManager.getTargetRocketAngleRadians();
 
-    if (!this.physicsManager) {
-      Logger.error(LOGGER_SOURCE, "PhysicsManager not initialized in update.");
+    if (!this.physicsManagerComponent) {
+      Logger.error(
+        LOGGER_SOURCE,
+        "PhysicsManagerComponent not initialized in update."
+      );
       return;
     }
 
-    // Handle sending input based on current state (including polled orientation)
     this.handleAndSendInput(targetAngleRad);
 
     // --- Variable Update / Rendering ---
-    const alpha = this.timeManager.interpolationAlpha; // Use alpha for rendering interpolation
+    const alpha = this.timeManager.interpolationAlpha;
 
-    // Update local rocket visuals via interpolation (if it exists)
-    if (this.rocket) {
-      this.rocket.update(this.timeManager.deltaTimeS, alpha);
-      this.updateUIElements(this.timeManager.currentFps);
-    }
+    const localRocket = this.findLocalPlayerRocket();
 
-    // --- Update Remote Rockets ---
-    this.remotePlayers.forEach((remoteRocket) => {
-      remoteRocket.update(this.timeManager.deltaTimeS, alpha);
-    });
-    // ---------------------------
+    this.updateUIElements(this.timeManager.currentFps, localRocket);
 
-    // Update other controllers like zoom (variable update is fine for these)
     this.updateControllers(this.timeManager.deltaTimeS);
 
-    // Update effects like starfield (variable update)
     this.updateEffects(
       this.timeManager.totalElapsedTimeS,
       this.timeManager.deltaTimeS
@@ -184,32 +190,24 @@ export class MainScene extends Phaser.Scene {
     Logger.info(LOGGER_SOURCE, "MainScene shutting down...");
 
     // --- Destroy Custom GameObjects ---
-    // Iterate over a copy in case destroy modifies the map
-    [...this.managedGameObjects.values()].forEach((go) => {
-      try {
+    this.managedGameObjects.forEach((go) => {
+      if (go.active && !go.isDestroyed) {
         go.destroy();
-      } catch (error) {
-        Logger.error(
-          LOGGER_SOURCE,
-          `Error destroying GameObject ${go.name} (ID: ${go.id}):`,
-          error
-        );
       }
     });
     this.managedGameObjects.clear();
-    Logger.info(LOGGER_SOURCE, "Destroyed managed GameObjects.");
+    Logger.info(LOGGER_SOURCE, "Destroyed SceneRoot and managed GameObjects.");
     // ----------------------------------
 
     this.shutdownMultiplayer();
     this.shutdownControllers();
     this.shutdownOrientation();
-    this.shutdownPhysicsAndEntities();
     this.shutdownUI();
-    this.shutdownEffects(); // Add effects shutdown
+    this.shutdownEffects();
 
-    // Phaser handles input listener cleanup automatically
-    // Unhook matterupdate listener if needed? Phaser might handle this too.
-    this.matter.world.off("matterupdate"); // Be safe and remove listener
+    // Unhook matterupdate listener (still needed for Matter internal stepping? Check Phaser docs)
+    // Let's keep it off for now as we drive updates via processFixedUpdates
+    // this.matter.world.off("matterupdate", this.matterFixedUpdate, this);
 
     Logger.info(LOGGER_SOURCE, "MainScene shutdown complete.");
   }
@@ -247,8 +245,16 @@ export class MainScene extends Phaser.Scene {
   }
 
   private setupPhysics(): void {
-    this.physicsManager = new PhysicsManager(this);
-    Logger.info(LOGGER_SOURCE, "PhysicsManager initialized.");
+    this.physicsManagerComponent = this.sceneRoot.addComponent(
+      new PhysicsManager(this)
+    );
+    if (!this.physicsManagerComponent) {
+      Logger.error(LOGGER_SOURCE, "Failed to add PhysicsManager component!");
+      return;
+    }
+    // REMOVE hooking into Matter's fixed update event here
+    // this.matter.world.on("matterupdate", this.matterFixedUpdate, this);
+    Logger.info(LOGGER_SOURCE, "PhysicsManager component added to SceneRoot."); // Removed hook mention
   }
 
   private setupCamera(): void {
@@ -272,16 +278,14 @@ export class MainScene extends Phaser.Scene {
       colorVariations: true,
     });
     this.starfieldRenderer = new StarFieldRenderer(this, this.starfield, {
-      depth: -100, // Ensure it's far behind everything
-      backgroundColor: null, // Make background transparent to see scene bg color
-      enableParallax: true,
-      parallaxFactor: 0.05, // More subtle parallax
+      depth: -100,
+      backgroundColor: null,
     });
     Logger.info(LOGGER_SOURCE, "Starfield and renderer created.");
   }
 
   private setupControllers(): void {
-    this.zoomController = new ZoomController(this, this.cameras.main);
+    this.zoomController = new ZoomController(this);
     Logger.info(LOGGER_SOURCE, "ZoomController initialized.");
   }
 
@@ -289,21 +293,16 @@ export class MainScene extends Phaser.Scene {
     Logger.info(LOGGER_SOURCE, "Initializing MultiplayerService...");
     this.multiplayerService = multiplayerService;
 
-    // Use the service's add...Listener methods
-    this.multiplayerService.addPlayerAddListener(
-      this.handlePlayerInitialAdd.bind(this)
-    );
+    this.multiplayerService.addPlayerAddListener(this.handlePlayerAdd);
     this.multiplayerService.addPhysicsUpdateListener(
       this.handlePhysicsUpdate.bind(this)
     );
-    this.multiplayerService.addPlayerRemoveListener(
-      this.handlePlayerRemove.bind(this)
-    );
+    this.multiplayerService.addPlayerRemoveListener(this.handlePlayerRemove);
     this.multiplayerService.addStatusListener(
       this.handleConnectionStatusChange.bind(this)
     );
-    this.multiplayerService.addPlanetAddListener(this.handlePlanetAdd); // Assumes handlePlanetAdd is already bound or is an arrow function
-    this.multiplayerService.addPlanetRemoveListener(this.handlePlanetRemove); // Assumes handlePlanetRemove is already bound or is an arrow function
+    this.multiplayerService.addPlanetAddListener(this.handlePlanetAdd);
+    this.multiplayerService.addPlanetRemoveListener(this.handlePlanetRemove);
 
     try {
       this.multiplayerService.connect();
@@ -478,49 +477,49 @@ export class MainScene extends Phaser.Scene {
     // }
   }
 
-  private updateUIElements(currentFps: number): void {
-    if (this.rocket?.body && this.debugHud) {
-      // Check rocket and body exist
-      const pos = this.rocket.body.position;
-      const vel = this.rocket.body.velocity;
-      const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
-      const angleDeg = Phaser.Math.RadToDeg(this.rocket.body.angle);
-      // Calculate density using the shared function, mapping Planet instances to required data
-      const density = PhysicsLogic.calculateDensityAt(
-        pos,
-        Array.from(this.planetObjects.values()).map((p) => ({
-          x: p.body.position.x, // Get position from physics body
-          y: p.body.position.y,
-          radius: p.radius,
-          atmosphereHeight: p.atmosphereHeight,
-          surfaceDensity: p.surfaceDensity,
-        }))
-      );
+  private updateUIElements(
+    currentFps: number,
+    localRocket: Rocket | null
+  ): void {
+    if (localRocket) {
+      const physicsBodyComp = localRocket.getComponent(PhysicsBody);
+      if (physicsBodyComp?.body && this.debugHud) {
+        const pos = physicsBodyComp.body.position;
+        const vel = physicsBodyComp.body.velocity;
+        const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+        const angleDeg = Phaser.Math.RadToDeg(physicsBodyComp.body.angle);
 
-      // Get FPS, UPS, MPS
-      const fps = this.game.loop.actualFps;
-      const mps = this.multiplayerService?.getMps() ?? 0;
-      // GET OMPS
-      const omps = this.multiplayerService?.getOmps() ?? 0;
-      // GET RTT
-      const rtt = this.multiplayerService?.getRtt() ?? 0;
+        const planetDataForDensity = this.findPlanetsForDensityCalc();
+        const density = PhysicsLogic.calculateDensityAt(
+          pos,
+          planetDataForDensity
+        );
 
-      const hudData = {
-        posX: pos.x,
-        posY: pos.y,
-        velX: vel.x,
-        velY: vel.y,
-        speed: speed,
-        angleDeg: angleDeg,
-        density: density, // Pass calculated density
-        currentTimeString: Logger.getCurrentTimestampString(),
-        fps: fps,
-        ups: this.timeManager.currentUps, // Use TimeManager UPS
-        mps: mps, // Pass MPS
-        omps: omps, // Pass OMPS
-        rtt: rtt, // Pass RTT
-      };
-      this.debugHud.update(hudData);
+        const fps = this.game.loop.actualFps;
+        const mps = this.multiplayerService?.getMps() ?? 0;
+        const omps = this.multiplayerService?.getOmps() ?? 0;
+        const rtt = this.multiplayerService?.getRtt() ?? 0;
+
+        const hudData = {
+          posX: pos.x,
+          posY: pos.y,
+          velX: vel.x,
+          velY: vel.y,
+          speed: speed,
+          angleDeg: angleDeg,
+          density: density,
+          currentTimeString: Logger.getCurrentTimestampString(),
+          fps: fps,
+          ups: this.timeManager.currentUps,
+          mps: mps,
+          omps: omps,
+          rtt: rtt,
+        };
+        this.debugHud.update(hudData);
+      }
+    } else {
+      // Optionally clear HUD if local rocket doesn't exist
+      // this.debugHud.clear();
     }
 
     // Update Connection Status Text
@@ -531,7 +530,7 @@ export class MainScene extends Phaser.Scene {
       switch (this.multiplayerService.getConnectionStatus()) {
         case "connected":
           color = "#00ff00"; // Green
-          text = `Status: Connected (ID: ${this.multiplayerService.getSessionId()})`;
+          text = `Status: Connected (ID: ${this.localPlayerId})`;
           break;
         case "connecting":
           color = "#ffff00"; // Yellow
@@ -569,354 +568,245 @@ export class MainScene extends Phaser.Scene {
     for (const pair of event.pairs) {
       const { bodyA, bodyB } = pair;
 
-      // Check for Rocket-Planet collision
-      const rocketBody = this.rocket?.body;
-      if (rocketBody && (bodyA === rocketBody || bodyB === rocketBody)) {
-        const otherBody = bodyA === rocketBody ? bodyB : bodyA;
-        let collidedPlanetId: string | null = null;
-        for (const planetObj of this.planetObjects.values()) {
-          if (otherBody.id === planetObj.body.id) {
-            collidedPlanetId = planetObj.config.id.toString();
-            break;
-          }
-        }
-        if (collidedPlanetId) {
-          const rocketOwnerId = this.rocket?.ownerId || "unknown";
-          Logger.info(
-            LOGGER_SOURCE,
-            `Collision detected between: rocket '${rocketOwnerId}' and planet '${collidedPlanetId}'`
-          );
-          // TODO: Implement planet collision consequence
-          continue; // Collision handled, move to next pair
-        }
-      }
+      const goA = this.findGameObjectByBodyId(bodyA.id);
+      const goB = this.findGameObjectByBodyId(bodyB.id);
 
-      // Check for Rocket-Rocket collision
-      const labelA = bodyA.label || "";
-      const labelB = bodyB.label || "";
-      if (labelA.startsWith("rocket-") && labelB.startsWith("rocket-")) {
-        const rocketIdA = labelA.split("-").slice(1).join("-") || "unknownA";
-        const rocketIdB = labelB.split("-").slice(1).join("-") || "unknownB";
+      if (!goA || !goB) continue;
 
-        // --- Add Detailed Logging ---
+      const rocket =
+        goA instanceof Rocket ? goA : goB instanceof Rocket ? goB : null;
+      const planet =
+        goA instanceof Planet ? goA : goB instanceof Planet ? goB : null;
+
+      if (rocket && planet) {
         Logger.info(
           LOGGER_SOURCE,
-          `Rocket-Rocket Collision Event: '${rocketIdA}' vs '${rocketIdB}'`
+          `Collision detected between: rocket '${rocket.ownerId}' and planet '${planet.config.id}'`
         );
-        // Log relevant properties of both bodies
-        Logger.debug(LOGGER_SOURCE, "Body A Props:", {
-          id: bodyA.id,
-          label: bodyA.label,
-          mass: bodyA.mass,
-          isSensor: bodyA.isSensor,
-          isStatic: bodyA.isStatic,
-          collisionFilter: bodyA.collisionFilter,
-          restitution: bodyA.restitution,
-        });
-        Logger.debug(LOGGER_SOURCE, "Body B Props:", {
-          id: bodyB.id,
-          label: bodyB.label,
-          mass: bodyB.mass,
-          isSensor: bodyB.isSensor,
-          isStatic: bodyB.isStatic,
-          collisionFilter: bodyB.collisionFilter,
-          restitution: bodyB.restitution,
-        });
-        // --- End Detailed Logging ---
-
-        // TODO: Implement rocket-rocket collision consequence
-        continue; // Collision handled
+        continue;
       }
 
-      // Add other collision checks here (e.g., rocket-debris)
+      const rocketA = goA instanceof Rocket ? goA : null;
+      const rocketB = goB instanceof Rocket ? goB : null;
+
+      if (rocketA && rocketB) {
+        Logger.info(
+          LOGGER_SOURCE,
+          `Rocket-Rocket Collision Event: '${rocketA.ownerId}' vs '${rocketB.ownerId}'`
+        );
+        const bodyCompA = rocketA.getComponent(PhysicsBody);
+        const bodyCompB = rocketB.getComponent(PhysicsBody);
+        continue;
+      }
     }
   }
 
   // --- Multiplayer Event Handlers ---
 
-  private handlePlayerInitialAdd(
+  private handlePlayerAdd = (
     playerId: string,
     playerState: PlayerState
-  ): void {
-    Logger.debug(
-      LOGGER_SOURCE,
-      `handlePlayerInitialAdd triggered for player: ${playerId}`
-    );
-    const localSessionId = this.multiplayerService?.getSessionId();
+  ): void => {
+    Logger.debug(LOGGER_SOURCE, `handlePlayerAdd for player: ${playerId}`);
+    const currentLocalId = this.multiplayerService?.getSessionId();
+    this.localPlayerId = currentLocalId ?? null;
 
-    // --- LOCAL PLAYER ---
-    if (localSessionId && playerId === localSessionId && !this.rocket) {
-      Logger.info(
-        LOGGER_SOURCE,
-        `Initializing LOCAL player ${playerId} from add event at (${playerState.x.toFixed(
-          1
-        )}, ${playerState.y.toFixed(1)})`
-      );
-      this.rocket = new Rocket(
-        this,
-        playerState.x,
-        playerState.y,
-        playerId,
-        playerState.angle
-      );
-      if (this.rocket.body) {
-        // Optionally set initial velocity if provided by server
-        // MatterBody.setVelocity(this.rocket.body, { x: playerState.vx ?? 0, y: playerState.vy ?? 0 });
-      }
-      if (this.physicsManager && this.rocket?.body) {
-        this.physicsManager.registerRocket(this.rocket); // Register ONLY local rocket
-        this.cameras.main.startFollow(this.rocket.gameObject);
-        Logger.info(
-          LOGGER_SOURCE,
-          "Local rocket created, registered, camera following."
-        );
-      } else {
-        Logger.error(
-          LOGGER_SOURCE,
-          "Failed to register local rocket/start camera follow."
-        );
-      }
-      // --- REMOTE PLAYER ---
-    } else if (localSessionId && playerId !== localSessionId) {
-      if (this.remotePlayers.has(playerId)) {
-        Logger.warn(
-          LOGGER_SOURCE,
-          `Remote player ${playerId} added again? Ignoring.`
-        );
-        return;
-      }
-      Logger.info(
-        LOGGER_SOURCE,
-        `Initializing REMOTE player ${playerId} from add event at (${playerState.x.toFixed(
-          1
-        )}, ${playerState.y.toFixed(1)})`
-      );
-      // Pass initial angle to remote rocket constructor too
-      const remoteRocket = new Rocket(
-        this,
-        playerState.x,
-        playerState.y,
-        playerId,
-        playerState.angle // Pass initial angle
-      );
-      if (remoteRocket.body) {
-        // Set initial velocity for remote physics body if needed
-        // MatterBody.setVelocity(remoteRocket.body, { x: playerState.vx ?? 0, y: playerState.vy ?? 0 });
-      } else {
-        Logger.error(
-          LOGGER_SOURCE,
-          `Failed to create body for remote rocket ${playerId}`
-        );
-      }
-      // Store the full Rocket instance
-      this.remotePlayers.set(playerId, remoteRocket);
-      // DO NOT register remote rocket with PhysicsManager gravity/updates
-      // DO NOT make camera follow remote rockets
-    } else {
+    if (this.findGameObjectByName(`Rocket_${playerId}`)) {
       Logger.warn(
         LOGGER_SOURCE,
-        `Add event received for ${playerId} in unexpected state (localId: ${localSessionId}, localRocket: ${!!this
-          .rocket})`
+        `GameObject for player ${playerId} already exists. Ignoring add event.`
       );
+      return;
     }
-  }
+
+    Logger.info(
+      LOGGER_SOURCE,
+      `Creating GameObject for player ${playerId} at (${playerState.x.toFixed(
+        1
+      )}, ${playerState.y.toFixed(1)})`
+    );
+
+    const newRocket = new Rocket(
+      this,
+      playerState.x,
+      playerState.y,
+      playerId,
+      playerState.angle
+    );
+
+    if (this.sceneRoot.isAwake) {
+      newRocket._internalAwake();
+    }
+    if (this.sceneRoot.isStarted) {
+      newRocket._internalStart();
+    }
+
+    if (playerId === this.localPlayerId) {
+      Logger.info(
+        LOGGER_SOURCE,
+        "Setting camera to follow local player rocket GameObject."
+      );
+      this.cameras.main.startFollow(newRocket);
+      this.localPlayerId = playerId;
+    }
+  };
 
   private handlePhysicsUpdate(updateData: {
     [sessionId: string]: Partial<PlayerState>;
   }): void {
-    // Logger.debug(LOGGER_SOURCE, "handlePhysicsUpdate received data for players:", Object.keys(updateData));
-
     for (const sessionId in updateData) {
       const state = updateData[sessionId];
-      let targetRocket: Rocket | undefined;
+      const targetGameObject = this.findGameObjectByName(`Rocket_${sessionId}`);
+      const targetRocket =
+        targetGameObject instanceof Rocket ? targetGameObject : null;
 
-      // --- LOCAL PLAYER: State Correction ---
-      if (sessionId === this.multiplayerService.getSessionId()) {
-        targetRocket = this.rocket; // Update the local rocket
-        if (targetRocket?.body) {
-          const correctionFactor = CLIENT_PHYSICS_CORRECTION_FACTOR;
+      if (!targetRocket) {
+        Logger.warn(
+          LOGGER_SOURCE,
+          `handlePhysicsUpdate: Received state for unknown/uncreated rocket: ${sessionId}`
+        );
+        continue;
+      }
 
-          // --- Physics Body Correction (Handle Sparse Delta with Thresholds) ---
+      const physicsBodyComp = targetRocket.getComponent(PhysicsBody);
+      if (!physicsBodyComp?.body) {
+        Logger.warn(
+          LOGGER_SOURCE,
+          `handlePhysicsUpdate: Rocket ${sessionId} has no PhysicsBody component or body.`
+        );
+        continue;
+      }
 
-          // Position Correction
-          if (typeof state?.x === "number" || typeof state?.y === "number") {
-            const currentPos = targetRocket.body.position;
-            const serverX = state.x ?? currentPos.x;
-            const serverY = state.y ?? currentPos.y;
-            const diffX = Math.abs(currentPos.x - serverX);
-            const diffY = Math.abs(currentPos.y - serverY);
+      const currentBody = physicsBodyComp.body;
+      const correctionFactor = CLIENT_PHYSICS_CORRECTION_FACTOR;
 
-            if (
-              diffX > CLIENT_POSITION_CORRECTION_THRESHOLD ||
-              diffY > CLIENT_POSITION_CORRECTION_THRESHOLD
-            ) {
-              const correctedPosX = Phaser.Math.Linear(
-                currentPos.x,
-                serverX,
-                correctionFactor
-              );
-              const correctedPosY = Phaser.Math.Linear(
-                currentPos.y,
-                serverY,
-                correctionFactor
-              );
-              MatterBody.setPosition(targetRocket.body, {
-                x: correctedPosX,
-                y: correctedPosY,
-              });
-            }
-          }
+      if (sessionId === this.localPlayerId) {
+        if (typeof state?.x === "number" || typeof state?.y === "number") {
+          const currentPos = currentBody.position;
+          const serverX = state.x ?? currentPos.x;
+          const serverY = state.y ?? currentPos.y;
+          const diffX = Math.abs(currentPos.x - serverX);
+          const diffY = Math.abs(currentPos.y - serverY);
 
-          // Velocity Correction
-          if (typeof state?.vx === "number" || typeof state?.vy === "number") {
-            const currentVel = targetRocket.body.velocity;
-            const serverVx = state.vx ?? currentVel.x;
-            const serverVy = state.vy ?? currentVel.y;
-            const diffVx = Math.abs(currentVel.x - serverVx);
-            const diffVy = Math.abs(currentVel.y - serverVy);
-
-            if (
-              diffVx > CLIENT_VELOCITY_CORRECTION_THRESHOLD ||
-              diffVy > CLIENT_VELOCITY_CORRECTION_THRESHOLD
-            ) {
-              const correctedVelX = Phaser.Math.Linear(
-                currentVel.x,
-                serverVx,
-                correctionFactor
-              );
-              const correctedVelY = Phaser.Math.Linear(
-                currentVel.y,
-                serverVy,
-                correctionFactor
-              );
-              MatterBody.setVelocity(targetRocket.body, {
-                x: correctedVelX,
-                y: correctedVelY,
-              });
-            }
-          }
-
-          // Angle Correction
-          if (typeof state?.angle === "number") {
-            const currentAngle = targetRocket.body.angle;
-            const serverAngle = state.angle;
-            // Use Phaser's angle difference function for proper wrapping
-            const diffAngle = Phaser.Math.Angle.ShortestBetween(
-              Phaser.Math.RadToDeg(currentAngle), // Convert to degrees for ShortestBetween
-              Phaser.Math.RadToDeg(serverAngle)
+          if (
+            diffX > CLIENT_POSITION_CORRECTION_THRESHOLD ||
+            diffY > CLIENT_POSITION_CORRECTION_THRESHOLD
+          ) {
+            const correctedPosX = Phaser.Math.Linear(
+              currentPos.x,
+              serverX,
+              correctionFactor
             );
-
-            if (
-              Math.abs(Phaser.Math.DegToRad(diffAngle)) > // Convert back to radians for threshold comparison
-              CLIENT_ANGLE_CORRECTION_THRESHOLD
-            ) {
-              const correctedAngle = Phaser.Math.Angle.RotateTo(
-                currentAngle,
-                serverAngle,
-                correctionFactor
-              );
-              MatterBody.setAngle(targetRocket.body, correctedAngle);
-            }
+            const correctedPosY = Phaser.Math.Linear(
+              currentPos.y,
+              serverY,
+              correctionFactor
+            );
+            MatterBody.setPosition(currentBody, {
+              x: correctedPosX,
+              y: correctedPosY,
+            });
           }
-          // --- End Physics Body Correction ---
-
-          // Set thrust state based on server update
-          if (typeof state?.isThrusting === "boolean") {
-            targetRocket.isThrusting = state.isThrusting;
+        }
+        if (typeof state?.vx === "number" || typeof state?.vy === "number") {
+          const currentVel = currentBody.velocity;
+          const serverVx = state.vx ?? currentVel.x;
+          const serverVy = state.vy ?? currentVel.y;
+          const diffVx = Math.abs(currentVel.x - serverVx);
+          const diffVy = Math.abs(currentVel.y - serverVy);
+          if (
+            diffVx > CLIENT_VELOCITY_CORRECTION_THRESHOLD ||
+            diffVy > CLIENT_VELOCITY_CORRECTION_THRESHOLD
+          ) {
+            const correctedVelX = Phaser.Math.Linear(
+              currentVel.x,
+              serverVx,
+              correctionFactor
+            );
+            const correctedVelY = Phaser.Math.Linear(
+              currentVel.y,
+              serverVy,
+              correctionFactor
+            );
+            MatterBody.setVelocity(currentBody, {
+              x: correctedVelX,
+              y: correctedVelY,
+            });
           }
-
-          // TODO: Optionally implement more sophisticated reconciliation if needed (e.g., smooth correction over a few frames)
-          // Logger.debug(LOGGER_SOURCE, `Corrected local rocket state from server: x=${state.x?.toFixed(1)}, y=${state.y?.toFixed(1)}, angle=${state.angle?.toFixed(2)}`);
-        } else {
-          Logger.warn(
-            LOGGER_SOURCE,
-            `Received state update for local player, but local rocket/body doesn't exist yet.`
+        }
+        if (typeof state?.angle === "number") {
+          const currentAngle = currentBody.angle;
+          const serverAngle = state.angle;
+          const diffAngle = Phaser.Math.Angle.ShortestBetween(
+            Phaser.Math.RadToDeg(currentAngle),
+            Phaser.Math.RadToDeg(serverAngle)
           );
+          if (
+            Math.abs(Phaser.Math.DegToRad(diffAngle)) >
+            CLIENT_ANGLE_CORRECTION_THRESHOLD
+          ) {
+            const correctedAngle = Phaser.Math.Angle.RotateTo(
+              currentAngle,
+              serverAngle,
+              correctionFactor
+            );
+            MatterBody.setAngle(currentBody, correctedAngle);
+          }
+        }
+        if (typeof state?.isThrusting === "boolean") {
+          targetRocket.isThrusting = state.isThrusting;
         }
       } else {
-        // --- REMOTE PLAYER: Update Body & Interpolation Target ---
-        targetRocket = this.remotePlayers.get(sessionId); // Update a remote rocket
-        if (targetRocket) {
-          // Directly set the remote physics body position/angle for reference
-          if (targetRocket.body) {
-            MatterBody.setPosition(targetRocket.body, {
-              x: state?.x ?? targetRocket.body.position.x,
-              y: state?.y ?? targetRocket.body.position.y,
-            });
-            MatterBody.setAngle(
-              targetRocket.body,
-              state?.angle ?? targetRocket.body.angle
-            );
-            // We don't set velocity/angularVel for remote, let interpolation handle visuals
-          }
-
-          // Set thrust state based on server update
-          if (typeof state?.isThrusting === "boolean") {
-            targetRocket.isThrusting = state.isThrusting;
-          }
-        } else {
-          // This could happen if a state update arrives before the player add notification?
-          Logger.warn(
-            LOGGER_SOURCE,
-            `handlePhysicsUpdate: Received state for unknown/uncreated remote rocket: ${sessionId}`
-          );
+        if (typeof state?.x === "number" && typeof state?.y === "number") {
+          MatterBody.setPosition(currentBody, { x: state.x, y: state.y });
         }
-        // ---------------------------------------------
+        if (typeof state?.angle === "number") {
+          MatterBody.setAngle(currentBody, state.angle);
+        }
+        if (typeof state?.isThrusting === "boolean") {
+          targetRocket.isThrusting = state.isThrusting;
+        }
       }
     }
   }
 
-  private handlePlayerRemove(playerId: string): void {
-    const localSessionId = this.multiplayerService?.getSessionId();
-    if (localSessionId && playerId === localSessionId) {
-      Logger.warn(LOGGER_SOURCE, "Received remove event for local player?");
-      if (this.rocket) {
-        this.rocket.destroy(); // Use destroy method
-        this.rocket = undefined;
-      }
-      return;
-    }
-
-    Logger.info(LOGGER_SOURCE, `Remote Player ${playerId} left`);
-    const remoteRocket = this.remotePlayers.get(playerId);
-    if (remoteRocket) {
-      remoteRocket.destroy(); // Call destroy on the Rocket instance
-      this.remotePlayers.delete(playerId);
+  private handlePlayerRemove = (playerId: string): void => {
+    Logger.info(LOGGER_SOURCE, `Handling remove for player ${playerId}`);
+    const playerGameObject = this.findGameObjectByName(`Rocket_${playerId}`);
+    if (playerGameObject) {
+      Logger.info(
+        LOGGER_SOURCE,
+        `Destroying GameObject for removed player ${playerId}`
+      );
+      playerGameObject.destroy();
     } else {
       Logger.warn(
         LOGGER_SOURCE,
-        `Received remove for unknown player ${playerId}`
+        `GameObject for player ${playerId} not found for removal.`
       );
     }
-  }
+    if (playerId === this.localPlayerId) {
+      this.localPlayerId = null;
+    }
+  };
 
   private handleConnectionStatusChange(status: ConnectionStatus): void {
     Logger.info(LOGGER_SOURCE, `Connection status changed: ${status}`);
     let text = `Status: ${status}`;
-    let color = "#ffffff"; // Default white
-
-    switch (status) {
-      case "connected":
-        color = "#00ff00"; // Green
-        text = `Status: Connected (ID: ${this.multiplayerService.getSessionId()})`;
-        // Initial planets/players are now handled by state.onAdd listeners
-        // No need to call handleInitialPlanets here anymore
-        break;
-      case "connecting":
-        color = "#ffff00"; // Yellow
-        break;
-      case "disconnected":
-        color = "#ff0000"; // Red
-        text = "Status: Disconnected";
-        this.cleanupMultiplayerEntities(); // Clear visuals on disconnect
-        break;
-      case "error":
-        color = "#ff0000"; // Red
-        text = "Status: Error";
-        this.cleanupMultiplayerEntities(); // Also clear on error
-        break;
+    let color = "#ffffff";
+    if (status === "connected") {
+      color = "#00ff00";
+      this.localPlayerId = this.multiplayerService.getSessionId() ?? null;
+      text = `Status: Connected (ID: ${this.localPlayerId})`;
+    } else if (status === "connecting") {
+      color = "#ffff00";
+    } else {
+      color = "#ff0000";
+      this.localPlayerId = null;
+      this.cleanupMultiplayerEntities();
+      if (status === "error") text = "Status: Error";
+      else text = "Status: Disconnected";
     }
-
     if (this.connectionStatusText) {
       this.connectionStatusText.setText(text);
       this.connectionStatusText.setColor(color);
@@ -925,7 +815,6 @@ export class MainScene extends Phaser.Scene {
 
   // --- Planet Handlers ---
 
-  // Signature matches addPlanetAddListener: (planetId: string, planetData: PlanetData & { ... })
   private handlePlanetAdd = (
     planetId: string,
     planetData: PlanetData & {
@@ -934,140 +823,43 @@ export class MainScene extends Phaser.Scene {
       noiseParams: { scale: number; octaves?: number };
     }
   ): void => {
-    if (this.planetObjects.has(planetId)) {
-      Logger.warn(
-        LOGGER_SOURCE,
-        `Planet ${planetId} already exists visually/physically (add event).`
-      );
-      return;
-    }
-    // Validate required config data before proceeding
-    if (!planetData.seed || !planetData.colors || !planetData.noiseParams) {
-      Logger.error(
-        LOGGER_SOURCE,
-        `Planet ${planetId} received via add event missing required config data. Skipping.`
-      );
-      return;
-    }
-    Logger.info(
+    Logger.warn(
       LOGGER_SOURCE,
-      `Adding planet ${planetId} via add event at (${planetData.x}, ${planetData.y}) R=${planetData.radius}`
+      "handlePlanetAdd needs refactoring for GameObject structure."
     );
-
-    const config: PlanetConfig = {
-      id: planetId,
-      seed: planetData.seed,
-      radius: planetData.radius,
-      mass: planetData.mass,
-      atmosphereHeight: planetData.atmosphereHeight,
-      surfaceDensity: planetData.surfaceDensity,
-      colors: { ...planetData.colors },
-      noiseParams: { ...planetData.noiseParams },
-    };
-
-    const planet = new Planet(this, planetData.x, planetData.y, config);
-    this.planetObjects.set(planetId, planet);
-
-    // Check if planet.body exists before registering gravity source
-    if (planet.body) {
-      this.physicsManager.addGravitySource(planet.body, planetData);
-      Logger.info(
-        LOGGER_SOURCE,
-        `  Planet ${planetId} added via add event. Gravity source registered. Map size: ${this.planetObjects.size}`
-      );
-    } else {
-      Logger.error(
-        LOGGER_SOURCE,
-        `Planet ${planetId} created but body is missing. Cannot add gravity source.`
-      );
-    }
-
-    // Update physics manager map regardless
-    this.physicsManager.setPlanetObjectsMap(this.planetObjects);
   };
 
-  // Signature matches addPlanetRemoveListener: (planetId: string, planetData?: PlanetData)
-  // Service might pass the state or just the ID. Assume just ID for safety.
   private handlePlanetRemove = (planetId: string): void => {
-    Logger.info(
+    Logger.warn(
       LOGGER_SOURCE,
-      `Handling remove for planet ${planetId} via remove event`
+      "handlePlanetRemove needs refactoring for GameObject structure."
     );
-    const planetToRemove = this.planetObjects.get(planetId);
-    if (planetToRemove) {
-      // Check body exists before trying to remove gravity
-      if (planetToRemove.body) {
-        // Use type assertion to 'any' to bypass strict check as BodyType didn't work
-        this.physicsManager.removeGravitySource(planetToRemove.body as any);
-      } else {
-        Logger.warn(
-          LOGGER_SOURCE,
-          `Planet ${planetId} body missing during removeGravitySource.`
-        );
-      }
-      planetToRemove.destroy(); // Destroy Planet instance
-      this.planetObjects.delete(planetId);
-      Logger.info(
-        LOGGER_SOURCE,
-        `Planet ${planetId} removed via remove event. Map size: ${this.planetObjects.size}`
-      );
-      this.physicsManager.setPlanetObjectsMap(this.planetObjects);
-    } else {
-      Logger.warn(
-        LOGGER_SOURCE,
-        `Planet ${planetId} not found for removal (remove event).`
-      );
-    }
   };
 
   // --- Cleanup Helpers ---
 
   private cleanupMultiplayerEntities(): void {
-    Logger.warn(LOGGER_SOURCE, "Cleaning up multiplayer entities...");
-    // Remote Players
-    this.remotePlayers.forEach((rocketInstance) => {
-      rocketInstance.destroy(); // Call destroy on each Rocket instance
+    Logger.warn(LOGGER_SOURCE, "Cleaning up multiplayer GameObjects...");
+    this.managedGameObjects.forEach((go) => {
+      if (go.name.startsWith("Rocket_") || go.name.startsWith("Planet_")) {
+        if (go.id !== this.sceneRoot.id) {
+          go.destroy();
+        }
+      }
     });
-    this.remotePlayers.clear();
-
-    // Remote Planets (remove body AND destroy instance)
-    this.planetObjects.forEach((planetInstance, planetId) => {
-      Logger.debug(
-        LOGGER_SOURCE,
-        `Cleaning up planet ${planetId} on disconnect`
-      );
-      this.physicsManager.removeGravitySource(planetInstance.body); // Remove gravity first
-      planetInstance.destroy(); // Destroy Planet instance
-    });
-    this.planetObjects.clear();
-
-    // Update physics manager with empty map
-    this.physicsManager.setPlanetObjectsMap(this.planetObjects);
-    Logger.info(LOGGER_SOURCE, "Multiplayer entities cleaned up.");
+    Logger.info(LOGGER_SOURCE, "Multiplayer GameObjects cleanup attempted.");
   }
 
   // --- Shutdown Helpers (Called from shutdown) ---
 
   private shutdownMultiplayer(): void {
     if (this.multiplayerService) {
-      // --- Unregister listeners ---
-      // Remove state listeners if they exist (check MultiplayerService implementation)
-      // Assuming direct state listeners might need manual removal if not handled by service.disconnect()
-      // Example: if (this.multiplayerService.state) {
-      //   this.multiplayerService.state.players.onAdd.unsubscribe(); // Check actual method
-      // }
-
-      // Remove service event listeners
       this.multiplayerService.removePlayerRemoveListener(
         this.handlePlayerRemove
       );
       this.multiplayerService.removeStatusListener(
         this.handleConnectionStatusChange
       );
-      // No need to remove state listeners explicitly if service handles it on disconnect
-      // this.multiplayerService.state.planets.onAdd.unsubscribe();
-      // this.multiplayerService.state.planets.onRemove.unsubscribe();
-
       this.multiplayerService.disconnect();
       Logger.info(LOGGER_SOURCE, "Multiplayer service disconnected.");
     }
@@ -1083,24 +875,6 @@ export class MainScene extends Phaser.Scene {
     if (this.orientationManager) {
       this.orientationManager.destroy();
       Logger.info(LOGGER_SOURCE, "DeviceOrientationManager destroyed.");
-    }
-  }
-
-  private shutdownPhysicsAndEntities(): void {
-    // Planets are handled in cleanupMultiplayerEntities or direct shutdown
-    // Destroy local rocket if it exists
-    if (this.rocket) {
-      // If Rocket class has its own destroy method for cleanup:
-      // this.rocket.destroy();
-      // Otherwise, Phaser manages the GameObject destruction when scene shuts down.
-      // Just nullify the reference.
-      this.rocket = undefined;
-      Logger.info(LOGGER_SOURCE, "Local rocket reference cleared.");
-    }
-    // Destroy physics manager LAST
-    if (this.physicsManager) {
-      this.physicsManager.destroy();
-      Logger.info(LOGGER_SOURCE, "PhysicsManager destroyed.");
     }
   }
 
@@ -1143,20 +917,14 @@ export class MainScene extends Phaser.Scene {
 
   // New method to consolidate input checking and sending
   private handleAndSendInput(targetAngleRad: number | null): void {
-    // Check thrust input (Keyboard or Pointer)
-    // Thrust START/STOP messages are now sent directly from the input handlers
-    // Local thrust application is handled by the isLocalThrusting flag in the main update loop
-
-    // --- Send Angle Input ---
-    // Use a member variable to track last sent angle
     if (targetAngleRad !== null) {
       const angleSendThreshold = 0.05;
       if (
-        this.lastSentAngle === undefined || // Use undefined check for first time
+        this.lastSentAngle === undefined ||
         Math.abs(targetAngleRad - (this.lastSentAngle ?? 0)) >
           angleSendThreshold
       ) {
-        this.sendInput("set_angle", targetAngleRad); // Re-enable sending angle input
+        this.sendInput("set_angle", targetAngleRad);
         this.lastSentAngle = targetAngleRad;
         Logger.debug(
           LOGGER_SOURCE,
@@ -1164,12 +932,6 @@ export class MainScene extends Phaser.Scene {
         );
       }
     }
-
-    // --- REMOVED Beta Gravity Application ---
-    // const orientation = this.orientationManager.getOrientation(); // Or getBeta directly?
-    // if (orientation && typeof orientation.beta === "number" && this.physicsManager) {
-    //   this.physicsManager.updateGravityFromOrientation(orientation.beta); // Incorrect method
-    // }
   }
 
   // --- Custom GameObject Management Helpers ---
@@ -1177,28 +939,79 @@ export class MainScene extends Phaser.Scene {
     if (this.managedGameObjects.has(gameObject.id)) {
       Logger.warn(
         LOGGER_SOURCE,
-        `GameObject ${gameObject.name} (ID: ${gameObject.id}) already managed by this scene.`
+        `GameObject ${gameObject.name} (ID: ${gameObject.id}) already managed.`
       );
       return;
     }
     this.managedGameObjects.set(gameObject.id, gameObject);
-    // Note: _internalStart is called later in create() after all setup
   }
 
   public removeGameObject(gameObject: GameObject): void {
-    if (!this.managedGameObjects.has(gameObject.id)) {
-      Logger.warn(
-        LOGGER_SOURCE,
-        `GameObject ${gameObject.name} (ID: ${gameObject.id}) not managed by this scene.`
-      );
-      return;
-    }
-    gameObject.destroy(); // Ensure its destroy logic runs
     this.managedGameObjects.delete(gameObject.id);
   }
 
   public getGameObjectById(id: number): GameObject | undefined {
     return this.managedGameObjects.get(id);
   }
-  // -----------------------------------------
+
+  public findGameObjectByName(name: string): GameObject | undefined {
+    for (const go of this.managedGameObjects.values()) {
+      if (go.name === name) {
+        return go;
+      }
+    }
+    return undefined;
+  }
+
+  public findLocalPlayerRocket(): Rocket | null {
+    if (!this.localPlayerId) return null;
+    const go = this.findGameObjectByName(`Rocket_${this.localPlayerId}`);
+    return go instanceof Rocket ? go : null;
+  }
+
+  private findPlanetsForDensityCalc(): any[] {
+    const planets: any[] = [];
+    this.managedGameObjects.forEach((go) => {
+      if (go instanceof Planet) {
+        const bodyComp = go.getComponent(PhysicsBody);
+        if (bodyComp?.body) {
+          planets.push({
+            x: bodyComp.body.position.x,
+            y: bodyComp.body.position.y,
+            radius: go.radius,
+            atmosphereHeight: go.atmosphereHeight,
+            surfaceDensity: go.surfaceDensity,
+          });
+        }
+      }
+    });
+    return planets;
+  }
+
+  // --- Process Fixed Updates ---
+  // Pass the internal fixed update logic as a callback
+  private runFixedUpdateStep(fixedDeltaTimeS: number): void {
+    // Apply gravity/forces via PhysicsManager component
+    if (this.physicsManagerComponent) {
+      this.physicsManagerComponent.fixedUpdate(fixedDeltaTimeS);
+    }
+
+    // --- Custom ECS Fixed Update ---
+    this.managedGameObjects.forEach((go) => {
+      if (go.active && go.isStarted) {
+        go._internalFixedUpdate(fixedDeltaTimeS);
+      }
+    });
+    // -----------------------------
+  }
+
+  private findGameObjectByBodyId(id: number): GameObject | undefined {
+    for (const go of this.managedGameObjects.values()) {
+      const physicsBodyComp = go.getComponent(PhysicsBody);
+      if (physicsBodyComp?.body && physicsBodyComp.body.id === id) {
+        return go;
+      }
+    }
+    return undefined;
+  }
 }

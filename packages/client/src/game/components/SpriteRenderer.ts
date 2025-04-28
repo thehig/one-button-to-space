@@ -1,189 +1,142 @@
 import Phaser from "phaser";
-import { IComponent } from "../core/IComponent";
-import { GameObject } from "../core/GameObject"; // Needs GameObject for reference
+import { ComponentBase } from "../core/IComponent";
+import { GameObject } from "../core/GameObject";
 import { Logger } from "@one-button-to-space/shared";
 
 const LOGGER_SOURCE = "🎨"; // Artist palette emoji
 
-export class SpriteRenderer implements IComponent {
-  public gameObject: GameObject | null = null; // Set by GameObject
+export interface SpriteRendererConfig {
+  texture: string;
+  frame?: string | number;
+  tint?: number;
+  origin?: { x: number; y: number };
+  depth?: number;
+  scale?: { x: number; y: number };
+  visualOffsetY?: number; // Optional offset for visual vs physics body
+}
 
-  // --- Component Properties ---
-  public phaserSprite: Phaser.GameObjects.Sprite | null = null;
-  public textureKey: string;
-  public frame?: string | number;
-  public depth: number = 0;
-  public visible: boolean = true;
-  public tint: number = 0xffffff; // White tint by default
+/**
+ * Renders a Phaser Sprite or Image for a GameObject.
+ * Updates the visual's transform to match the GameObject's world transform.
+ */
+export class SpriteRenderer extends ComponentBase {
+  private sprite: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite;
+  private config: SpriteRendererConfig;
 
-  // Keep track if Phaser object creation failed
-  private creationFailed: boolean = false;
-
-  constructor(textureKey: string, frame?: string | number, depth: number = 0) {
-    this.textureKey = textureKey;
-    this.frame = frame;
-    this.depth = depth;
+  constructor(config: SpriteRendererConfig) {
+    super();
+    this.config = {
+      // Set defaults
+      origin: { x: 0.5, y: 0.5 },
+      depth: 0,
+      scale: { x: 1, y: 1 },
+      visualOffsetY: 0,
+      ...config, // Override with provided config
+    };
+    // Logger.debug(LOGGER_SOURCE, "SpriteRenderer constructed with config:", this.config);
   }
 
   awake(): void {
-    if (!this.gameObject) {
-      Logger.error(
-        LOGGER_SOURCE,
-        "SpriteRenderer awake called before gameObject is set!"
+    super.awake(); // Call base awake if needed
+    const worldX = this.gameObject.getWorldX();
+    const worldY =
+      this.gameObject.getWorldY() + (this.config.visualOffsetY || 0);
+
+    // Use Image for static, Sprite if frame animation might be needed later
+    // For now, Image is simpler if no frame is specified.
+    if (this.config.frame !== undefined) {
+      this.sprite = this.gameObject.scene.add.sprite(
+        worldX,
+        worldY,
+        this.config.texture,
+        this.config.frame
       );
-      this.creationFailed = true;
-      return;
+      // Logger.debug(LOGGER_SOURCE, `Sprite created for ${this.gameObject.name}`);
+    } else {
+      this.sprite = this.gameObject.scene.add.image(
+        worldX,
+        worldY,
+        this.config.texture
+      );
+      // Logger.debug(LOGGER_SOURCE, `Image created for ${this.gameObject.name}`);
     }
 
-    Logger.debug(
-      LOGGER_SOURCE,
-      `SpriteRenderer awake on ${this.gameObject.name}. Creating Phaser Sprite...`
-    );
+    this.sprite.setOrigin(this.config.origin!.x, this.config.origin!.y);
+    this.sprite.setDepth(this.config.depth!);
+    this.sprite.setScale(this.config.scale!.x, this.config.scale!.y);
 
-    try {
-      // Create the Phaser Sprite using the GameObject's scene context
-      this.phaserSprite = this.gameObject.scene.add.sprite(
-        this.gameObject.x, // Initial position from GameObject
-        this.gameObject.y,
-        this.textureKey,
-        this.frame
-      );
-
-      // Apply initial properties
-      this.phaserSprite.setDepth(this.depth);
-      this.phaserSprite.setRotation(this.gameObject.rotation);
-      this.phaserSprite.setScale(
-        this.gameObject.scaleX,
-        this.gameObject.scaleY
-      );
-      this.phaserSprite.setVisible(this.visible);
-      this.phaserSprite.setTint(this.tint);
-      // TODO: Add anchor setting if needed
-
-      Logger.debug(
-        LOGGER_SOURCE,
-        `Phaser Sprite created for ${this.gameObject.name}.`
-      );
-    } catch (error) {
-      Logger.error(
-        LOGGER_SOURCE,
-        `Failed to create Phaser Sprite for ${this.gameObject.name}:`,
-        error
-      );
-      this.creationFailed = true;
+    if (this.config.tint !== undefined) {
+      this.sprite.setTint(this.config.tint);
+      // Logger.debug(LOGGER_SOURCE, `Tint applied: 0x${this.config.tint.toString(16)}`);
     }
-  }
 
-  start(): void {
-    // Optional: Can be used for logic after all components are initialized
-    // Logger.debug(LOGGER_SOURCE, `SpriteRenderer start on ${this.gameObject?.name}`);
+    // Initial transform sync
+    this.updateTransform();
+    // Logger.debug(LOGGER_SOURCE, `SpriteRenderer awake complete for ${this.gameObject.name}`);
   }
 
   update(deltaTimeS: number): void {
-    if (
-      !this.phaserSprite ||
-      !this.gameObject ||
-      this.creationFailed ||
-      !this.gameObject.active
-    ) {
-      // If creation failed, GO is null, or GO inactive, don't update sprite
-      if (
-        this.phaserSprite &&
-        !this.gameObject?.active &&
-        this.phaserSprite.visible
-      ) {
-        this.phaserSprite.setVisible(false); // Hide if GO becomes inactive
-      }
-      return;
-    }
-
-    // Ensure visibility matches component state (if GO is active)
-    if (this.phaserSprite.visible !== this.visible) {
-      this.phaserSprite.setVisible(this.visible);
-    }
-    if (!this.visible) return; // Don't update properties if not visible
-
-    // Sync Phaser Sprite properties with GameObject transform and component state
-    this.phaserSprite.setPosition(this.gameObject.x, this.gameObject.y);
-    this.phaserSprite.setRotation(this.gameObject.rotation);
-    this.phaserSprite.setScale(this.gameObject.scaleX, this.gameObject.scaleY);
-    this.phaserSprite.setDepth(this.depth); // Update depth if it changed
-    this.phaserSprite.setTint(this.tint); // Update tint if it changed
-
-    // Check if texture needs changing
-    if (
-      this.phaserSprite.texture.key !== this.textureKey ||
-      this.phaserSprite.frame.name !== this.frame?.toString()
-    ) {
-      try {
-        this.phaserSprite.setTexture(this.textureKey, this.frame);
-        Logger.debug(
-          LOGGER_SOURCE,
-          `Sprite texture updated to ${this.textureKey}:${this.frame} on ${this.gameObject.name}`
-        );
-      } catch (error) {
-        Logger.error(
-          LOGGER_SOURCE,
-          `Failed to set texture ${this.textureKey}:${this.frame} on ${this.gameObject.name}`,
-          error
-        );
-        // Optionally revert textureKey/frame or handle error
-      }
-    }
+    super.update(deltaTimeS); // Call base update if needed
+    if (!this.active || !this.sprite?.active) return;
+    this.updateTransform();
   }
-
-  // fixedUpdate(fixedDeltaTimeS: number): void {
-  //   // Not typically needed for rendering updates
-  // }
 
   destroy(): void {
-    Logger.debug(
-      LOGGER_SOURCE,
-      `SpriteRenderer destroy on ${this.gameObject?.name}`
-    );
-    if (this.phaserSprite) {
-      try {
-        this.phaserSprite.destroy(); // Clean up the Phaser object
-        Logger.debug(
-          LOGGER_SOURCE,
-          `Phaser Sprite destroyed for ${this.gameObject?.name}`
-        );
-      } catch (error) {
-        Logger.error(
-          LOGGER_SOURCE,
-          `Error destroying Phaser Sprite for ${this.gameObject?.name}:`,
-          error
-        );
-      }
-      this.phaserSprite = null;
+    // Logger.debug(LOGGER_SOURCE, `Destroying SpriteRenderer for ${this.gameObject?.name}`);
+    if (this.sprite) {
+      this.sprite.destroy();
+      // Logger.debug(LOGGER_SOURCE, `Phaser sprite/image destroyed`);
+      // Explicitly nullify to help GC and prevent accidental use
+      // @ts-ignore
+      this.sprite = null;
     }
-    this.gameObject = null; // Clear reference
+    super.destroy(); // Call base destroy
   }
 
-  // --- Helper methods for this component ---
+  private updateTransform(): void {
+    // Update sprite position and rotation based on GameObject's world transform
+    // Note: GameObject world transform needs implementation for parent rotation/scale
+    const worldX = this.gameObject.getWorldX();
+    const worldY =
+      this.gameObject.getWorldY() + (this.config.visualOffsetY || 0);
+    const worldRotation = this.gameObject.rotation; // Assuming rotation is world for now
 
-  public setTexture(textureKey: string, frame?: string | number): void {
-    this.textureKey = textureKey;
-    this.frame = frame;
-    // Update will handle applying it to the phaserSprite on the next frame
-    Logger.debug(
-      LOGGER_SOURCE,
-      `Texture set to ${textureKey}:${frame} queued for ${this.gameObject?.name}`
-    );
+    this.sprite.x = worldX;
+    this.sprite.y = worldY;
+    this.sprite.rotation = worldRotation;
+
+    // Handle scale separately if needed (local vs world)
+    this.sprite.scaleX = this.gameObject.scaleX * this.config.scale!.x;
+    this.sprite.scaleY = this.gameObject.scaleY * this.config.scale!.y;
   }
 
-  public setDepth(depth: number): void {
-    this.depth = depth;
-    // Update will handle applying it
-  }
+  // --- Public Methods to Interact with the Sprite ---
 
   public setVisible(visible: boolean): void {
-    this.visible = visible;
-    // Update will handle applying it
+    if (this.sprite) {
+      this.sprite.setVisible(visible);
+    }
+  }
+
+  public setTexture(texture: string, frame?: string | number): void {
+    if (this.sprite) {
+      this.sprite.setTexture(texture, frame);
+      this.config.texture = texture;
+      this.config.frame = frame;
+    }
   }
 
   public setTint(tint: number): void {
-    this.tint = tint;
-    // Update will handle applying it
+    if (this.sprite) {
+      this.sprite.setTint(tint);
+      this.config.tint = tint;
+    }
+  }
+
+  public setScale(x: number, y?: number): void {
+    if (this.sprite) {
+      this.config.scale = { x: x, y: y ?? x };
+      // updateTransform will apply this combined with GameObject scale
+    }
   }
 }

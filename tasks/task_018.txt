@@ -86,7 +86,7 @@ Testing should verify both individual components and their integration:
    - Implement automated tests that verify the correct interaction between all systems
 
 # Subtasks:
-## 1. Implement TimeManager and Core Engine Loop Structure [done]
+## 1. Implement TimeManager and Core Engine Loop Structure [pending]
 ### Dependencies: None
 ### Description: Create the foundational time management system and core engine loop structure that will support variable update rates for different systems.
 ### Details:

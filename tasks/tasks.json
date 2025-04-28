@@ -692,7 +692,7 @@
           "description": "Create the foundational time management system and core engine loop structure that will support variable update rates for different systems.",
           "dependencies": [],
           "details": "Implementation details:\n1. Create a TimeManager class that tracks:\n   - Total elapsed time\n   - Delta time between frames\n   - Fixed timestep accumulator\n   - Current FPS calculation\n2. Implement the main engine loop with separate update paths:\n   - Fixed update for physics/logic (typically 60Hz)\n   - Variable update for rendering (synced to display)\n3. Create an EngineConfiguration class to store timing constants:\n   - Fixed timestep duration\n   - Maximum allowed delta time\n   - Target framerate options\n4. Implement basic interpolation utilities for smooth rendering:\n   - Linear interpolation between physics states\n   - Calculation of interpolation factor based on accumulator\n5. Add FPS limiting/vsync options\n\nTesting approach:\n- Unit test TimeManager calculations with simulated time inputs\n- Create a simple test application that displays timing statistics\n- Verify consistent fixed update calls regardless of framerate\n- Test interpolation with moving objects at different framerates",
-          "status": "done",
+          "status": "pending",
           "parentTaskId": 18
         },
         {
