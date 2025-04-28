@@ -6,8 +6,11 @@ import { MainScene } from "./game/scenes/MainScene";
 // Import the Logger instance and LogLevel enum
 import { Logger, LogLevel } from "@one-button-to-space/shared"; // Corrected import path
 
-// Set the Logger level to TRACE early on
-Logger.setFilters(LogLevel.TRACE);
+// Set the Logger level and blacklist the DeviceOrientationManager
+const blacklistedSources = new Set<string>([
+  "🧭📱", // DeviceOrientationManager
+]);
+Logger.setFilters(LogLevel.TRACE, undefined, blacklistedSources); // Pass undefined for allowlist to keep default behavior
 
 Logger.info("🚀", "Application main entry point reached.");
 

@@ -18,7 +18,8 @@ export enum LogLevel {
  */
 export type LogFilters = {
   level: LogLevel;
-  sources: Set<string>;
+  sources: Set<string>; // Allowlist: Only log these if set is non-empty
+  blacklistSources: Set<string>; // Blacklist: Never log these
 };
 
 /**
@@ -28,6 +29,7 @@ export class Logger {
   private static filters: LogFilters = {
     level: LogLevel.INFO, // Default log level
     sources: new Set<string>(), // Empty set means no source filtering by default
+    blacklistSources: new Set<string>(), // Empty blacklist by default
   };
 
   // Store the server-provided world creation time
@@ -41,11 +43,18 @@ export class Logger {
   /**
    * Sets the log filtering configuration.
    * @param level - The minimum log level to display.
-   * @param sources - Optional set of sources to exclusively log. If empty or undefined, all sources are logged.
+   * @param sources - Optional set of sources to exclusively log (allowlist). If empty or undefined, all non-blacklisted sources are logged.
+   * @param blacklistSources - Optional set of sources to always ignore (blacklist).
    */
-  public static setFilters(level: LogLevel, sources?: Set<string>): void {
+  public static setFilters(
+    level: LogLevel,
+    sources?: Set<string>,
+    blacklistSources?: Set<string>
+  ): void {
     Logger.filters.level = level;
     Logger.filters.sources = sources || new Set<string>();
+    Logger.filters.blacklistSources = blacklistSources || new Set<string>();
+
     // Use console.log directly here as this is internal logger setup info
     const timestamp = Logger.getCurrentTimestampString();
     const levelEmoji = "ℹ️"; // Info level for this internal message
@@ -53,8 +62,14 @@ export class Logger {
     console.log(
       `${timestamp} ${levelEmoji}${source} Filters updated: Level=${
         LogLevel[level] || `Unknown(${level})`
-      }, Sources=${
-        sources && sources.size > 0 ? [...sources].join(", ") : "ALL"
+      }, AllowSources=${
+        Logger.filters.sources.size > 0
+          ? [...Logger.filters.sources].join(", ")
+          : "ALL"
+      }, BlacklistSources=${
+        Logger.filters.blacklistSources.size > 0
+          ? [...Logger.filters.blacklistSources].join(", ")
+          : "NONE"
       }`
     );
   }
@@ -195,7 +210,12 @@ export class Logger {
       return;
     }
 
-    // Filter by source
+    // Filter by blacklist first
+    if (Logger.filters.blacklistSources.has(source)) {
+      return; // Always skip blacklisted sources
+    }
+
+    // Filter by source allowlist (if applicable)
     if (
       Logger.filters.sources.size > 0 &&
       !Logger.filters.sources.has(source)

@@ -187,62 +187,49 @@ export class DeviceOrientationManager {
     // Check for significant change compared to PREVIOUS real values
     const betaDiff = Math.abs((currentBeta ?? 0) - (this.prevBeta ?? 0));
     const gammaDiff = Math.abs((currentGamma ?? 0) - (this.prevGamma ?? 0));
-
-    if (
+    const isSignificantRealChange =
       (currentBeta !== null && this.prevBeta === null) || // First valid reading
       (currentGamma !== null && this.prevGamma === null) || // First valid reading
       betaDiff > ORIENTATION_CHANGE_THRESHOLD ||
-      gammaDiff > ORIENTATION_CHANGE_THRESHOLD
-    ) {
+      gammaDiff > ORIENTATION_CHANGE_THRESHOLD;
+
+    let logMessage = `handleOrientation - `;
+    const bStr = this.beta?.toFixed(1) ?? "null";
+    const gStr = this.gamma?.toFixed(1) ?? "null";
+    const diffBStr = betaDiff.toFixed(1);
+    const diffGStr = gammaDiff.toFixed(1);
+
+    if (isSignificantRealChange) {
       this.lastInputSource = "real";
-      // Update previous values *after* comparison
       this.prevBeta = currentBeta;
       this.prevGamma = currentGamma;
       this.lastRealUpdateTime = Date.now();
-
-      Logger.trace(
-        LOGGER_SOURCE,
-        `handleOrientation - SIGNIFICANT Real Update -> Source set to 'real'. B=${this.beta?.toFixed(
-          1
-        )}, G=${this.gamma?.toFixed(1)} (DiffB: ${betaDiff.toFixed(
-          1
-        )}, DiffG: ${gammaDiff.toFixed(1)})`
-      );
+      logMessage += `SIGNIFICANT Real Update -> Source='real'. B=${bStr}, G=${gStr} (DiffB: ${diffBStr}, DiffG: ${diffGStr})`;
     } else {
-      Logger.trace(
-        LOGGER_SOURCE,
-        `handleOrientation - Minor Real Update. B=${this.beta?.toFixed(
-          1
-        )}, G=${this.gamma?.toFixed(1)} (DiffB: ${betaDiff.toFixed(
-          1
-        )}, DiffG: ${gammaDiff.toFixed(1)})`
-      );
+      logMessage += `Minor Real Update. B=${bStr}, G=${gStr} (DiffB: ${diffBStr}, DiffG: ${diffGStr})`;
     }
 
     // Check for cooldown period
     const now = Date.now();
     if (now - this.lastRealUpdateTime < MOUSE_INPUT_COOLDOWN_MS) {
-      Logger.trace(
-        LOGGER_SOURCE,
-        `handleOrientation - Cooldown Active. B=${this.beta?.toFixed(
-          1
-        )}, G=${this.gamma?.toFixed(1)}`
-      );
+      logMessage += ` | Cooldown Active.`;
       // Do not change lastInputSource during cooldown
-    } else {
-      // End cooldown check
-      this.lastInputSource = "simulated";
-      // Update previous simulated values *after* comparison
-      this.prevSimulatedBeta = this.simulatedBeta;
-      this.prevSimulatedGamma = this.simulatedGamma;
-
-      Logger.trace(
-        LOGGER_SOURCE,
-        `handleOrientation - Cooldown Ended. B=${this.simulatedBeta.toFixed(
+    } else if (this.lastInputSource !== "real") {
+      // Only switch back to simulated if not already real AND cooldown ended
+      // Check if we *were* in cooldown and it just ended
+      if (this.lastInputSource !== "simulated") {
+        // Avoid redundant log/assignment if already simulated
+        this.lastInputSource = "simulated";
+        // Only update prevSimulated if we are switching *to* simulated
+        this.prevSimulatedBeta = this.simulatedBeta;
+        this.prevSimulatedGamma = this.simulatedGamma;
+        logMessage += ` | Cooldown Ended -> Source='simulated'. SimB=${this.simulatedBeta.toFixed(
           1
-        )}, G=${this.simulatedGamma.toFixed(1)}`
-      );
+        )}, SimG=${this.simulatedGamma.toFixed(1)}`;
+      }
     }
+
+    Logger.trace(LOGGER_SOURCE, logMessage);
   }
 
   /**
@@ -263,58 +250,47 @@ export class DeviceOrientationManager {
     // Check for significant change compared to PREVIOUS simulated values
     const betaDiff = Math.abs(targetBeta - this.prevSimulatedBeta);
     const gammaDiff = Math.abs(targetGamma - this.prevSimulatedGamma);
+    const isSignificantSimChange =
+      betaDiff > ORIENTATION_CHANGE_THRESHOLD ||
+      gammaDiff > ORIENTATION_CHANGE_THRESHOLD;
 
     // Update current simulated values *before* checking for change source update
     this.simulatedBeta = targetBeta;
     this.simulatedGamma = targetGamma;
 
-    if (
-      betaDiff > ORIENTATION_CHANGE_THRESHOLD ||
-      gammaDiff > ORIENTATION_CHANGE_THRESHOLD
-    ) {
+    let logMessage = `setSimulatedOrientation - `;
+    const bStr = this.simulatedBeta.toFixed(1);
+    const gStr = this.simulatedGamma.toFixed(1);
+    const diffBStr = betaDiff.toFixed(1);
+    const diffGStr = gammaDiff.toFixed(1);
+
+    if (isSignificantSimChange) {
       // Check for cooldown period
       const now = Date.now();
       if (now - this.lastRealUpdateTime < MOUSE_INPUT_COOLDOWN_MS) {
-        Logger.trace(
-          LOGGER_SOURCE,
-          `setSimulatedOrientation - SIGNIFICANT Sim Update IGNORED (Cooldown Active). B=${this.simulatedBeta.toFixed(
-            1
-          )}, G=${this.simulatedGamma.toFixed(1)}`
-        );
+        logMessage += `SIGNIFICANT Sim Update IGNORED (Cooldown Active).`;
         // Do not change lastInputSource during cooldown
       } else {
         // End cooldown check
         this.lastInputSource = "simulated";
-        // Update previous simulated values *after* comparison
         this.prevSimulatedBeta = this.simulatedBeta;
         this.prevSimulatedGamma = this.simulatedGamma;
-
-        Logger.trace(
-          LOGGER_SOURCE,
-          `setSimulatedOrientation - SIGNIFICANT Sim Update -> Source set to 'simulated'. B=${this.simulatedBeta.toFixed(
-            1
-          )}, G=${this.simulatedGamma.toFixed(1)} (DiffB: ${betaDiff.toFixed(
-            1
-          )}, DiffG: ${gammaDiff.toFixed(1)})`
-        );
+        logMessage += `SIGNIFICANT Sim Update -> Source='simulated'.`;
       }
     } else {
-      Logger.trace(
-        LOGGER_SOURCE,
-        `setSimulatedOrientation - Minor Sim Update. B=${this.simulatedBeta.toFixed(
-          1
-        )}, G=${this.simulatedGamma.toFixed(1)} (DiffB: ${betaDiff.toFixed(
-          1
-        )}, DiffG: ${gammaDiff.toFixed(1)})`
-      );
+      logMessage += `Minor Sim Update.`;
     }
 
-    Logger.trace(
-      LOGGER_SOURCE,
-      `SimSet: B=${this.simulatedBeta.toFixed(
-        1
-      )}, G=${this.simulatedGamma.toFixed(1)}`
-    );
+    logMessage += ` B=${bStr}, G=${gStr} (DiffB: ${diffBStr}, DiffG: ${diffGStr})`;
+    Logger.trace(LOGGER_SOURCE, logMessage);
+
+    // Removed redundant SimSet log
+    // Logger.trace(
+    //   LOGGER_SOURCE,
+    //   `SimSet: B=${this.simulatedBeta.toFixed(
+    //     1
+    //   )}, G=${this.simulatedGamma.toFixed(1)}`
+    // );
   }
 
   /**
@@ -327,23 +303,24 @@ export class DeviceOrientationManager {
     let sourceUsed: InputSource = this.lastInputSource;
     let currentBeta: number | null;
     let currentGamma: number | null;
+    let logMessage = `getTargetAngle - `;
 
     // Determine which values to use based on the last active source
     if (this.lastInputSource === "simulated") {
       currentBeta = this.simulatedBeta;
       currentGamma = this.simulatedGamma;
+      logMessage += `Using 'simulated'. `;
     } else if (this.lastInputSource === "real") {
       currentBeta = this.beta;
       currentGamma = this.gamma;
       // Fallback if real data is null but was the last source
       if (currentBeta === null || currentGamma === null) {
-        Logger.trace(
-          LOGGER_SOURCE,
-          "getTargetAngle - Real source active but data null, attempting fallback to simulated."
-        );
+        logMessage += `Real source active but data null, fallback to simulated. `;
         currentBeta = this.simulatedBeta; // Still get beta for consistency
         currentGamma = this.simulatedGamma;
         sourceUsed = "simulated"; // Log that we fell back
+      } else {
+        logMessage += `Using 'real'. `;
       }
     } else {
       // 'none' initially
@@ -357,82 +334,50 @@ export class DeviceOrientationManager {
         currentGamma = this.simulatedGamma;
         sourceUsed = "simulated";
       }
-      Logger.trace(
-        LOGGER_SOURCE,
-        `getTargetAngle - Initial source ('none'), defaulting to '${sourceUsed}'.`
-      );
+      logMessage += `Initial source ('none'), defaulting to '${sourceUsed}'. `;
     }
 
-    // Add verbose log for which source is used
-    Logger.trace(
-      LOGGER_SOURCE,
-      // Keep logging beta even if unused in calc, for debug context
-      `getTargetAngle - Using '${sourceUsed}': Beta=${currentBeta?.toFixed(
-        1
-      )}, Gamma=${currentGamma?.toFixed(1)}`
-    );
+    const betaStr = currentBeta?.toFixed(1) ?? "null";
+    const gammaStr = currentGamma?.toFixed(1) ?? "null";
+    logMessage += `Input: Beta=${betaStr}, Gamma=${gammaStr}. `;
 
     // Use only gamma for calculation now
     if (currentGamma === null) {
-      // Add verbose log for null data
-      Logger.trace(
-        LOGGER_SOURCE,
-        `getTargetAngle - Returning null (Insufficient Gamma from '${sourceUsed}' source)`
-      );
+      logMessage += `Result: null (Insufficient Gamma from '${sourceUsed}' source).`;
+      Logger.trace(LOGGER_SOURCE, logMessage);
       return null;
     }
 
     let finalAngle: number;
+    let calculationType: string;
 
     // --- Calculation depends on the source ---
     if (sourceUsed === "real") {
+      calculationType = "Real";
       // --- Calculation for Real Device ---
-      // Assumes physics body angle 0 = visual UP
       if (currentBeta === null) {
-        Logger.trace(
-          LOGGER_SOURCE,
-          `getTargetAngle - Real source active but data null, returning null.`
-        );
+        // Should have been caught by fallback, but check again
+        logMessage += `Result: null (Real source active but Beta null post-fallback check).`;
+        Logger.trace(LOGGER_SOURCE, logMessage);
         return null;
       }
       const betaRad = Phaser.Math.DegToRad(currentBeta);
       const gammaRad = Phaser.Math.DegToRad(currentGamma);
-      // Target angle is the physical direction the device is tilted
       const physicalTiltAngle = Math.atan2(betaRad, gammaRad);
-      // Adjust for landscape screen coordinates AND point opposite to tilt
       finalAngle = Phaser.Math.Angle.Wrap(
         physicalTiltAngle + (3 * Math.PI) / 2
       );
-
-      Logger.trace(
-        LOGGER_SOURCE,
-        `getTargetAngle (Real) - physTilt=${physicalTiltAngle.toFixed(
-          3
-        )}, finalTarget=${finalAngle.toFixed(
-          3
-        )} (Using Beta: ${currentBeta.toFixed(
-          1
-        )}, Gamma: ${currentGamma.toFixed(1)})` // Updated log
-      );
+      logMessage += `Calc (Real): physTilt=${physicalTiltAngle.toFixed(3)}, `;
     } else {
       // sourceUsed === 'simulated' or fallback
+      calculationType = "Sim";
       // --- Calculation for Simulated Device (Direct Target Angle) ---
-      // Assumes physics body angle 0 = visual UP
-      // Map gamma (-180 to 180) directly to target angle (-PI to PI)
       finalAngle = Phaser.Math.Angle.Wrap(Phaser.Math.DegToRad(currentGamma)); // Corrected calculation
-      Logger.trace(
-        LOGGER_SOURCE,
-        `getTargetAngle (Sim) - Direct Target Calc: finalTarget=${finalAngle.toFixed(
-          3
-        )} (using Gamma: ${currentGamma.toFixed(1)})`
-      );
+      logMessage += `Calc (Sim): Direct from Gamma. `;
     }
 
-    // Final log shows the unified finalAngle variable
-    Logger.trace(
-      LOGGER_SOURCE,
-      `getTargetAngle - Final Angle Returned (rad): ${finalAngle.toFixed(3)}`
-    );
+    logMessage += `Result: finalAngle=${finalAngle.toFixed(3)} rad.`;
+    Logger.trace(LOGGER_SOURCE, logMessage);
 
     return finalAngle;
   }
