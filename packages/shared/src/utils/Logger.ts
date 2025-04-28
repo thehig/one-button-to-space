@@ -5,6 +5,7 @@ const LOGGER_SOURCE = "📜🔍"; // Chosen emojis for Logger
  * Enum for log levels.
  */
 export enum LogLevel {
+  TRACE = -1, // Extremely verbose logging, potentially massive output
   DEBUG = 0,
   INFO = 1,
   WARN = 2,
@@ -46,8 +47,13 @@ export class Logger {
     Logger.filters.level = level;
     Logger.filters.sources = sources || new Set<string>();
     // Use console.log directly here as this is internal logger setup info
+    const timestamp = Logger.getCurrentTimestampString();
+    const levelEmoji = "ℹ️"; // Info level for this internal message
+    const source = LOGGER_SOURCE; // Source is the Logger class itself
     console.log(
-      `[Logger] Filters updated: Level=${LogLevel[level]}, Sources=${
+      `${timestamp} ${levelEmoji}${source} Filters updated: Level=${
+        LogLevel[level] || `Unknown(${level})`
+      }, Sources=${
         sources && sources.size > 0 ? [...sources].join(", ") : "ALL"
       }`
     );
@@ -76,6 +82,20 @@ export class Logger {
       Logger.warn(LOGGER_SOURCE, "World creation time not set");
     }
     return Logger.worldCreationTime;
+  }
+
+  /**
+   * Logs a trace message. For extremely verbose output.
+   * @param source - The source of the log message.
+   * @param message - The message to log.
+   * @param optionalParams - Additional parameters to log.
+   */
+  public static trace(
+    source: string,
+    message: string,
+    ...optionalParams: unknown[]
+  ): void {
+    Logger.log(LogLevel.TRACE, source, message, ...optionalParams);
   }
 
   /**
@@ -144,10 +164,10 @@ export class Logger {
 
     if (Logger.worldCreationTime !== null) {
       elapsedMs = Date.now() - Logger.worldCreationTime;
-      timestampPrefix = "W+"; // World time
+      timestampPrefix = "🌍"; // World time
     } else {
       elapsedMs = Date.now() - Logger.loggerStartTime;
-      timestampPrefix = "L+"; // Logger time
+      timestampPrefix = "⏰"; // Logger time
     }
 
     const elapsedSeconds = Math.floor(elapsedMs / 1000);
@@ -188,10 +208,10 @@ export class Logger {
 
     if (Logger.worldCreationTime !== null) {
       elapsedMs = Date.now() - Logger.worldCreationTime;
-      timestampPrefix = "W+"; // World time
+      timestampPrefix = "🌍"; // World time
     } else {
       elapsedMs = Date.now() - Logger.loggerStartTime;
-      timestampPrefix = "L+"; // Logger time
+      timestampPrefix = "⏰"; // Logger time
     }
 
     const elapsedSeconds = Math.floor(elapsedMs / 1000);
@@ -200,12 +220,32 @@ export class Logger {
       .toString()
       .padStart(3, "0")}`;
 
-    const prefix = `[${timestamp}] [${LogLevel[level]}] [${source}]`;
+    let levelEmoji: string;
+    switch (level) {
+      case LogLevel.TRACE:
+        levelEmoji = "🔬"; // Microscope
+        break;
+      case LogLevel.DEBUG:
+        levelEmoji = "🐞"; // Bug
+        break;
+      case LogLevel.INFO:
+        levelEmoji = "ℹ️"; // Info
+        break;
+      case LogLevel.WARN:
+        levelEmoji = "⚠️"; // Warning
+        break;
+      case LogLevel.ERROR:
+        levelEmoji = "🔥"; // Error/Fire
+        break;
+      default:
+        levelEmoji = "❓"; // Unknown
+    }
+
+    const prefix = `${timestamp} ${levelEmoji}${source}`;
 
     switch (level) {
+      case LogLevel.TRACE: // Fall through to use console.log
       case LogLevel.DEBUG:
-        console.log(prefix, message, ...optionalParams);
-        break;
       case LogLevel.INFO:
         console.info(prefix, message, ...optionalParams);
         break;

@@ -6,8 +6,8 @@ import { MainScene } from "./game/scenes/MainScene";
 // Import the Logger instance and LogLevel enum
 import { Logger, LogLevel } from "@one-button-to-space/shared"; // Corrected import path
 
-// Set the Logger level to INFO early on
-Logger.setFilters(LogLevel.INFO);
+// Set the Logger level to DEBUG early on
+Logger.setFilters(LogLevel.DEBUG);
 
 Logger.info("🚀", "Application main entry point reached.");
 
