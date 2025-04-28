@@ -93,6 +93,7 @@ export class MainScene extends Phaser.Scene {
   constructor() {
     super({ key: "MainScene" });
     Logger.debug(LOGGER_SOURCE, "MainScene constructor called");
+    this.sceneRoot = new GameObject(this, "SceneRoot");
   }
 
   preload(): void {
