@@ -10,7 +10,7 @@ import { ZoomController } from "../controllers/ZoomController";
 import {
   MultiplayerService,
   multiplayerService,
-  type ConnectionStatus, // Re-added 'type' keyword
+  ConnectionStatus, // Removed 'type' keyword
   type PhysicsUpdateListener, // Explicitly import as type
 } from "../../services/MultiplayerService"; // Adjust path as needed, import instance
 import { PlayerState, PlanetData } from "../../schema/State"; // Adjust path, ADD PlanetData
@@ -121,9 +121,6 @@ export class MainScene extends Phaser.Scene {
     this.createUI();
     this.setupCollisions();
 
-    // Initial pass of planet map after multiplayer might have added some
-    this.physicsManagerComponent.setPlanetObjectsMap(this.planetObjects);
-
     // --- Call Awake & Start on Custom GameObjects ---
     Logger.info(
       LOGGER_SOURCE,
@@ -149,7 +146,7 @@ export class MainScene extends Phaser.Scene {
 
   update(time: number, delta: number): void {
     // --- Update Time Manager FIRST ---
-    this.timeManager.update(time, delta);
+    this.timeManager.update(time);
 
     // --- Custom ECS Variable Update ---
     Logger.trace(LOGGER_SOURCE, "Update loop start");
@@ -249,7 +246,7 @@ export class MainScene extends Phaser.Scene {
 
   private setupPhysics(): void {
     this.physicsManagerComponent = this.sceneRoot.addComponent(
-      new PhysicsManager(this)
+      new PhysicsManager()
     );
     if (!this.physicsManagerComponent) {
       Logger.error(LOGGER_SOURCE, "Failed to add PhysicsManager component!");

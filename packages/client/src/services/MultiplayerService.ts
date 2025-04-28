@@ -11,11 +11,13 @@ import { PlayerInputMessage } from "@one-button-to-space/shared"; // Add this im
 const LOGGER_SOURCE = "🌐🤝"; // Replaced string with emojis
 
 // Define types for status and listener callback
-export type ConnectionStatus =
-  | "disconnected"
-  | "connecting"
-  | "connected"
-  | "error";
+export enum ConnectionStatus {
+  Disconnected = "disconnected",
+  Connecting = "connecting",
+  Connected = "connected",
+  Error = "error",
+}
+
 export type StatusListener = (status: ConnectionStatus) => void;
 // Define callback types for player state changes
 export type PlayerAddListener = (playerId: string, state: PlayerState) => void;
@@ -42,7 +44,7 @@ export class MultiplayerService {
   // Use the imported RoomState type
   private room: Colyseus.Room<RoomState> | null = null;
   // private connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'error' = 'disconnected'; // Use type alias
-  private connectionStatus: ConnectionStatus = "disconnected";
+  private connectionStatus: ConnectionStatus = ConnectionStatus.Disconnected;
   // Remove hardcoded defaults, they will be loaded from config
   // private serverUrl = "ws://localhost:2567";
   // private roomName = "game_room";
@@ -105,8 +107,8 @@ export class MultiplayerService {
 
   public async connect(): Promise<void> {
     if (
-      this.connectionStatus === "connected" ||
-      this.connectionStatus === "connecting"
+      this.connectionStatus === ConnectionStatus.Connected ||
+      this.connectionStatus === ConnectionStatus.Connecting
     ) {
       Logger.debug(
         // Use constant
@@ -117,7 +119,7 @@ export class MultiplayerService {
     }
 
     // Use private method to set status and notify listeners
-    this.setConnectionStatus("connecting");
+    this.setConnectionStatus(ConnectionStatus.Connecting);
     Logger.info(
       // Use constant
       LOGGER_SOURCE,
@@ -137,7 +139,7 @@ export class MultiplayerService {
       this.room = await this.client.joinOrCreate<RoomState>(this.roomName);
 
       // Use private method to set status and notify listeners
-      this.setConnectionStatus("connected");
+      this.setConnectionStatus(ConnectionStatus.Connected);
       Logger.info(
         // Use constant
         LOGGER_SOURCE,
@@ -149,7 +151,7 @@ export class MultiplayerService {
       this.startPingLoop(); // Start ping loop on successful connection
     } catch (e) {
       // Use private method to set status and notify listeners
-      this.setConnectionStatus("error");
+      this.setConnectionStatus(ConnectionStatus.Error);
       console.error("MultiplayerService: Connection/Join failed:", e);
       // TODO: Notify status listeners -- Handled by setConnectionStatus
       this.room = null;
@@ -174,7 +176,7 @@ export class MultiplayerService {
     this.client = null;
     const oldStatus = this.connectionStatus;
     // Use private method to set status and notify listeners
-    this.setConnectionStatus("disconnected");
+    this.setConnectionStatus(ConnectionStatus.Disconnected);
     Logger.info(LOGGER_SOURCE, "MultiplayerService: Disconnected."); // Use constant
     // Notification handled by setConnectionStatus
     // if (oldStatus !== 'disconnected') {
@@ -196,7 +198,7 @@ export class MultiplayerService {
 
   public isConnected(): boolean {
     // Check both status and if room object exists
-    return this.connectionStatus === "connected" && !!this.room;
+    return this.connectionStatus === ConnectionStatus.Connected && !!this.room;
   }
 
   public getConnectionStatus(): ConnectionStatus {
@@ -818,14 +820,14 @@ export class MultiplayerService {
           message || "No message"
         }`
       );
-      this.setConnectionStatus("error");
+      this.setConnectionStatus(ConnectionStatus.Error);
     });
 
     // Listener for when the client leaves the room
     this.room.onLeave((code: number) => {
       Logger.info(LOGGER_SOURCE, `Left room (Code ${code})`); // Use constant
-      if (this.connectionStatus !== "disconnected") {
-        this.setConnectionStatus("disconnected");
+      if (this.connectionStatus !== ConnectionStatus.Disconnected) {
+        this.setConnectionStatus(ConnectionStatus.Disconnected);
       }
       this.room = null;
       this.players.clear();
