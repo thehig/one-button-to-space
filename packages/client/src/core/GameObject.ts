@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { Vector as MatterVector } from "matter-js";
 
 /**
  * Base class for all interactive game objects in the scene.
@@ -35,12 +36,16 @@ export abstract class GameObject extends Phaser.Physics.Matter.Sprite {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
   public updateFromServer(state: any): void {
     // Example: Interpolate position, apply rotation, etc.
-    // this.setPosition(state.x, state.y);
-    // this.setRotation(state.angle);
+    // This should handle syncing state like x, y, angle, vx, vy from server updates
+    // Phaser's MatterSprite often handles basic position/angle sync automatically if body is updated.
+    // You might need specific logic for velocity or other state fields.
   }
 
+  // Physics interaction methods are inherited from Phaser.Physics.Matter.Sprite
+  // Use this.applyForce(), this.setVelocity(), this.setAngle(), this.setAngularVelocity() directly.
+
   public destroyGameObject(): void {
-    // Custom cleanup logic before destroying
-    this.destroy(); // Call Phaser's destroy method
+    // Custom cleanup logic before destroying (e.g., remove from groups)
+    this.destroy(); // Call Phaser's destroy method (handles removing body from world)
   }
 }

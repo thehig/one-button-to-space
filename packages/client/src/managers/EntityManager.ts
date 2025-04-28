@@ -8,6 +8,8 @@ import {
   PlayerState,
   PlanetData, // Import PlanetData directly
 } from "../schema/State";
+// Import shared constants and types
+import { Constants, CollisionCategory } from "@one-button-to-space/shared";
 
 // Define types for MapSchema iteration
 type PlayerMapSchema = Map<string, PlayerState>;
@@ -162,15 +164,30 @@ export class EntityManager extends BaseManager {
     let player = this.entities.get(sessionId) as Player | undefined;
 
     if (!player) {
-      // Create new player instance
       const isCurrentPlayer = sessionId === this.currentPlayerSessionId;
+
+      // Define physics options for the player body
+      const playerBodyOptions: Phaser.Types.Physics.Matter.MatterBodyConfig = {
+        mass: Constants.PLAYER_MASS,
+        frictionAir: Constants.PLAYER_FRICTION_AIR,
+        label: `player-${sessionId}`, // Use a descriptive label
+        // Add collision filter if needed
+        // collisionFilter: {
+        //   category: CollisionCategory.PLAYER,
+        //   mask: CollisionCategory.WALL | CollisionCategory.ENEMY // Example
+        // },
+        // Add other necessary Matter options (restitution, etc.)
+      };
+
+      // Create new player instance, passing options correctly
       player = new Player(
         this.scene.matter.world,
         state.x,
         state.y,
         "player_texture",
-        undefined,
-        isCurrentPlayer
+        undefined, // frame
+        playerBodyOptions, // Pass the Matter options object
+        isCurrentPlayer // Pass isCurrentPlayer separately
       );
       // Attach the session ID to the GameObject for easy lookup
       (player as any).sessionId = sessionId;
