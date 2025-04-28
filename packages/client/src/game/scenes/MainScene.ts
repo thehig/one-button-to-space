@@ -608,9 +608,18 @@ export class MainScene extends Phaser.Scene {
     playerState: PlayerState
   ): void => {
     Logger.debug(LOGGER_SOURCE, `handlePlayerAdd for player: ${playerId}`);
-    const currentLocalId = this.multiplayerService?.getSessionId();
-    this.localPlayerId = currentLocalId ?? null;
 
+    // If this is the local player, they should have already been created in handleConnectionStatusChange.
+    // REVERTED: Remove this check, handlePlayerAdd now creates local player too.
+    // if (playerId === this.localPlayerId) {
+    //   Logger.debug(
+    //     LOGGER_SOURCE,
+    //     `handlePlayerAdd: Ignoring add event for local player ${playerId} as they should already exist.`
+    //   );
+    //   return;
+    // }
+
+    // Check if the GameObject already exists (covers both local and remote)
     if (this.findGameObjectByName(`Rocket_${playerId}`)) {
       Logger.warn(
         LOGGER_SOURCE,
@@ -619,6 +628,7 @@ export class MainScene extends Phaser.Scene {
       return;
     }
 
+    // --- Create Player GameObject ---
     Logger.info(
       LOGGER_SOURCE,
       `Creating GameObject for player ${playerId} at (${playerState.x.toFixed(
@@ -633,7 +643,9 @@ export class MainScene extends Phaser.Scene {
       playerId,
       playerState.angle
     );
+    // REMOVED: this.addGameObject(newRocket); // GameObject constructor should handle this
 
+    // Awake/Start if scene is ready
     if (this.sceneRoot.isAwake) {
       newRocket._internalAwake();
     }
@@ -641,14 +653,15 @@ export class MainScene extends Phaser.Scene {
       newRocket._internalStart();
     }
 
+    // --- Set Camera Follow for Local Player ---
     if (playerId === this.localPlayerId) {
       Logger.info(
         LOGGER_SOURCE,
         "Setting camera to follow local player rocket GameObject."
       );
       this.cameras.main.startFollow(newRocket);
-      this.localPlayerId = playerId;
     }
+    // --- End Set Camera Follow ---
   };
 
   private handlePhysicsUpdate(updateData: {
@@ -656,6 +669,10 @@ export class MainScene extends Phaser.Scene {
   }): void {
     for (const sessionId in updateData) {
       const state = updateData[sessionId];
+      Logger.trace(
+        LOGGER_SOURCE,
+        `handlePhysicsUpdate: Looking for GameObject 'Rocket_${sessionId}' in map...`
+      );
       const targetGameObject = this.findGameObjectByName(`Rocket_${sessionId}`);
       const targetRocket =
         targetGameObject instanceof Rocket ? targetGameObject : null;
@@ -798,6 +815,9 @@ export class MainScene extends Phaser.Scene {
       color = "#00ff00";
       this.localPlayerId = this.multiplayerService.getSessionId() ?? null;
       text = `Status: Connected (ID: ${this.localPlayerId})`;
+
+      // --- REVERTED: Remove local player creation attempt from here ---
+      // --- END REVERTED ---
     } else if (status === "connecting") {
       color = "#ffff00";
     } else {
@@ -944,6 +964,10 @@ export class MainScene extends Phaser.Scene {
       return;
     }
     this.managedGameObjects.set(gameObject.id, gameObject);
+    Logger.trace(
+      LOGGER_SOURCE,
+      `addGameObject: Successfully added ${gameObject.name} (ID: ${gameObject.id}) to map.`
+    );
   }
 
   public removeGameObject(gameObject: GameObject): void {
@@ -956,7 +980,9 @@ export class MainScene extends Phaser.Scene {
 
   public findGameObjectByName(name: string): GameObject | undefined {
     for (const go of this.managedGameObjects.values()) {
-      if (go.name === name) {
+      // Match exact name OR name starting with the provided string + underscore
+      // This handles cases like looking for 'Rocket_sessionId' when the actual name is 'Rocket_sessionId_GOid'
+      if (go.name === name || go.name.startsWith(name + "_")) {
         return go;
       }
     }

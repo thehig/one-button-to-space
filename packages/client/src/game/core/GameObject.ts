@@ -48,7 +48,11 @@ export class GameObject {
 
     // Logger.debug(LOGGER_SOURCE, `Created ${this.name} (ID: ${this.id})`);
     // Register with the scene
-    this.scene.addGameObject(this); // Let scene manage it
+    this.scene.addGameObject(this);
+    Logger.trace(
+      LOGGER_SOURCE,
+      `${this.name}: Added to scene's managed objects via constructor.`
+    );
   }
 
   // --- Transform Getters/Setters ---

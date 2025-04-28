@@ -207,10 +207,10 @@ export class MultiplayerService {
 
   /**
    * Returns the session ID of the current client in the room.
-   * @returns string | undefined
+   * @returns string | null
    */
-  public getSessionId(): string | undefined {
-    return this.room?.sessionId;
+  public getSessionId(): string | null {
+    return this.room?.sessionId ?? null;
   }
 
   // --- Listener Management ---
@@ -448,7 +448,7 @@ export class MultiplayerService {
   private notifyPhysicsUpdateListeners(updateData: {
     [sessionId: string]: Partial<PlayerState>;
   }): void {
-    Logger.debug(
+    Logger.trace(
       LOGGER_SOURCE,
       `MultiplayerService: Notifying Physics Update: ${
         Object.keys(updateData).length
@@ -871,6 +871,12 @@ export class MultiplayerService {
     });
     // --- END Pong listener ---
   }
+
+  // --- ADDED METHOD ---
+  public getPlayerState(sessionId: string): PlayerState | undefined {
+    return this.room?.state.players.get(sessionId);
+  }
+  // --- END ADDED METHOD ---
 }
 
 // Export a singleton instance of the service
