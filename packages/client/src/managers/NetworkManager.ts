@@ -1,11 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Client, Room } from "colyseus.js";
 import { BaseManager } from "./BaseManager";
-// Adjust the path based on your actual monorepo structure and where the shared types live
-// Assuming a shared package or direct path for now. Need to verify this path.
-import { GameState } from "../../../server/src/schema/GameState";
-import { EntityManager } from "./EntityManager"; // Placeholder, ensure correct path
-import { SceneManager } from "./SceneManager"; // Placeholder, ensure correct path
+// --- Type Imports ---
+import { Logger, PhysicsStateUpdate } from "@one-button-to-space/shared";
+import { RoomState as GameState } from "../schema/State"; // Import local GameState alias
+
+// --- Manager Imports ---
+import { EntityManager } from "./EntityManager";
+import { SceneManager } from "./SceneManager";
+
+// Logger Source for this file
+const LOGGER_SOURCE = "🌐";
 
 // Define the structure of expected room options
 interface ConnectionOptions {
@@ -27,6 +32,10 @@ export class NetworkManager extends BaseManager {
       : // IMPORTANT: Replace with your actual production WebSocket endpoint
         "wss://your-production-server.com";
     this.client = new Client(endpoint);
+    Logger.info(
+      LOGGER_SOURCE,
+      `NetworkManager initialized for endpoint: ${endpoint}`
+    );
   }
 
   public static getInstance(): NetworkManager {
@@ -41,50 +50,47 @@ export class NetworkManager extends BaseManager {
     options: ConnectionOptions
   ): Promise<Room<GameState>> {
     if (this.room) {
-      console.warn("Already connected to a room. Disconnecting first.");
+      Logger.warn(LOGGER_SOURCE, "Already connected. Disconnecting first.");
       await this.disconnect();
     }
 
     try {
-      console.log(`Attempting to join or create room: ${roomName}`, options);
+      Logger.info(
+        LOGGER_SOURCE,
+        `Attempting to join/create room: ${roomName}`,
+        options
+      );
       this.connectionOptions = options;
-      // Join or create the room with the provided options
       this.room = await this.client.joinOrCreate<GameState>(roomName, options);
-      console.log(
-        "Successfully joined room:",
-        this.room.sessionId,
-        " Room ID:",
-        this.room.id
+      Logger.info(
+        LOGGER_SOURCE,
+        `Joined room: ${this.room.roomId}, Session ID: ${this.room.sessionId}`
       );
       this.setupRoomListeners();
       return this.room;
     } catch (e: any) {
-      console.error("Failed to join room:", e);
+      Logger.error(LOGGER_SOURCE, "Failed to join room:", e);
       this.room = null;
       this.connectionOptions = null;
-      // Consider more specific error handling or user feedback here
-      throw e; // Re-throw the error for the caller to handle
+      throw e; // Re-throw
     }
   }
 
   public async disconnect(): Promise<void> {
     if (this.room) {
-      const roomId = this.room.id;
+      const roomId = this.room.roomId;
       try {
-        console.log(`Leaving room: ${roomId}`);
-        // Pass true to immediately close the connection and trigger onLeave
+        Logger.info(LOGGER_SOURCE, `Leaving room: ${roomId}`);
         await this.room.leave(true);
-        console.log(`Successfully left room: ${roomId}`);
+        Logger.info(LOGGER_SOURCE, `Left room: ${roomId}`);
       } catch (e: any) {
-        // Handle potential errors during leave (e.g., connection already closed)
-        console.error(`Error leaving room ${roomId}:`, e);
+        Logger.error(LOGGER_SOURCE, `Error leaving room ${roomId}:`, e);
       } finally {
-        // Ensure room is cleared even if leave() throws an error
         this.room = null;
         this.connectionOptions = null;
       }
     } else {
-      console.log("Not connected to any room.");
+      Logger.info(LOGGER_SOURCE, "Not connected, cannot disconnect.");
     }
   }
 
@@ -92,71 +98,109 @@ export class NetworkManager extends BaseManager {
     if (!this.room) return;
 
     // --- State Synchronization ---
-    // Listen for the initial full state snapshot
     this.room.onStateChange.once((initialState: GameState) => {
-      console.log("Initial state received");
-      // Pass the initial state to the EntityManager for setup
+      Logger.debug(LOGGER_SOURCE, "Initial state received.");
       EntityManager.getInstance().syncInitialState(initialState);
     });
 
-    // Listen for subsequent incremental state changes
     this.room.onStateChange((state: GameState) => {
-      // Pass incremental changes to the EntityManager
+      // Logger.trace(LOGGER_SOURCE, "Incremental state received."); // Too noisy
       EntityManager.getInstance().updateFromState(state);
     });
 
     // --- Custom Messages ---
-    // Generic message listener
     this.room.onMessage("*", (type, message) => {
-      console.log(`Received message of type "${type}":`, message);
-      // TODO: Route specific message types to appropriate handlers/managers
+      // Logger.trace(LOGGER_SOURCE, `Received message type "${type}"`, message); // Log raw message if needed
       switch (type) {
+        case "worldCreationTime":
+          if (typeof message === "number") {
+            Logger.setWorldCreationTime(message);
+            // Log at info level as this happens once
+            Logger.info(
+              LOGGER_SOURCE,
+              `World creation time synced: ${message}`
+            );
+          } else {
+            Logger.warn(
+              LOGGER_SOURCE,
+              "Received invalid worldCreationTime message:",
+              message
+            );
+          }
+          break;
+
+        case "physics_update":
+          // Assuming message is an object like { entityId: physicsData, ... }
+          // And physicsData matches PhysicsStateUpdate type
+          if (typeof message === "object" && message !== null) {
+            // Log at trace level as this happens frequently
+            Logger.trace(
+              LOGGER_SOURCE,
+              "Processing physics update batch...",
+              Object.keys(message)
+            );
+            Object.entries(message).forEach(([entityId, physicsData]) => {
+              EntityManager.getInstance().updateEntityPhysics(
+                entityId,
+                physicsData as PhysicsStateUpdate // Cast to expected type
+              );
+            });
+          } else {
+            Logger.warn(
+              LOGGER_SOURCE,
+              "Received invalid physics_update message:",
+              message
+            );
+          }
+          break;
+
         case "chat":
-          // UIManager.getInstance().displayChatMessage(message);
+          // TODO: Route to UI Manager
+          Logger.info(
+            LOGGER_SOURCE,
+            "Chat message received (not handled):",
+            message
+          );
           break;
         case "serverNotification":
-          // UIManager.getInstance().showNotification(message);
+          // TODO: Route to UI Manager
+          Logger.info(
+            LOGGER_SOURCE,
+            "Server notification received (not handled):",
+            message
+          );
           break;
-        // Add more cases for different message types
+        default:
+          Logger.warn(
+            LOGGER_SOURCE,
+            `Unhandled message type "${type}"`,
+            message
+          );
       }
     });
 
     // --- Room Lifecycle Events ---
-    // Listen for errors from the room
     this.room.onError((code, message) => {
-      console.error(`Room error (${code}): ${message}`);
-      // TODO: Implement more robust error handling
-      // Maybe attempt reconnection or notify the user
-      // Consider disconnecting if the error is fatal
-      this.disconnect(); // Attempt to clean up
-      // Example: Transition to an error scene or main menu
+      Logger.error(LOGGER_SOURCE, `Room error (code: ${code}): ${message}`);
+      this.disconnect(); // Attempt cleanup
       SceneManager.getInstance().startScene("MainMenuScene", {
-        error: `Connection error: ${message}`,
+        error: `Connection error: ${message || "Unknown room error"}`,
       });
     });
 
-    // Listen for when the client leaves the room (voluntarily or due to error/kick)
     this.room.onLeave((code) => {
-      console.log(`Disconnected from room (code: ${code})`);
-      const gracefulDisconnect = code === 1000; // 1000 = Normal Closure
-      const wasConnected = this.room !== null; // Check if we were actually connected before this event
-
-      this.room = null; // Clear the room reference
+      Logger.info(LOGGER_SOURCE, `Disconnected from room (code: ${code})`);
+      const graceful = code === 1000;
+      const wasConnected = !!this.room; // Check if we were actually connected
+      this.room = null;
       this.connectionOptions = null;
-
       if (wasConnected) {
-        // TODO: Handle disconnection - return to main menu, show message
-        // Only transition if not already transitioning due to an error handled above
-        if (gracefulDisconnect) {
-          SceneManager.getInstance().startScene("MainMenuScene", {
-            message: "Disconnected",
-          });
-        } else {
-          // Maybe show a different message for unexpected disconnects
-          SceneManager.getInstance().startScene("MainMenuScene", {
-            error: `Disconnected unexpectedly (code: ${code})`,
-          });
-        }
+        SceneManager.getInstance().startScene("MainMenuScene", {
+          error: graceful
+            ? undefined
+            : `Disconnected unexpectedly (code: ${code})`,
+          message: graceful ? "Disconnected from server" : undefined,
+        });
       }
     });
   }
@@ -169,8 +213,9 @@ export class NetworkManager extends BaseManager {
   public sendMessage(type: string | number, payload?: any): void {
     if (this.isConnected()) {
       this.room!.send(type, payload);
+      // Logger.trace(LOGGER_SOURCE, `Sent message type "${type}"`, payload); // Can be noisy
     } else {
-      console.warn("Cannot send message, not connected to a room.");
+      Logger.warn(LOGGER_SOURCE, "Cannot send message, not connected.");
     }
   }
 
@@ -188,12 +233,11 @@ export class NetworkManager extends BaseManager {
   }
 
   public override init(): void {
-    console.log("Network Manager Initialized");
-    // Initialization logic for the manager itself, if any
+    // No specific init logic here, constructor handles setup
   }
 
   public override async destroy(): Promise<void> {
-    console.log("Network Manager Destroying");
+    Logger.info(LOGGER_SOURCE, "Network Manager Destroying");
     await this.disconnect(); // Ensure disconnection on destroy
     NetworkManager._instance = null;
   }

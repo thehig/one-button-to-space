@@ -14,6 +14,7 @@ import {
   Constants,
   CollisionCategory,
   Logger,
+  PhysicsStateUpdate, // Import the new type
 } from "@one-button-to-space/shared";
 
 // Logger Source for this file
@@ -164,6 +165,38 @@ export class EntityManager extends BaseManager {
         this.removeEntity(id);
       }
     });
+  }
+
+  /**
+   * Updates the physics state of a specific entity based on data from the server.
+   * @param entityId The ID of the entity to update (e.g., session ID for players).
+   * @param physicsData The physics state data received from the server.
+   */
+  public updateEntityPhysics(
+    entityId: string,
+    physicsData: PhysicsStateUpdate
+  ): void {
+    const entity = this.entities.get(entityId);
+    if (entity) {
+      // Check if the entity has the specific physics update method
+      if (typeof entity.updatePhysicsFromServer === "function") {
+        entity.updatePhysicsFromServer(physicsData);
+      } else {
+        // Fallback or warn if the specific method doesn't exist
+        // Maybe use updateFromServer as a fallback if appropriate?
+        Logger.warn(
+          LOGGER_SOURCE,
+          `Entity ${entityId} received physics update but lacks updatePhysicsFromServer method.`
+        );
+        // Optionally, try a generic update as fallback:
+        // if (typeof entity.updateFromServer === 'function') {
+        //   entity.updateFromServer(physicsData as any); // Cast might be needed
+        // }
+      }
+    } else {
+      // This might happen briefly if state sync is slightly delayed
+      // Logger.trace(LOGGER_SOURCE, `Received physics update for unknown entity: ${entityId}`);
+    }
   }
 
   // Explicit types for parameters
