@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { BaseManager } from "./BaseManager";
 
 export class SceneManager extends BaseManager {
-  private static _instance: SceneManager | null = null;
+  protected static _instance: SceneManager | null = null;
   private game: Phaser.Game;
 
   private constructor(game: Phaser.Game) {

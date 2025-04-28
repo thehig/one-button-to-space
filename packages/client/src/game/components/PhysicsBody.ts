@@ -25,7 +25,7 @@ export interface PhysicsBodyConfig
  * Synchronizes the GameObject's transform with the physics body.
  */
 export class PhysicsBody extends ComponentBase {
-  public body: MatterBody;
+  public body!: MatterBody;
   private config: PhysicsBodyConfig;
   private physicsManager: PhysicsManager;
 

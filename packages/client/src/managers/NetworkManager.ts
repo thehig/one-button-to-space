@@ -14,7 +14,7 @@ interface ConnectionOptions {
 }
 
 export class NetworkManager extends BaseManager {
-  private static _instance: NetworkManager | null = null;
+  protected static _instance: NetworkManager | null = null;
   private client: Client;
   private room: Room<GameState> | null = null; // Strongly typed room state
   private connectionOptions: ConnectionOptions | null = null;

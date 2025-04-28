@@ -6,7 +6,7 @@ interface KeyMap {
 }
 
 export class InputManager extends BaseManager {
-  private static _instance: InputManager | null = null;
+  protected static _instance: InputManager | null = null;
   private scene: Phaser.Scene | null = null;
   private keys: KeyMap = {};
   // Add properties for mouse/touch input if needed

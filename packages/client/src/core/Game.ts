@@ -20,8 +20,8 @@ export class Game extends Phaser.Game {
         default: "matter",
         matter: {
           debug: import.meta.env.DEV, // Show physics debug info in development
-          gravity: { y: 0 }, // Top-down game, adjust as needed
-          // enableSleeping: true, // Optimization for static bodies
+          gravity: { x: 0, y: 0 },
+          enableSleeping: true, // Optimization for static bodies
         },
       },
       scene: [

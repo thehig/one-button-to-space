@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { BaseManager } from "./BaseManager";
 
 export class TimeManager extends BaseManager {
-  private static _instance: TimeManager | null = null;
+  protected static _instance: TimeManager | null = null;
   private scene: Phaser.Scene | null = null;
 
   private constructor() {

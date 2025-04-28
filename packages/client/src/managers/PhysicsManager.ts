@@ -16,7 +16,7 @@ export const CollisionCategories = {
 };
 
 export class PhysicsManager extends BaseManager {
-  private static _instance: PhysicsManager | null = null;
+  protected static _instance: PhysicsManager | null = null;
   private scene: Phaser.Scene | null = null;
   private engine: Matter.Engine | null = null;
   private world: Phaser.Physics.Matter.World | null = null;

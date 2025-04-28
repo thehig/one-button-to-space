@@ -4,7 +4,7 @@
  * Base class for all manager singletons.
  */
 export abstract class BaseManager {
-  private static _instance: BaseManager | null = null;
+  protected static _instance: BaseManager | null = null;
 
   protected constructor() {}
 
