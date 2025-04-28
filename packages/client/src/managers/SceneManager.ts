@@ -46,7 +46,7 @@ export class SceneManager extends BaseManager {
 
   public getCurrentScene(): Phaser.Scene | null {
     const activeScenes = this.game.scene.getScenes(true);
-    return activeScenes.length > 0 ? activeScenes[0] : null; // Simple case: assumes one active scene
+    return activeScenes[0] ?? null;
   }
 
   // Add other scene management methods as needed (e.g., transition effects)

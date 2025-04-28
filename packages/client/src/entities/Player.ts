@@ -12,9 +12,7 @@ const LOGGER_SOURCE = "🧑‍🚀✨";
 
 export class Player extends GameObject {
   public isCurrentPlayer: boolean;
-  private targetX: number;
-  private targetY: number;
-  private interpolationFactor: number = 0.2; // Adjust for smoother or snappier movement
+  protected interpolationFactor: number = 0.2; // Use protected
 
   constructor(
     world: Phaser.Physics.Matter.World,
@@ -51,8 +49,6 @@ export class Player extends GameObject {
     super(world, x, y, texture, frame, bodyOptions);
 
     this.isCurrentPlayer = isCurrentPlayer;
-    this.targetX = x;
-    this.targetY = y;
 
     // --- Visual Setup ---
     this.setDisplaySize(radius * 2, radius * 2); // Match visual size to physics body
@@ -71,67 +67,23 @@ export class Player extends GameObject {
     // Logger.debug(LOGGER_SOURCE, `Player created: ${this.name}`, { isLocal: isCurrentPlayer }); // Example debug log
   }
 
-  // Override the base GameObject updateFromServer
+  // Override the base GameObject updateFromServer if needed for Player specific state
   public override updateFromServer(state: PlayerState): void {
-    super.updateFromServer(state);
-
-    // Define lerpFactor outside the blocks
-    const lerpFactor = 0.2;
-
-    // Check properties before interpolating
-    if (state.x !== undefined && state.y !== undefined) {
-      this.x = Phaser.Math.Linear(this.x, state.x, lerpFactor);
-      this.y = Phaser.Math.Linear(this.y, state.y, lerpFactor);
-    }
-    if (state.angle !== undefined) {
-      this.rotation = Phaser.Math.Angle.RotateTo(
-        this.rotation,
-        state.angle,
-        lerpFactor * 0.5
-      );
-    }
-
-    // Apply velocity directly if needed (less common when interpolating position)
-    // if (state.vx !== undefined && state.vy !== undefined && this.body) {
-    //   this.setVelocity(state.vx, state.vy);
-    // }
-    // if (state.angularVelocity !== undefined && this.body) {
-    //   this.setAngularVelocity(state.angularVelocity);
-    // }
-
-    // Update other player-specific state if necessary (e.g., cargo, health)
+    // Call super.updateFromServer if base class has logic to run
+    // super.updateFromServer(state); // Currently GameObject.updateFromServer is empty
+    // Handle player-specific state updates from the schema (e.g., cargo, health)
     // if (state.cargo !== undefined) { ... }
+    // Note: Physics updates (pos, angle) are handled by updatePhysicsFromServer
+    // and interpolation in GameObject.preUpdate. We don't need the lerp logic here anymore.
   }
 
   // Phaser scene calls this update method on sprites
-  preUpdate(time: number, delta: number): void {
-    super.preUpdate(time, delta); // Essential for sprite updates
-
-    // --- Client-Side Interpolation ---
-    // Smoothly move the visual representation towards the target server position
-    const newX = Phaser.Math.Linear(
-      this.x,
-      this.targetX,
-      this.interpolationFactor
-    );
-    const newY = Phaser.Math.Linear(
-      this.y,
-      this.targetY,
-      this.interpolationFactor
-    );
-    this.setPosition(newX, newY);
-
-    // --- Client-Side Prediction (Optional & Advanced) ---
-    // If this is the current player, you could apply inputs locally
-    // for immediate feedback, then reconcile with server state later.
-    // This is complex to implement correctly.
-    // if (this.isCurrentPlayer) {
-    //     // Apply predicted movement based on InputManager state
-    // }
-
-    // --- Other Client-Side Logic ---
-    // Handle animations, particle effects, etc.
-  }
+  // preUpdate(time: number, delta: number): void {
+  //   // GameObject.preUpdate handles interpolation.
+  //   // Add any Player-specific preUpdate logic here if needed,
+  //   // then call super.preUpdate(time, delta);
+  //   super.preUpdate(time, delta);
+  // }
 
   // --- Collision Handling Examples ---
   public onCollisionStart(
@@ -156,17 +108,13 @@ export class Player extends GameObject {
   // }
 
   // public onCollisionEnd(otherObject: GameObject | undefined, pair: Matter.Pair): void {
-  //     const otherDesc = otherObject ? `GameObject (name: ${otherObject.name})` : "world boundary";
-  //     Logger.info(LOGGER_SOURCE, `Player (ID: ${(this as any).sessionId ?? this.name}) collision END with ${otherDesc}`);
-  // }
+  //     const otherDesc = otherObject ? `GameObject (name: ${otherObject.name})`
 
   public override destroyGameObject(): void {
     Logger.info(
-      // Replaced console.log
       LOGGER_SOURCE,
       `Destroying player (ID: ${(this as any).sessionId ?? "Unknown"})`
     );
-    // Add any player-specific cleanup before calling super
     super.destroyGameObject();
   }
 }

@@ -37,7 +37,7 @@ export class PhysicsManager extends BaseManager {
     // Ensure Matter physics is enabled for this scene
     if (scene.matter && scene.matter.world) {
       this.world = scene.matter.world;
-      this.engine = this.world.engine;
+      this.engine = this.world.engine as Matter.Engine;
       this.setupCollisionEvents();
     } else {
       console.error("Matter physics is not enabled for the current scene.");
@@ -82,7 +82,7 @@ export class PhysicsManager extends BaseManager {
     );
   }
 
-  private handleCollision(pair: Matter.IPair, handlerMethodName: string): void {
+  private handleCollision(pair: Matter.Pair, handlerMethodName: string): void {
     const { bodyA, bodyB } = pair;
 
     // Access the GameObject instance attached to the Matter body
