@@ -324,7 +324,7 @@ export class Planet {
       .setOrigin(0.5, 0.5) // Center the text origin
       .setDepth(this.visual.depth + 10); // Ensure text is on top
 
-    Logger.debug(
+    Logger.trace(
       LOGGER_SOURCE,
       `Debug text created for planet ${this.config.id}`
     );

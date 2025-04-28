@@ -311,10 +311,10 @@ export class MultiplayerService {
   }
 
   private notifyPlayerUpdated(playerId: string, state: PlayerState): void {
-    Logger.debug(
+    Logger.trace(
       LOGGER_SOURCE,
       `MultiplayerService: Notifying Player Updated: ${playerId}`
-    ); // Uncommented and kept as debug
+    );
     this.playerUpdateListeners.slice().forEach((listener) => {
       try {
         listener(playerId, state);
@@ -397,10 +397,10 @@ export class MultiplayerService {
   }
 
   private notifyPlanetUpdated(planetId: string, data: PlanetData): void {
-    Logger.debug(
+    Logger.trace(
       LOGGER_SOURCE,
       `MultiplayerService: Notifying Planet Updated: ${planetId}`
-    ); // Replaced console.log
+    );
     this.planetUpdateListeners.slice().forEach((listener) => {
       try {
         listener(planetId, { ...data } as PlanetData); // Send a copy
@@ -523,7 +523,7 @@ export class MultiplayerService {
     }
     // TODO: Add validation for the inputMessage structure?
     // Log the input being sent for debugging
-    Logger.debug(LOGGER_SOURCE, "Sending player_input:", inputMessage); // Logger call
+    Logger.trace(LOGGER_SOURCE, "Sending player_input:", inputMessage); // Logger call
 
     try {
       // Type for the message being sent
@@ -674,7 +674,7 @@ export class MultiplayerService {
     // Listener for the entire state synchronization - THIS WILL HANDLE EVERYTHING
     this.room.onStateChange((state: RoomState) => {
       this.updateMpsCounter(); // Track message receipt
-      Logger.debug(LOGGER_SOURCE, "Received full state update."); // Use constant
+      Logger.trace(LOGGER_SOURCE, "Received full state update."); // This one should stay trace
 
       // --- Player Sync (Full State Check) ---
       if (state.players) {
@@ -689,7 +689,7 @@ export class MultiplayerService {
         // Check for removed players
         localPlayerIds.forEach((playerId) => {
           if (!incomingPlayerIds.has(playerId)) {
-            Logger.debug(LOGGER_SOURCE, `Player left: ${playerId}`); // Use constant
+            Logger.debug(LOGGER_SOURCE, `Player left: ${playerId}`); // Restore to debug
             this.players.delete(playerId);
             this.notifyPlayerRemoved(playerId);
           }
@@ -709,7 +709,7 @@ export class MultiplayerService {
           }
 
           if (!localPlayerIds.has(playerId)) {
-            Logger.debug(LOGGER_SOURCE, `Player joined: ${playerId}`); // Use constant
+            Logger.debug(LOGGER_SOURCE, `Player joined: ${playerId}`); // Restore to debug
             const clonedState = { ...playerState } as PlayerState;
             this.players.set(playerId, clonedState);
             this.notifyPlayerAdded(playerId, clonedState);
@@ -753,7 +753,7 @@ export class MultiplayerService {
           if (!incomingPlanetIds.has(planetId)) {
             Logger.debug(
               LOGGER_SOURCE,
-              `Planet removed (full sync): ${planetId}`
+              `Planet removed (full sync): ${planetId}` // Restore to debug
             ); // Use constant
             this.planets.delete(planetId);
             this.notifyPlanetRemoved(planetId);
@@ -777,7 +777,7 @@ export class MultiplayerService {
           if (!localPlanetIds.has(planetId)) {
             Logger.debug(
               LOGGER_SOURCE,
-              `Planet added (full sync): ${planetId}`
+              `Planet added (full sync): ${planetId}` // Restore to debug
             ); // Use constant
             this.planets.set(planetId, clonedData);
             this.notifyPlanetAdded(planetId, clonedData);
@@ -787,7 +787,7 @@ export class MultiplayerService {
             if (JSON.stringify(localPlanet) !== JSON.stringify(clonedData)) {
               Logger.debug(
                 LOGGER_SOURCE,
-                `Planet updated (full sync): ${planetId}`
+                `Planet updated (full sync): ${planetId}` // Restore to debug
               ); // Use constant
               this.planets.set(planetId, clonedData);
               this.notifyPlanetUpdated(planetId, clonedData);

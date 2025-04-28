@@ -151,6 +151,8 @@ export class MainScene extends Phaser.Scene {
     this.timeManager.update(time, delta);
 
     // --- Custom ECS Variable Update ---
+    Logger.trace(LOGGER_SOURCE, "Update loop start");
+
     this.managedGameObjects.forEach((go) => {
       if (go.active && go.isStarted) {
         go._internalUpdate(this.timeManager.deltaTimeS);

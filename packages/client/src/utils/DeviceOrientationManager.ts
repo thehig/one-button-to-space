@@ -200,7 +200,7 @@ export class DeviceOrientationManager {
       this.prevGamma = currentGamma;
       this.lastRealUpdateTime = Date.now();
 
-      Logger.debug(
+      Logger.trace(
         LOGGER_SOURCE,
         `handleOrientation - SIGNIFICANT Real Update -> Source set to 'real'. B=${this.beta?.toFixed(
           1
@@ -209,7 +209,7 @@ export class DeviceOrientationManager {
         )}, DiffG: ${gammaDiff.toFixed(1)})`
       );
     } else {
-      Logger.debug(
+      Logger.trace(
         LOGGER_SOURCE,
         `handleOrientation - Minor Real Update. B=${this.beta?.toFixed(
           1
@@ -222,7 +222,7 @@ export class DeviceOrientationManager {
     // Check for cooldown period
     const now = Date.now();
     if (now - this.lastRealUpdateTime < MOUSE_INPUT_COOLDOWN_MS) {
-      Logger.debug(
+      Logger.trace(
         LOGGER_SOURCE,
         `handleOrientation - Cooldown Active. B=${this.beta?.toFixed(
           1
@@ -236,7 +236,7 @@ export class DeviceOrientationManager {
       this.prevSimulatedBeta = this.simulatedBeta;
       this.prevSimulatedGamma = this.simulatedGamma;
 
-      Logger.debug(
+      Logger.trace(
         LOGGER_SOURCE,
         `handleOrientation - Cooldown Ended. B=${this.simulatedBeta.toFixed(
           1
@@ -275,7 +275,7 @@ export class DeviceOrientationManager {
       // Check for cooldown period
       const now = Date.now();
       if (now - this.lastRealUpdateTime < MOUSE_INPUT_COOLDOWN_MS) {
-        Logger.debug(
+        Logger.trace(
           LOGGER_SOURCE,
           `setSimulatedOrientation - SIGNIFICANT Sim Update IGNORED (Cooldown Active). B=${this.simulatedBeta.toFixed(
             1
@@ -289,7 +289,7 @@ export class DeviceOrientationManager {
         this.prevSimulatedBeta = this.simulatedBeta;
         this.prevSimulatedGamma = this.simulatedGamma;
 
-        Logger.debug(
+        Logger.trace(
           LOGGER_SOURCE,
           `setSimulatedOrientation - SIGNIFICANT Sim Update -> Source set to 'simulated'. B=${this.simulatedBeta.toFixed(
             1
@@ -299,7 +299,7 @@ export class DeviceOrientationManager {
         );
       }
     } else {
-      Logger.debug(
+      Logger.trace(
         LOGGER_SOURCE,
         `setSimulatedOrientation - Minor Sim Update. B=${this.simulatedBeta.toFixed(
           1
@@ -309,7 +309,7 @@ export class DeviceOrientationManager {
       );
     }
 
-    Logger.debug(
+    Logger.trace(
       LOGGER_SOURCE,
       `SimSet: B=${this.simulatedBeta.toFixed(
         1
@@ -337,7 +337,7 @@ export class DeviceOrientationManager {
       currentGamma = this.gamma;
       // Fallback if real data is null but was the last source
       if (currentBeta === null || currentGamma === null) {
-        Logger.debug(
+        Logger.trace(
           LOGGER_SOURCE,
           "getTargetAngle - Real source active but data null, attempting fallback to simulated."
         );
@@ -357,14 +357,14 @@ export class DeviceOrientationManager {
         currentGamma = this.simulatedGamma;
         sourceUsed = "simulated";
       }
-      Logger.debug(
+      Logger.trace(
         LOGGER_SOURCE,
         `getTargetAngle - Initial source ('none'), defaulting to '${sourceUsed}'.`
       );
     }
 
     // Add verbose log for which source is used
-    Logger.debug(
+    Logger.trace(
       LOGGER_SOURCE,
       // Keep logging beta even if unused in calc, for debug context
       `getTargetAngle - Using '${sourceUsed}': Beta=${currentBeta?.toFixed(
@@ -375,7 +375,7 @@ export class DeviceOrientationManager {
     // Use only gamma for calculation now
     if (currentGamma === null) {
       // Add verbose log for null data
-      Logger.debug(
+      Logger.trace(
         LOGGER_SOURCE,
         `getTargetAngle - Returning null (Insufficient Gamma from '${sourceUsed}' source)`
       );
@@ -389,7 +389,7 @@ export class DeviceOrientationManager {
       // --- Calculation for Real Device ---
       // Assumes physics body angle 0 = visual UP
       if (currentBeta === null) {
-        Logger.debug(
+        Logger.trace(
           LOGGER_SOURCE,
           `getTargetAngle - Real source active but data null, returning null.`
         );
@@ -404,7 +404,7 @@ export class DeviceOrientationManager {
         physicalTiltAngle + (3 * Math.PI) / 2
       );
 
-      Logger.debug(
+      Logger.trace(
         LOGGER_SOURCE,
         `getTargetAngle (Real) - physTilt=${physicalTiltAngle.toFixed(
           3
@@ -420,7 +420,7 @@ export class DeviceOrientationManager {
       // Assumes physics body angle 0 = visual UP
       // Map gamma (-180 to 180) directly to target angle (-PI to PI)
       finalAngle = Phaser.Math.Angle.Wrap(Phaser.Math.DegToRad(currentGamma)); // Corrected calculation
-      Logger.debug(
+      Logger.trace(
         LOGGER_SOURCE,
         `getTargetAngle (Sim) - Direct Target Calc: finalTarget=${finalAngle.toFixed(
           3
@@ -429,7 +429,7 @@ export class DeviceOrientationManager {
     }
 
     // Final log shows the unified finalAngle variable
-    Logger.debug(
+    Logger.trace(
       LOGGER_SOURCE,
       `getTargetAngle - Final Angle Returned (rad): ${finalAngle.toFixed(3)}`
     );
