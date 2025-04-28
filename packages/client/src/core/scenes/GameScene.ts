@@ -7,6 +7,9 @@ import { TimeManager } from "../../managers/TimeManager";
 import { SceneManager } from "../../managers/SceneManager";
 // Import specific entity types if needed for direct creation (less common here)
 // import { Player } from '../entities/Player';
+// Import the PlayerInputMessage type from shared
+import type { PlayerInputMessage } from "@one-button-to-space/shared";
+import type { Player } from "../../entities/Player"; // Import Player type for casting
 
 /**
  * The main scene where the core game logic takes place.
@@ -18,6 +21,11 @@ export class GameScene extends Phaser.Scene {
   private physicsManager!: PhysicsManager;
   private timeManager!: TimeManager;
   private sceneManager!: SceneManager;
+
+  // Input state tracking
+  private playerInputSequence: number = 0;
+  private wasThrusting: boolean = false;
+  private readonly rotationSpeed: number = Math.PI / 2; // Radians per second (adjust as needed)
 
   // Scene-specific properties
   // private map: Phaser.Tilemaps.Tilemap | null = null;
@@ -56,17 +64,17 @@ export class GameScene extends Phaser.Scene {
     // Since it's top-down and server-auth, bounds might be less critical or handled server-side
     // this.matter.world.setBounds(0, 0, 1600, 1200);
 
-    // --- Setup Input --- (Register keys needed for this scene)
+    // --- Setup Input --- (Register keys needed)
     this.inputManager.registerKeys([
-      "W",
-      "A",
-      "S",
-      "D",
-      "SPACE",
-      "UP",
-      "LEFT",
-      "DOWN",
-      "RIGHT",
+      "W", // Thrust
+      "A", // Rotate Left
+      "S", // (Not used for server input currently)
+      "D", // Rotate Right
+      "SPACE", // (Not used for server input currently)
+      "UP", // Thrust Alt
+      "LEFT", // Rotate Left Alt
+      "DOWN", // (Not used for server input currently)
+      "RIGHT", // Rotate Right Alt
     ]);
 
     // --- Connect to Server ---
@@ -113,39 +121,92 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
-    // --- Input Handling ---
-    this.sendPlayerInput();
+    // --- Input Handling --- // Call the new method
+    this.processAndSendInput(delta);
 
-    // --- Entity Updates ---
-    // Client-side prediction/interpolation happens within individual entity `update` methods,
-    // called automatically by Phaser's update loop for sprites.
+    // --- Entity Updates --- (Handled by Phaser loop + updateFromServer)
 
-    // --- Manager Updates ---
-    // Call manager updates if they have per-frame logic
-    // this.entityManager.update(time, delta);
+    // --- Manager Updates --- (If needed)
   }
 
-  sendPlayerInput(): void {
+  /**
+   * Process player input and send relevant messages to the server.
+   * @param delta - Time elapsed since the last frame in milliseconds.
+   */
+  processAndSendInput(delta: number): void {
     if (!this.networkManager.isConnected()) return;
 
-    const inputPayload = {
-      up: this.inputManager.isKeyDown("W") || this.inputManager.isKeyDown("UP"),
-      down:
-        this.inputManager.isKeyDown("S") || this.inputManager.isKeyDown("DOWN"),
-      left:
-        this.inputManager.isKeyDown("A") || this.inputManager.isKeyDown("LEFT"),
-      right:
-        this.inputManager.isKeyDown("D") ||
-        this.inputManager.isKeyDown("RIGHT"),
-      action: this.inputManager.isKeyJustDown("SPACE"), // Send only when just pressed
-    };
+    // --- Thrust Input --- //
+    const isThrusting =
+      this.inputManager.isKeyDown("W") || this.inputManager.isKeyDown("UP");
 
-    // TODO: Implement more sophisticated input handling:
-    // - Detect changes in input state to avoid sending redundant data.
-    // - Potentially queue inputs and send at a fixed rate.
-    // - Include sequence numbers for server-side reconciliation.
+    if (isThrusting && !this.wasThrusting) {
+      // Started thrusting
+      this.playerInputSequence++;
+      const inputMsg: PlayerInputMessage = {
+        seq: this.playerInputSequence,
+        input: "thrust_start",
+      };
+      this.networkManager.sendMessage("playerInput", inputMsg);
+      // console.log("Sent: thrust_start");
+    } else if (!isThrusting && this.wasThrusting) {
+      // Stopped thrusting
+      this.playerInputSequence++;
+      const inputMsg: PlayerInputMessage = {
+        seq: this.playerInputSequence,
+        input: "thrust_stop",
+      };
+      this.networkManager.sendMessage("playerInput", inputMsg);
+      // console.log("Sent: thrust_stop");
+    }
+    this.wasThrusting = isThrusting; // Update state for next frame
 
-    this.networkManager.sendMessage("playerInput", inputPayload);
+    // --- Rotation Input --- //
+    const rotateLeft =
+      this.inputManager.isKeyDown("A") || this.inputManager.isKeyDown("LEFT");
+    const rotateRight =
+      this.inputManager.isKeyDown("D") || this.inputManager.isKeyDown("RIGHT");
+
+    if (rotateLeft || rotateRight) {
+      const player = this.entityManager.getCurrentPlayer() as
+        | Player
+        | undefined;
+      if (player) {
+        const rotationDelta = (this.rotationSpeed * delta) / 1000; // Convert delta ms to seconds
+        let targetAngle = player.rotation; // Start with current visual angle
+
+        if (rotateLeft) {
+          targetAngle -= rotationDelta;
+        }
+        if (rotateRight) {
+          targetAngle += rotationDelta;
+        }
+
+        // Normalize angle to be within -PI to PI
+        targetAngle = Phaser.Math.Angle.Wrap(targetAngle);
+
+        // Send angle update to server
+        this.playerInputSequence++;
+        const inputMsg: PlayerInputMessage = {
+          seq: this.playerInputSequence,
+          input: "set_angle",
+          value: targetAngle,
+        };
+        this.networkManager.sendMessage("playerInput", inputMsg);
+        // console.log("Sent: set_angle", targetAngle.toFixed(2));
+
+        // Optional: Client-side prediction - apply rotation visually immediately
+        // player.setRotation(targetAngle);
+      }
+    }
+
+    // --- Action Input (Example - Not implemented for server yet) --- //
+    // const actionPressed = this.inputManager.isKeyJustDown("SPACE");
+    // if (actionPressed) {
+    //   this.playerInputSequence++;
+    //   const inputMsg = { seq: this.playerInputSequence, input: "action_fire" }; // Define message type
+    //   this.networkManager.sendMessage("playerInput", inputMsg);
+    // }
   }
 
   createDebugInfo(): void {

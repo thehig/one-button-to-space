@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { BaseManager } from "./BaseManager";
 import { GameObject } from "../core/GameObject";
 import { Player } from "../entities/Player";
+import { Planet } from "../entities/Planet"; // Import the new Planet class
 // Import from the local schema copy
 import {
   RoomState as GameState, // Alias RoomState to GameState used in the code
@@ -214,30 +215,22 @@ export class EntityManager extends BaseManager {
       return;
     }
 
-    let entity = this.entities.get(planetId);
+    let entity = this.entities.get(planetId) as Planet | undefined; // Cast to Planet
 
     if (!entity) {
-      let newEntity: GameObject | undefined;
+      // Create the new Planet GameObject instance
+      const newPlanet = new Planet(
+        this.scene.matter.world,
+        state // Pass the full PlanetData
+      );
 
-      // Simplified: Directly handle PlanetData since that's the only type now
-      // TODO: Create a specific Planet GameObject if needed
-      console.log(`Creating/updating placeholder logic for Planet ${planetId}`);
-      // Example placeholder creation (replace with actual Planet object)
-      // newEntity = new PlaceholderPlanetObject(this.scene.matter.world, state.x, state.y, state);
-
-      // If you created a new entity object:
-      if (newEntity) {
-        (newEntity as any).entityId = planetId; // Attach the planet ID
-        this.addEntity(planetId, newEntity);
-        console.log(`Added Planet entity ${planetId}`);
-        entity = newEntity;
-      } else {
-        // If no placeholder/object is created yet, just log it.
-        console.log(`No GameObject created for Planet ${planetId}`);
-        return; // Don't proceed if no entity was actually created
-      }
+      // Add the new entity to the manager
+      this.addEntity(planetId, newPlanet);
+      console.log(`Created Planet entity ${planetId}`);
+      entity = newPlanet; // Assign for potential later use
     } else {
       // Update existing planet entity
+      // Ensure updateFromServer exists before calling
       if (typeof entity.updateFromServer === "function") {
         entity.updateFromServer(state);
       } else {
