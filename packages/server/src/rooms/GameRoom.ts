@@ -663,25 +663,60 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
 
     // Handler for player input
     this.onMessage<PlayerInputMessage>("playerInput", (client, message) => {
-      // TODO: Implement input handling logic based on message.input
-      // ... comments ...
-
-      // Example: Store thrust state based on the correct input type
-      if (message.input === "thrust_start") {
-        this.playerThrustState.set(client.sessionId, true);
-      } else if (message.input === "thrust_stop") {
-        this.playerThrustState.set(client.sessionId, false);
+      // Validate player exists
+      const playerBody = this.playerBodies.get(client.sessionId);
+      if (!playerBody) {
+        Logger.warn(
+          LOGGER_SOURCE,
+          `Input received for unknown player body: ${client.sessionId}`
+        );
+        return;
       }
-      // Handle 'set_angle' if needed, potentially using message.value
 
-      // Optional: Queue input for processing in physics loop (more complex)
-      // ... queueing logic ...
+      // Process based on the specific input type
+      switch (message.input) {
+        case "thrust_start":
+          this.playerThrustState.set(client.sessionId, true);
+          // Logger.trace(`Thrust started for ${client.sessionId}`);
+          break;
+        case "thrust_stop":
+          this.playerThrustState.set(client.sessionId, false);
+          // Logger.trace(`Thrust stopped for ${client.sessionId}`);
+          break;
+        case "set_angle":
+          if (typeof message.value === "number" && !isNaN(message.value)) {
+            // Directly set the angle based on client input
+            // Manual angle wrapping to stay within -PI to PI
+            let targetAngle = message.value;
+            while (targetAngle <= -Math.PI) {
+              targetAngle += 2 * Math.PI;
+            }
+            while (targetAngle > Math.PI) {
+              targetAngle -= 2 * Math.PI;
+            }
+            Matter.Body.setAngle(playerBody, targetAngle);
+            // Logger.trace(`Set angle to ${targetAngle.toFixed(2)} for ${client.sessionId}`);
+          } else {
+            Logger.warn(
+              LOGGER_SOURCE,
+              `Invalid value received for set_angle from ${client.sessionId}: ${message.value}`
+            );
+          }
+          break;
+        default:
+          // Log unknown input types using type assertion for safety
+          Logger.warn(
+            LOGGER_SOURCE,
+            `Unknown player input type: ${(message as any)?.input}`
+          );
+          break;
+      }
 
-      // For now, just log that input was received using correct properties
-      Logger.trace(
-        LOGGER_SOURCE,
-        `Received input from ${client.sessionId}: seq=${message.seq}, input=${message.input}, value=${message.value}`
-      );
+      // Log the processed input
+      // Logger.trace(
+      //   LOGGER_SOURCE,
+      //   `Processed input from ${client.sessionId}: seq=${message.seq}, input=${message.input}, value=${message.value}`
+      // );
     });
 
     // Add handlers for other message types here (e.g., chat, actions)
