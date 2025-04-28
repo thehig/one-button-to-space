@@ -1,98 +1,104 @@
 import Phaser from "phaser";
 import { BaseManager } from "./BaseManager";
+import { Client, Room } from "colyseus.js";
+import { RoomState } from "../schema/State";
+import { Logger } from "@one-button-to-space/shared";
+
+// Logger Source for this file
+const LOGGER_SOURCE = "⌨️🖱️";
 
 interface KeyMap {
   [key: string]: Phaser.Input.Keyboard.Key;
 }
 
+/**
+ * Handles player input detection. Processing is handled in GameScene.
+ */
 export class InputManager extends BaseManager {
-  protected static _instance: InputManager | null = null;
+  public static instance: InputManager;
   private scene: Phaser.Scene | null = null;
-  private keys: KeyMap = {};
-  // Add properties for mouse/touch input if needed
-  // private pointer: Phaser.Input.Pointer | null = null;
+  private registeredKeys: KeyMap = {}; // Stores specific keys requested by scenes
+  private room: Room<RoomState> | null = null;
 
   private constructor() {
     super();
   }
 
   public static getInstance(): InputManager {
-    if (!InputManager._instance) {
-      InputManager._instance = new InputManager();
+    if (!InputManager.instance) {
+      InputManager.instance = new InputManager();
     }
-    return InputManager._instance;
+    return InputManager.instance;
   }
 
-  public setSceneContext(scene: Phaser.Scene): void {
+  public setSceneContext(scene: Phaser.Scene, room: Room<RoomState>): void {
     this.scene = scene;
-    this.keys = {}; // Reset keys for the new scene
-    // Initialize pointer if used
-    // this.pointer = this.scene.input.activePointer;
+    this.room = room;
+    if (!scene.input.keyboard) {
+      Logger.error(
+        LOGGER_SOURCE,
+        "Keyboard input not available in this scene."
+      );
+    } else {
+      Logger.info(
+        LOGGER_SOURCE,
+        "InputManager context set for scene:",
+        scene.scene.key
+      );
+    }
   }
 
   /**
-   * Register specific keys to listen for.
-   * @param keyCodes Array of key codes (e.g., ['W', 'A', 'S', 'D', 'SPACE']).
+   * Registers specific keys for tracking.
+   * @param keyCodes - An array of key codes (e.g., 'W', 'A', 'SPACE', 'LEFT'). Uses Phaser.Input.Keyboard.KeyCodes potentially.
    */
   public registerKeys(keyCodes: string[]): void {
-    if (!this.scene || !this.scene.input || !this.scene.input.keyboard) return;
-    keyCodes.forEach((code) => {
-      // Check if key already exists to avoid Phaser warnings
-      if (!this.keys[code]) {
-        this.keys[code] = this.scene!.input.keyboard!.addKey(code);
+    if (!this.scene?.input?.keyboard) {
+      Logger.error(
+        LOGGER_SOURCE,
+        "Cannot register keys: Keyboard plugin not available."
+      );
+      return;
+    }
+    keyCodes.forEach((keyCode) => {
+      if (!this.registeredKeys[keyCode]) {
+        try {
+          this.registeredKeys[keyCode] = this.scene!.input.keyboard!.addKey(
+            keyCode,
+            true // enableCapture set to true to prevent browser default actions for these keys if needed
+          );
+          Logger.trace(LOGGER_SOURCE, `Registered key: ${keyCode}`);
+        } catch (error) {
+          Logger.error(
+            LOGGER_SOURCE,
+            `Failed to register key: ${keyCode}`,
+            error
+          );
+        }
       }
     });
   }
 
+  /**
+   * Checks if a specific registered key is currently held down.
+   * @param keyCode - The key code string (e.g., 'W', 'A').
+   * @returns True if the key is down, false otherwise.
+   */
   public isKeyDown(keyCode: string): boolean {
-    return this.keys[keyCode]?.isDown ?? false;
+    const key = this.registeredKeys[keyCode];
+    return key ? key.isDown : false;
   }
-
-  public isKeyJustDown(keyCode: string): boolean {
-    // Ensure key exists before checking JustDown
-    return this.keys[keyCode]
-      ? Phaser.Input.Keyboard.JustDown(this.keys[keyCode])
-      : false;
-  }
-
-  public isKeyJustUp(keyCode: string): boolean {
-    // Ensure key exists before checking JustUp
-    return this.keys[keyCode]
-      ? Phaser.Input.Keyboard.JustUp(this.keys[keyCode])
-      : false;
-  }
-
-  // Add methods for mouse/touch input as needed
-  // public getPointerPosition(): Phaser.Math.Vector2 {
-  //     return this.pointer?.position ?? new Phaser.Math.Vector2(0, 0);
-  // }
-  // public isPointerDown(): boolean {
-  //     return this.pointer?.isDown ?? false;
-  // }
 
   public override init(): void {
-    console.log("Input Manager Initialized");
-    // Potentially set up global input listeners if needed outside scenes
+    Logger.info(LOGGER_SOURCE, "Input Manager Initialized");
   }
 
   public override destroy(): void {
-    console.log("Input Manager Destroyed");
-    // Check if scene and keyboard exist before trying to remove keys
-    if (this.scene && this.scene.input && this.scene.input.keyboard) {
-      Object.keys(this.keys).forEach((code) => {
-        // Check if the key object exists before attempting removal
-        if (this.keys[code]) {
-          this.scene?.input.keyboard?.removeKey(code);
-        }
-      });
-    }
-    this.keys = {};
+    Logger.info(LOGGER_SOURCE, "Input Manager Destroyed");
+    // Clean up registered keys
+    Object.values(this.registeredKeys).forEach((key) => key.destroy());
+    this.registeredKeys = {};
     this.scene = null;
-    InputManager._instance = null;
+    this.room = null;
   }
-
-  // Update could poll input state if not using event-driven approach
-  // public override update(time: number, delta: number): void {
-  //     super.update(time, delta);
-  // }
 }

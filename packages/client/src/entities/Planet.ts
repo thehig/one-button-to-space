@@ -2,6 +2,10 @@ import Phaser from "phaser";
 import { GameObject } from "../core/GameObject";
 import { PlanetData } from "../schema/State"; // Import server state definition
 import { CollisionCategory } from "@one-button-to-space/shared"; // Assuming categories are shared
+import { Logger } from "@one-button-to-space/shared"; // Import Logger
+
+// Logger Source for this file
+const LOGGER_SOURCE = "🪐🌍";
 
 /**
  * Represents a planet GameObject on the client-side.
@@ -42,8 +46,10 @@ export class Planet extends GameObject {
       const color = Phaser.Display.Color.ValueToColor(planetData.colors.base);
       this.setTint(color.color);
     } catch (e) {
-      console.warn(
-        `Invalid base color for planet ${planetData.id}: ${planetData.colors.base}`
+      Logger.warn(
+        LOGGER_SOURCE,
+        `Invalid base color for planet ${planetData.id}: ${planetData.colors.base}`,
+        e
       );
       this.setTint(0xffffff);
     }

@@ -10,7 +10,14 @@ import {
   PlanetData, // Import PlanetData directly
 } from "../schema/State";
 // Import shared constants and types
-import { Constants, CollisionCategory } from "@one-button-to-space/shared";
+import {
+  Constants,
+  CollisionCategory,
+  Logger,
+} from "@one-button-to-space/shared";
+
+// Logger Source for this file
+const LOGGER_SOURCE = "👥🧩";
 
 // Define types for MapSchema iteration
 type PlayerMapSchema = Map<string, PlayerState>;
@@ -44,7 +51,8 @@ export class EntityManager extends BaseManager {
   public setSceneContext(scene: Phaser.Scene, playerSessionId: string): void {
     this.scene = scene;
     this.currentPlayerSessionId = playerSessionId;
-    console.log(
+    Logger.info(
+      LOGGER_SOURCE,
       `EntityManager context set for scene: ${scene.scene.key}, player: ${playerSessionId}`
     );
   }
@@ -55,12 +63,13 @@ export class EntityManager extends BaseManager {
    */
   public syncInitialState(state: GameState): void {
     if (!this.scene) {
-      console.error(
-        "EntityManager scene context not set before syncing initial state."
+      Logger.error(
+        LOGGER_SOURCE,
+        "Scene context not set before syncing initial state."
       );
       return;
     }
-    console.log("Syncing initial state...");
+    Logger.info(LOGGER_SOURCE, "Syncing initial state...");
     this.clearEntities(); // Ensure clean slate
 
     // Check if players exist before iterating
@@ -80,7 +89,8 @@ export class EntityManager extends BaseManager {
       });
     }
 
-    console.log(
+    Logger.info(
+      LOGGER_SOURCE,
       `Initial state synced. ${this.entities.size} entities created.`
     );
   }
@@ -117,7 +127,7 @@ export class EntityManager extends BaseManager {
     // Check for removed players
     this.entities.forEach((entity, id) => {
       if (entity instanceof Player && !presentPlayerIds.has(id)) {
-        console.log(`Player left update: ${id}`);
+        Logger.info(LOGGER_SOURCE, `Player left update: ${id}`);
         this.removeEntity(id);
       }
     });
@@ -137,7 +147,8 @@ export class EntityManager extends BaseManager {
             if (typeof entity.updateFromServer === "function") {
               entity.updateFromServer(planetState);
             } else {
-              console.warn(
+              Logger.warn(
+                LOGGER_SOURCE,
                 `Planet entity ${planetId} exists but has no updateFromServer method.`
               );
             }
@@ -149,7 +160,7 @@ export class EntityManager extends BaseManager {
     this.entities.forEach((entity, id) => {
       // Check if it's NOT a player AND not in the present list
       if (!(entity instanceof Player) && !presentPlanetIds.has(id)) {
-        console.log(`Planet removed update: ${id}`);
+        Logger.info(LOGGER_SOURCE, `Planet removed update: ${id}`);
         this.removeEntity(id);
       }
     });
@@ -158,7 +169,7 @@ export class EntityManager extends BaseManager {
   // Explicit types for parameters
   private createOrUpdatePlayer(sessionId: string, state: PlayerState): void {
     if (!this.scene) {
-      console.error("Cannot create player, scene not available.");
+      Logger.error(LOGGER_SOURCE, "Cannot create player, scene not available.");
       return;
     }
 
@@ -181,26 +192,31 @@ export class EntityManager extends BaseManager {
       };
 
       // Create new player instance, passing options correctly
-      player = new Player(
-        this.scene.matter.world,
-        state.x,
-        state.y,
-        "player_texture",
-        undefined, // frame
-        playerBodyOptions, // Pass the Matter options object
-        isCurrentPlayer // Pass isCurrentPlayer separately
-      );
-      // Attach the session ID to the GameObject for easy lookup
-      (player as any).sessionId = sessionId;
-      this.addEntity(sessionId, player);
-      console.log(
-        `Created player ${sessionId}${isCurrentPlayer ? " (local)" : ""}`
-      );
+      try {
+        player = new Player(
+          this.scene.matter.world,
+          state.x,
+          state.y,
+          "player_texture",
+          undefined, // frame
+          playerBodyOptions, // Pass the Matter options object
+          isCurrentPlayer // Pass isCurrentPlayer separately
+        );
+        // Attach the session ID to the GameObject for easy lookup
+        (player as any).sessionId = sessionId;
+        this.addEntity(sessionId, player);
+        Logger.info(
+          LOGGER_SOURCE,
+          `Created player ${sessionId}${isCurrentPlayer ? " (local)" : ""}`
+        );
 
-      if (isCurrentPlayer) {
-        // Camera follow for the local player
-        this.scene.cameras.main.startFollow(player, true, 0.1, 0.1); // Smoothed follow
-        this.scene.cameras.main.setZoom(1.5); // Example zoom
+        if (isCurrentPlayer) {
+          // Camera follow for the local player
+          this.scene.cameras.main.startFollow(player, true, 0.1, 0.1); // Smoothed follow
+          this.scene.cameras.main.setZoom(1.5); // Example zoom
+        }
+      } catch (e) {
+        Logger.error(LOGGER_SOURCE, `Failed to create Player ${sessionId}:`, e);
       }
     } else {
       // Update existing player (interpolation/state sync handled in updateFromServer)
@@ -211,7 +227,7 @@ export class EntityManager extends BaseManager {
   // Renamed function and updated parameter type
   private createOrUpdatePlanet(planetId: string, state: PlanetData): void {
     if (!this.scene) {
-      console.error("Cannot create planet, scene not available.");
+      Logger.error(LOGGER_SOURCE, "Cannot create planet, scene not available.");
       return;
     }
 
@@ -219,22 +235,27 @@ export class EntityManager extends BaseManager {
 
     if (!entity) {
       // Create the new Planet GameObject instance
-      const newPlanet = new Planet(
-        this.scene.matter.world,
-        state // Pass the full PlanetData
-      );
+      try {
+        const newPlanet = new Planet(
+          this.scene.matter.world,
+          state // Pass the full PlanetData
+        );
 
-      // Add the new entity to the manager
-      this.addEntity(planetId, newPlanet);
-      console.log(`Created Planet entity ${planetId}`);
-      entity = newPlanet; // Assign for potential later use
+        // Add the new entity to the manager
+        this.addEntity(planetId, newPlanet);
+        Logger.info(LOGGER_SOURCE, `Created Planet entity ${planetId}`);
+        entity = newPlanet; // Assign for potential later use
+      } catch (e) {
+        Logger.error(LOGGER_SOURCE, `Failed to create Planet ${planetId}:`, e);
+      }
     } else {
       // Update existing planet entity
       // Ensure updateFromServer exists before calling
       if (typeof entity.updateFromServer === "function") {
         entity.updateFromServer(state);
       } else {
-        console.warn(
+        Logger.warn(
+          LOGGER_SOURCE,
           `Planet entity ${planetId} exists but has no updateFromServer method.`
         );
       }
@@ -246,8 +267,9 @@ export class EntityManager extends BaseManager {
       this.entities.set(id, entity);
       // Optionally add to scene groups (e.g., this.scene.add.group)
     } else {
-      console.warn(
-        `Entity with ID ${id} already exists. Overwriting or updating might be needed.`
+      Logger.warn(
+        LOGGER_SOURCE,
+        `Entity with ID ${id} already exists. Update should handle this.`
       );
       // Decide how to handle this - replace or ignore?
       // For now, let updateFromState handle updates.
@@ -267,7 +289,7 @@ export class EntityManager extends BaseManager {
       }
       entity.destroyGameObject(); // Use custom destroy method
       this.entities.delete(id);
-      console.log(`Removed entity: ${id}`);
+      Logger.info(LOGGER_SOURCE, `Removed entity: ${id}`);
     } else {
       // console.warn(`Attempted to remove non-existent entity: ${id}`);
     }
@@ -287,7 +309,7 @@ export class EntityManager extends BaseManager {
   }
 
   private clearEntities(): void {
-    console.log(`Clearing ${this.entities.size} entities.`);
+    Logger.info(LOGGER_SOURCE, `Clearing ${this.entities.size} entities.`);
     this.scene?.cameras.main.stopFollow(); // Stop following before destroying entities
     this.entities.forEach((entity) => {
       entity.destroyGameObject();
@@ -304,11 +326,11 @@ export class EntityManager extends BaseManager {
   }
 
   public override init(): void {
-    console.log("Entity Manager Initialized");
+    Logger.info(LOGGER_SOURCE, "Entity Manager Initialized");
   }
 
   public override destroy(): void {
-    console.log("Entity Manager Destroyed");
+    Logger.info(LOGGER_SOURCE, "Entity Manager Destroyed");
     this.clearEntities();
     this.scene = null;
     this.currentPlayerSessionId = null;

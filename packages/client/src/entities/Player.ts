@@ -5,6 +5,10 @@ import {
   CollisionCategories,
 } from "../managers/PhysicsManager"; // Import PhysicsManager for categories
 import { PlayerState } from "../schema/State"; // Corrected path
+import { Logger } from "@one-button-to-space/shared"; // Import Logger
+
+// Logger Source for this file
+const LOGGER_SOURCE = "🧑‍🚀✨";
 
 export class Player extends GameObject {
   public isCurrentPlayer: boolean;
@@ -63,6 +67,8 @@ export class Player extends GameObject {
 
     // Attach this GameObject instance to the Matter body for collision identification
     (this.body as any).gameObject = this;
+
+    // Logger.debug(LOGGER_SOURCE, `Player created: ${this.name}`, { isLocal: isCurrentPlayer }); // Example debug log
   }
 
   // Override the base GameObject updateFromServer
@@ -135,10 +141,12 @@ export class Player extends GameObject {
     const otherDesc = otherObject
       ? `GameObject (name: ${otherObject.name})`
       : "world boundary";
-    console.log(
+    Logger.info(
+      // Replaced console.log
+      LOGGER_SOURCE,
       `Player (ID: ${
         (this as any).sessionId ?? this.name
-      }) started collision with ${otherDesc}`
+      }) collision START with ${otherDesc}`
     );
     // Example: Play sound, show effect
   }
@@ -149,12 +157,13 @@ export class Player extends GameObject {
 
   // public onCollisionEnd(otherObject: GameObject | undefined, pair: Matter.Pair): void {
   //     const otherDesc = otherObject ? `GameObject (name: ${otherObject.name})` : "world boundary";
-  //     console.log(`Player (ID: ${(this as any).sessionId ?? this.name}) ended collision with ${otherDesc}`);
+  //     Logger.info(LOGGER_SOURCE, `Player (ID: ${(this as any).sessionId ?? this.name}) collision END with ${otherDesc}`);
   // }
 
   public override destroyGameObject(): void {
-    // Log using a property that exists, like sessionId if attached, or just a generic message
-    console.log(
+    Logger.info(
+      // Replaced console.log
+      LOGGER_SOURCE,
       `Destroying player (ID: ${(this as any).sessionId ?? "Unknown"})`
     );
     // Add any player-specific cleanup before calling super

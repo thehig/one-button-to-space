@@ -6,6 +6,10 @@ import Phaser from "phaser";
 import { BootScene } from "./core/scenes/BootScene.ts";
 import { GameScene } from "./core/scenes/GameScene.ts";
 import { MainMenuScene } from "./core/scenes/MainMenuScene.ts"; // Import the new scene
+import { Logger } from "@one-button-to-space/shared"; // Import Logger
+
+// Logger Source for this file
+const LOGGER_SOURCE = "🚀🎬";
 
 // Game configuration
 const config: Phaser.Types.Core.GameConfig = {
@@ -31,7 +35,7 @@ const config: Phaser.Types.Core.GameConfig = {
 
 // Create the Phaser Game instance directly
 const game = new Phaser.Game(config);
-console.log("Phaser Game instance created.");
+Logger.info(LOGGER_SOURCE, "Phaser Game instance created.");
 
 // Mount the React application (without passing gameManager)
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -43,4 +47,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 // Optional: Make game instance globally accessible for debugging
 if (import.meta.env.DEV) {
   (window as any).phaserGame = game;
+  Logger.debug(
+    LOGGER_SOURCE,
+    "Phaser game instance attached to window for debugging."
+  );
 }

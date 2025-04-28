@@ -1,4 +1,8 @@
 import Phaser from "phaser";
+import { Logger } from "@one-button-to-space/shared";
+
+// Logger Source for this file
+const LOGGER_SOURCE = "🏠🖱️";
 
 /**
  * Placeholder scene for the main menu.
@@ -11,17 +15,16 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   init(data: { error?: string; message?: string }): void {
-    console.log("MainMenuScene: Init", data);
-    // Optionally handle error/message passed from previous scene
+    Logger.info(LOGGER_SOURCE, "MainMenuScene Init", data);
     if (data?.error) {
-      console.error("Arrived at Main Menu with error:", data.error);
+      Logger.error(LOGGER_SOURCE, "Arrived with error:", data.error);
     } else if (data?.message) {
-      console.log("Arrived at Main Menu with message:", data.message);
+      Logger.info(LOGGER_SOURCE, "Arrived with message:", data.message);
     }
   }
 
   create(data: { error?: string; message?: string }): void {
-    console.log("MainMenuScene: Create");
+    Logger.info(LOGGER_SOURCE, "MainMenuScene Create");
     const centerX = this.cameras.main.worldView.x + this.cameras.main.width / 2;
     const centerY =
       this.cameras.main.worldView.y + this.cameras.main.height / 2;
@@ -61,10 +64,9 @@ export class MainMenuScene extends Phaser.Scene {
       .setInteractive();
 
     startButton.on("pointerdown", () => {
-      console.log("MainMenuScene: Starting GameScene...");
-      // Clear any error message before starting
+      Logger.info(LOGGER_SOURCE, "Starting GameScene...");
       this.errorText?.destroy();
-      this.scene.start("GameScene"); // Transition back to GameScene
+      this.scene.start("GameScene");
     });
   }
 }
