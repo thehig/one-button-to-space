@@ -179,10 +179,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
-    // --- Input Handling --- // Call the new method
+    // --- Input Handling --- //
     this.processAndSendInput(delta);
 
     // --- Entity Updates --- (Handled by Phaser loop + updateFromServer)
+
+    // --- Emit Player Angle for HUD ---
+    const localPlayer = this.entityManager.getCurrentPlayer() as
+      | Player
+      | undefined;
+    if (localPlayer) {
+      // Emit the visual rotation angle
+      gameEmitter.emit("playerAngleUpdate", localPlayer.rotation);
+    }
 
     // --- Update Starfield --- //
     if (this.starfieldRenderer) {
