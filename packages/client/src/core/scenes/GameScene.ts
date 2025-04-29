@@ -6,6 +6,7 @@ import { PhysicsManager } from "../../managers/PhysicsManager";
 import { TimeManager } from "../../managers/TimeManager";
 import { SceneManager } from "../../managers/SceneManager";
 import { Logger } from "@one-button-to-space/shared";
+import { CameraManager } from "../../managers/CameraManager";
 // Import effects
 import { Starfield } from "../effects/Starfield";
 import { StarfieldRenderer } from "../effects/StarfieldRenderer";
@@ -28,6 +29,7 @@ export class GameScene extends Phaser.Scene {
   private physicsManager!: PhysicsManager;
   private timeManager!: TimeManager;
   private sceneManager!: SceneManager;
+  private cameraManager!: CameraManager;
   private starfield!: Starfield;
   private starfieldRenderer!: StarfieldRenderer;
 
@@ -52,6 +54,7 @@ export class GameScene extends Phaser.Scene {
     this.physicsManager = PhysicsManager.getInstance();
     this.timeManager = TimeManager.getInstance();
     this.sceneManager = SceneManager.getInstance(this.game);
+    this.cameraManager = CameraManager.getInstance();
 
     // Set scene context for managers that DON'T need network info yet
     this.timeManager.setSceneContext(this);
@@ -94,6 +97,7 @@ export class GameScene extends Phaser.Scene {
         // --- Set Context for Managers needing Network Info ---
         this.entityManager.setSceneContext(this, room.sessionId);
         this.inputManager.setSceneContext(this, room); // Removed client argument
+        this.cameraManager.setSceneContext(this);
 
         // --- Register Input Keys NOW that InputManager context is set ---
         this.inputManager.registerKeys([
@@ -109,6 +113,19 @@ export class GameScene extends Phaser.Scene {
         ]);
 
         // Initial state sync will be triggered by NetworkManager listener
+        this.time.delayedCall(100, () => {
+          const player = this.entityManager.getCurrentPlayer() as
+            | Player
+            | undefined;
+          if (player) {
+            this.cameraManager.setTarget(player);
+          } else {
+            Logger.warn(
+              LOGGER_SOURCE,
+              "Player not found after connection. This might be normal if the player is created shortly after connection."
+            );
+          }
+        });
       } else {
         Logger.error(
           LOGGER_SOURCE,
@@ -158,6 +175,9 @@ export class GameScene extends Phaser.Scene {
     if (this.starfieldRenderer) {
       this.starfieldRenderer.update(); // Update tile position based on camera
     }
+
+    // --- Update Camera --- //
+    this.cameraManager.update(time, delta);
 
     // --- Manager Updates --- (If needed)
   }
@@ -313,6 +333,11 @@ export class GameScene extends Phaser.Scene {
     // Destroy starfield renderer
     if (this.starfieldRenderer) {
       this.starfieldRenderer.destroy();
+    }
+
+    // Destroy CameraManager
+    if (this.cameraManager) {
+      this.cameraManager.destroy();
     }
   }
 }
