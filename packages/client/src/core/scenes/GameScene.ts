@@ -7,6 +7,7 @@ import { TimeManager } from "../../managers/TimeManager";
 import { SceneManager } from "../../managers/SceneManager";
 import { Logger } from "@one-button-to-space/shared";
 import { CameraManager } from "../../managers/CameraManager";
+import { gameEmitter } from "../../main"; // Import the global emitter
 // Import effects
 import { Starfield } from "../effects/Starfield";
 import { StarfieldRenderer } from "../effects/StarfieldRenderer";
@@ -142,8 +143,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     // --- Debug --- (Optional: Display FPS)
+    // Emit Phaser version once
+    gameEmitter.emit("phaserVersion", Phaser.VERSION);
     if (import.meta.env.DEV) {
-      this.createDebugInfo();
+      // Setup timed event to emit debug updates
+      this.timeManager.addLoop(500, () => {
+        gameEmitter.emit("debugUpdate", {
+          fps: this.timeManager.fps,
+          entityCount: this.entityManager.getAllEntities().size,
+          playerId: this.networkManager.sessionId || "N/A",
+        });
+      });
     }
 
     // Example: Add a simple background or tilemap
@@ -290,33 +300,6 @@ export class GameScene extends Phaser.Scene {
     //   const inputMsg = { seq: this.playerInputSequence, input: "action_fire" }; // Define message type
     //   this.networkManager.sendMessage("playerInput", inputMsg);
     // }
-  }
-
-  createDebugInfo(): void {
-    const debugInfo = [
-      `Phaser: ${Phaser.VERSION}`,
-      `FPS: ${this.timeManager.fps.toFixed(2)}`,
-      `Entities: ${this.entityManager.getAllEntities().size}`,
-      `Player ID: ${this.networkManager.sessionId || "N/A"}`,
-    ];
-
-    const debugText = this.add.text(10, 10, debugInfo, {
-      font: "14px Arial",
-      color: "#00ff00",
-      backgroundColor: "rgba(0,0,0,0.5)",
-      padding: { x: 5, y: 5 },
-    });
-    debugText.setScrollFactor(0); // Keep debug info fixed
-
-    this.timeManager.addLoop(500, () => {
-      // Only update if text object still exists
-      if (debugText.active) {
-        debugInfo[1] = `FPS: ${this.timeManager.fps.toFixed(2)}`;
-        debugInfo[2] = `Entities: ${this.entityManager.getAllEntities().size}`;
-        debugInfo[3] = `Player ID: ${this.networkManager.sessionId || "N/A"}`;
-        debugText.setText(debugInfo);
-      }
-    });
   }
 
   handleConnectionError(message: string): void {

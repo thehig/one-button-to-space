@@ -8,6 +8,7 @@ import { GameScene } from "./core/scenes/GameScene.ts";
 import { MainMenuScene } from "./core/scenes/MainMenuScene.ts"; // Import the new scene
 import { Logger, LogLevel } from "@one-button-to-space/shared"; // Import Logger
 import { run } from "./core/Game";
+import { EventEmitter } from "./utils/EventEmitter"; // Import the EventEmitter
 
 // -- Logging Setup --
 // Create a set of sources to exclude
@@ -21,6 +22,9 @@ Logger.setFilters(LogLevel.TRACE, undefined, blacklistSources);
 
 // Logger Source for this file
 const LOGGER_SOURCE = "🚀🎬";
+
+// --- Create Global Event Emitter --- //
+export const gameEmitter = new EventEmitter();
 
 // Game configuration
 const config: Phaser.Types.Core.GameConfig = {

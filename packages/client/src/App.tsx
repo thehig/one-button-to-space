@@ -1,6 +1,7 @@
 import React from "react";
 import { Logger } from "@one-button-to-space/shared";
 import "./App.css"; // Optional: for App-specific styles
+import DebugOverlay from "./components/DebugOverlay"; // Import the new component
 
 // Logger Source for this file
 const LOGGER_SOURCE = "⚛️🖼️";
@@ -16,6 +17,9 @@ function App() {
 
   return (
     <div className="App">
+      {/* Render the Debug Overlay only in development */}
+      {import.meta.env.DEV && <DebugOverlay />}
+
       {/* Example UI Element */}
       {/* <header className="App-header">
         <h1>Game UI</h1>
