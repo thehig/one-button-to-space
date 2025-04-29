@@ -9,6 +9,8 @@ import { MainMenuScene } from "./core/scenes/MainMenuScene.ts"; // Import the ne
 import { Logger, LogLevel } from "@one-button-to-space/shared"; // Import Logger
 import { run } from "./core/Game";
 import { EventEmitter } from "./utils/EventEmitter"; // Import the EventEmitter
+import { SceneManager } from "./managers/SceneManager"; // Corrected Import SceneManager
+import { EntityManager } from "./managers/EntityManager"; // Import EntityManager
 
 // -- Logging Setup --
 // Create a set of sources to exclude
@@ -78,6 +80,7 @@ function initGame() {
 
 // Function to initialize or update the React app
 function renderApp() {
+  Logger.debug(LOGGER_SOURCE, "renderApp() called");
   const rootElement = document.getElementById("root");
   if (!rootElement) {
     console.error("Root element #root not found");
@@ -86,10 +89,15 @@ function renderApp() {
 
   // Create root only if it doesn't exist
   if (!reactRoot) {
+    Logger.debug(LOGGER_SOURCE, "React root does not exist, creating...");
     reactRoot = ReactDOM.createRoot(rootElement);
+    Logger.debug(LOGGER_SOURCE, "React root created.");
+  } else {
+    Logger.debug(LOGGER_SOURCE, "React root already exists, reusing.");
   }
 
   // Render the app using the existing root
+  Logger.debug(LOGGER_SOURCE, "Calling reactRoot.render()...");
   reactRoot.render(
     <React.StrictMode>
       <App />
@@ -98,37 +106,92 @@ function renderApp() {
   Logger.info(LOGGER_SOURCE, "React App rendered.");
 }
 
+// Function to handle initial setup and HMR re-initialization
+function initializeApp() {
+  Logger.debug(LOGGER_SOURCE, "initializeApp() called");
+  initGame();
+  renderApp();
+}
+
 // Initial setup
-initGame();
-renderApp();
+Logger.debug(LOGGER_SOURCE, "Starting initial setup...");
+initializeApp();
+Logger.debug(LOGGER_SOURCE, "Initial setup complete.");
 
 // --- HMR Handling --- //
 if (import.meta.hot) {
   // Use dispose for cleanup before the module is replaced
   import.meta.hot.dispose(() => {
-    Logger.info(LOGGER_SOURCE, "HMR dispose: Destroying Phaser game.");
+    Logger.info(
+      LOGGER_SOURCE,
+      "HMR dispose: Stopping scenes, destroying Phaser game, and resetting managers."
+    );
     if (gameInstance) {
+      // Stop all active scenes first
+      gameInstance.scene.getScenes(true).forEach((scene) => {
+        Logger.debug(
+          LOGGER_SOURCE,
+          `Preparing to stop scene: ${scene.scene.key}`
+        );
+        try {
+          // 1. Clear entities while scene context is potentially still needed for entity cleanup
+          Logger.debug(
+            LOGGER_SOURCE,
+            `Clearing entities for scene: ${scene.scene.key}`
+          );
+          EntityManager.getInstance().clearEntities();
+
+          // 2. Stop the scene - this will trigger the scene's own shutdown() method
+          Logger.debug(
+            LOGGER_SOURCE,
+            `Stopping scene systems: ${scene.scene.key}`
+          );
+          if (scene && scene.sys && scene.sys.isActive()) {
+            scene.sys.game.scene.stop(scene.scene.key);
+          } else {
+            Logger.warn(
+              LOGGER_SOURCE,
+              `Scene ${scene.scene.key} or its systems not available for stopping.`
+            );
+          }
+        } catch (e) {
+          Logger.error(
+            LOGGER_SOURCE,
+            `Error during scene stop/cleanup for ${scene.scene.key}:`,
+            e
+          );
+        }
+      });
+
+      // 3. Now destroy the game instance itself
+      Logger.debug(LOGGER_SOURCE, "Destroying Phaser game instance.");
       gameInstance.destroy(true);
       gameInstance = null;
     }
-    // We don't unmount React root here, as the new module execution
-    // will call renderApp() which reuses the existing root.
+    // 4. Reset global singletons *after* game destruction
+    Logger.debug(LOGGER_SOURCE, "Resetting global managers.");
+    SceneManager.resetInstance();
+    EntityManager.resetInstance(); // Reset the EntityManager *after* scenes are stopped/destroyed
+
+    // React root cleanup: Crucial for HMR to prevent conflicts
+    if (reactRoot) {
+      Logger.debug(LOGGER_SOURCE, "Unmounting React root.");
+      reactRoot.unmount();
+      reactRoot = null; // Clear the variable reference as well
+    }
   });
 
   // Accept updates for this module
   import.meta.hot.accept(() => {
-    Logger.info(LOGGER_SOURCE, "HMR accept: Re-initializing application.");
-    // Module has been re-executed. initGame() and renderApp() should run.
-    // Explicitly call them again just in case module scope execution changes behavior.
-    // initGame(); // This is implicitly called by module re-run if top-level
-    // renderApp(); // This is implicitly called by module re-run if top-level
-    // If initGame/renderApp are not top-level calls, uncomment them here.
+    Logger.info(
+      LOGGER_SOURCE,
+      "HMR accept: Module reloaded. Application should re-initialize via top-level script execution."
+    );
   });
 
-  // If App.tsx or its dependencies update, HMR will trigger the accept above.
-  // If App.tsx specifically updates, React Fast Refresh handles it mostly.
-  // import.meta.hot.accept('./App.tsx', () => {
-  //   Logger.info(LOGGER_SOURCE, "HMR accept: App.tsx updated. Re-rendering.");
-  //   renderApp(); // Re-render the app with the updated component
+  // Specific handler for App.tsx updates (optional)
+  // import.meta.hot.accept(\'./App.tsx\', () => {
+  //   Logger.info(LOGGER_SOURCE, \"HMR accept: App.tsx updated. Re-rendering React only.\");
+  //   renderApp(); // Only re-render React part if only App.tsx changed
   // });
 }

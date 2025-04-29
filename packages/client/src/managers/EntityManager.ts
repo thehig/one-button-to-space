@@ -40,6 +40,18 @@ export class EntityManager extends BaseManager {
     super();
   }
 
+  // Static method to reset the singleton instance AND context
+  public static resetInstance(): void {
+    if (EntityManager._instance) {
+      // Optional: Call internal cleanup if needed before nulling
+      EntityManager._instance.clearEntities(); // Example: Clear internal maps
+      EntityManager._instance.scene = null;
+      EntityManager._instance.currentPlayerSessionId = null;
+    }
+    EntityManager._instance = null;
+    Logger.debug(LOGGER_SOURCE, "EntityManager instance and context reset.");
+  }
+
   // Singleton accessor
   public static getInstance(): EntityManager {
     if (!EntityManager._instance) {
@@ -201,8 +213,11 @@ export class EntityManager extends BaseManager {
 
   // Explicit types for parameters
   private createOrUpdatePlayer(sessionId: string, state: PlayerState): void {
-    if (!this.scene) {
-      Logger.error(LOGGER_SOURCE, "Cannot create player, scene not available.");
+    if (!this.scene || !this.scene.matter || !this.scene.matter.world) {
+      Logger.error(
+        LOGGER_SOURCE,
+        "Cannot create player, scene context (or matter world) not available. State update likely arrived during HMR transition."
+      );
       return;
     }
 
@@ -259,8 +274,11 @@ export class EntityManager extends BaseManager {
 
   // Renamed function and updated parameter type
   private createOrUpdatePlanet(planetId: string, state: PlanetData): void {
-    if (!this.scene) {
-      Logger.error(LOGGER_SOURCE, "Cannot create planet, scene not available.");
+    if (!this.scene || !this.scene.matter || !this.scene.matter.world) {
+      Logger.error(
+        LOGGER_SOURCE,
+        "Cannot create planet, scene context (or matter world) not available. State update likely arrived during HMR transition."
+      );
       return;
     }
 
@@ -341,9 +359,17 @@ export class EntityManager extends BaseManager {
     return this.entities.get(this.currentPlayerSessionId) as Player | undefined;
   }
 
-  private clearEntities(): void {
+  public clearEntities(): void {
     Logger.info(LOGGER_SOURCE, `Clearing ${this.entities.size} entities.`);
-    this.scene?.cameras.main.stopFollow(); // Stop following before destroying entities
+    // Check if scene and camera system are valid before trying to stop follow
+    if (this.scene && this.scene.cameras && this.scene.cameras.main) {
+      this.scene.cameras.main.stopFollow();
+    } else {
+      Logger.warn(
+        LOGGER_SOURCE,
+        "Scene or main camera not available during clearEntities, skipping stopFollow."
+      );
+    }
     this.entities.forEach((entity) => {
       entity.destroyGameObject();
     });

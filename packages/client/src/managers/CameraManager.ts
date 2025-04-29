@@ -146,18 +146,37 @@ export class CameraManager extends BaseManager {
   }
 
   public update(time: number, delta: number): void {
-    if (!this.camera) return;
+    // Guard against missing camera or target
+    if (!this.camera || !this.target) {
+      // Optional: log a warning if target is missing when expected
+      // if (!this.target) Logger.trace(LOGGER_SOURCE, 'Camera update skipped, no target.');
+      return;
+    }
+
+    // Ensure the target's body exists before accessing position
+    // This helps prevent errors during entity initialization/destruction
+    if (!this.target.body) {
+      Logger.trace(
+        LOGGER_SOURCE,
+        "Camera update skipped, target body not ready."
+      );
+      return;
+    }
 
     // Follow target smoothly
-    if (this.target) {
-      this.camera.centerOn(
-        this.target.x, // Use interpolated position
-        this.target.y
-      );
-      // Smoother follow (Lerp)
-      // this.camera.scrollX = Phaser.Math.Linear(this.camera.scrollX, this.target.x - this.camera.width / 2, this.config.followLerp);
-      // this.camera.scrollY = Phaser.Math.Linear(this.camera.scrollY, this.target.y - this.camera.height / 2, this.config.followLerp);
-    }
+    // Use optional chaining just in case, though the body check should suffice
+    const targetX =
+      this.target.body?.position?.x ??
+      this.camera.scrollX + this.camera.width / 2;
+    const targetY =
+      this.target.body?.position?.y ??
+      this.camera.scrollY + this.camera.height / 2;
+
+    this.camera.centerOn(targetX, targetY);
+
+    // Smoother follow (Lerp - alternative)
+    // this.camera.scrollX = Phaser.Math.Linear(this.camera.scrollX, targetX - this.camera.width / 2, this.config.followLerp);
+    // this.camera.scrollY = Phaser.Math.Linear(this.camera.scrollY, targetY - this.camera.height / 2, this.config.followLerp);
 
     // Add any other camera effects or updates here
   }

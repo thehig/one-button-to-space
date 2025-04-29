@@ -23,6 +23,10 @@ export class SceneManager extends BaseManager {
     return SceneManager._instance;
   }
 
+  public static resetInstance(): void {
+    SceneManager._instance = null;
+  }
+
   public startScene(key: string, data?: object): void {
     if (this.game.scene.isActive(key)) {
       console.warn(`Scene ${key} is already active.`);
