@@ -7,8 +7,18 @@ import { BootScene } from "./core/scenes/BootScene.ts";
 import { GameScene } from "./core/scenes/GameScene.ts";
 import { MainMenuScene } from "./core/scenes/MainMenuScene.ts"; // Import the new scene
 import { Logger, LogLevel } from "@one-button-to-space/shared"; // Import Logger
+import { run } from "./core/Game";
 
-Logger.setFilters(LogLevel.TRACE);
+// -- Logging Setup --
+// Create a set of sources to exclude
+const blacklistSources = new Set<string>([
+  "🧑‍🚀✨", // Player.ts
+  "🌐", // NetworkManager.ts
+]);
+
+// Set log level to TRACE, but blacklist specific sources
+Logger.setFilters(LogLevel.TRACE, undefined, blacklistSources);
+
 // Logger Source for this file
 const LOGGER_SOURCE = "🚀🎬";
 

@@ -68,12 +68,12 @@ export abstract class GameObject extends Phaser.Physics.Matter.Sprite {
         : this.targetAngle;
 
     // Log at trace level - Use the safe values for logging
-    Logger.trace(
-      `${this.constructor.name}-${this.name}`,
-      `Updating physics targets: x=${safeX.toFixed(2)}, y=${safeY.toFixed(
-        2
-      )}, angle=${safeAngle.toFixed(2)}`
-    );
+    // Logger.trace(
+    //   `${this.constructor.name}-${this.name}`,
+    //   `Updating physics targets: x=${safeX.toFixed(2)}, y=${safeY.toFixed(
+    //     2
+    //   )}, angle=${safeAngle.toFixed(2)}`
+    // );
 
     // Update target physics state using the safe values
     this.targetX = safeX;

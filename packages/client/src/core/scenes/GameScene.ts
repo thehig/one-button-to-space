@@ -6,6 +6,9 @@ import { PhysicsManager } from "../../managers/PhysicsManager";
 import { TimeManager } from "../../managers/TimeManager";
 import { SceneManager } from "../../managers/SceneManager";
 import { Logger } from "@one-button-to-space/shared";
+// Import effects
+import { Starfield } from "../effects/Starfield";
+import { StarfieldRenderer } from "../effects/StarfieldRenderer";
 // Import specific entity types if needed for direct creation (less common here)
 // import { Player } from '../entities/Player';
 // Import the PlayerInputMessage type from shared
@@ -25,6 +28,8 @@ export class GameScene extends Phaser.Scene {
   private physicsManager!: PhysicsManager;
   private timeManager!: TimeManager;
   private sceneManager!: SceneManager;
+  private starfield!: Starfield;
+  private starfieldRenderer!: StarfieldRenderer;
 
   // Input state tracking
   private playerInputSequence: number = 0;
@@ -129,6 +134,16 @@ export class GameScene extends Phaser.Scene {
     // this.map.createLayer('Walls', tileset).setCollisionByProperty({ collides: true });
     // this.matter.world.convertTilemapLayer(this.map.getLayer('Walls').tilemapLayer);
 
+    // --- Create Starfield --- //
+    this.starfield = new Starfield({ seed: 12345 }); // Use a fixed seed for consistency
+    this.starfieldRenderer = new StarfieldRenderer(this, this.starfield, {
+      // textureKey: 'customStarfield', // Optional: override default key
+      depth: -10, // Ensure it's behind everything
+      // backgroundColor: null // Optional: Make texture background transparent
+    });
+    this.starfieldRenderer.createTexture(); // Create the texture data
+    this.starfieldRenderer.createTileSprite(); // Create the visual object
+
     // Add listener for window resize
     this.scale.on("resize", this.onResize, this);
   }
@@ -138,6 +153,11 @@ export class GameScene extends Phaser.Scene {
     this.processAndSendInput(delta);
 
     // --- Entity Updates --- (Handled by Phaser loop + updateFromServer)
+
+    // --- Update Starfield --- //
+    if (this.starfieldRenderer) {
+      this.starfieldRenderer.update(); // Update tile position based on camera
+    }
 
     // --- Manager Updates --- (If needed)
   }
@@ -288,6 +308,11 @@ export class GameScene extends Phaser.Scene {
     // Attempt to disconnect if the network manager still exists
     if (this.networkManager && this.networkManager.isConnected()) {
       this.networkManager.disconnect();
+    }
+
+    // Destroy starfield renderer
+    if (this.starfieldRenderer) {
+      this.starfieldRenderer.destroy();
     }
   }
 }
