@@ -32,6 +32,7 @@ function mulberry32(seedStr: string): () => number {
 export class Planet extends GameObject {
   public planetId: string;
   private planetData: PlanetData; // Store planet data for texture gen
+  private atmosphereVisual: Phaser.GameObjects.Graphics | null = null; // Added for atmosphere
 
   constructor(world: Phaser.Physics.Matter.World, planetData: PlanetData) {
     // --- Generate Texture Key FIRST (before super call) ---
@@ -72,6 +73,9 @@ export class Planet extends GameObject {
 
     // --- Generate Full Texture NOW (after super) ---
     this.ensureTextureGenerated();
+
+    // --- Create Atmosphere Visual ---
+    this.createAtmosphereVisual();
 
     // --- Visual Setup ---
     this.setDisplaySize(planetData.radius * 2, planetData.radius * 2);
@@ -246,6 +250,48 @@ export class Planet extends GameObject {
     );
   }
 
+  // Method to create/update atmosphere visual - adapted from old client
+  private createAtmosphereVisual(): void {
+    // Clear previous visual if it exists
+    this.atmosphereVisual?.destroy();
+    this.atmosphereVisual = null;
+
+    // Get necessary data, providing defaults if missing
+    const radius = this.planetData.radius > 0 ? this.planetData.radius : 10;
+    const atmosphereHeight = this.planetData.atmosphereHeight ?? 0; // Default to 0 if missing
+    const surfaceDensity = this.planetData.surfaceDensity ?? 0; // Default to 0 if missing
+
+    // Only draw if atmosphere exists and has positive height/density
+    if (atmosphereHeight > 0 && surfaceDensity > 0) {
+      // Use this.scene directly as it's inherited from GameObject
+      this.atmosphereVisual = this.scene.add.graphics();
+
+      const numSteps = 10; // Number of concentric circles
+      const maxAlpha = 0.2; // Max visual alpha accumulation
+      const alphaPerStep = maxAlpha / numSteps;
+
+      // Draw circles from outermost to innermost
+      for (let i = numSteps; i >= 1; i--) {
+        const stepRadius = radius + (atmosphereHeight * i) / numSteps;
+        this.atmosphereVisual.fillStyle(0x0000ff, alphaPerStep); // Blue tint for atmosphere
+        this.atmosphereVisual.fillCircle(0, 0, stepRadius);
+      }
+
+      // Position the graphics object at the planet's center
+      // GameObject position is already at the center
+      this.atmosphereVisual.setPosition(this.x, this.y);
+      // Draw behind the main planet visual (Sprite)
+      this.atmosphereVisual.setDepth(this.depth - 1);
+
+      Logger.debug(
+        LOGGER_SOURCE,
+        `Atmosphere visual created for planet ${this.planetId}`
+      );
+    } else {
+      this.atmosphereVisual = null; // Ensure it's null if no atmosphere
+    }
+  }
+
   /**
    * Updates the planet based on server state (usually static, but could update visuals).
    * @param state The PlanetData from the server.
@@ -254,6 +300,12 @@ export class Planet extends GameObject {
     super.updateFromServer(state);
     // Store latest data
     this.planetData = state;
+
+    // Check if atmosphere properties changed significantly
+    const needsAtmosUpdate = this.didAtmosphereChange(state);
+    if (needsAtmosUpdate) {
+      this.createAtmosphereVisual();
+    }
 
     // Visuals are handled by texture generation on creation.
     // If planet properties that affect the texture (radius, seed, colors, noise)
@@ -271,5 +323,35 @@ export class Planet extends GameObject {
     //     // ignore invalid color updates
     //   }
     // }
+  }
+
+  // Helper to check if relevant atmosphere properties changed
+  private didAtmosphereChange(newState: PlanetData): boolean {
+    // Compare key properties that define the atmosphere visual
+    const oldHeight = this.planetData.atmosphereHeight ?? 0;
+    const newHeight = newState.atmosphereHeight ?? 0;
+    const oldDensity = this.planetData.surfaceDensity ?? 0;
+    const newDensity = newState.surfaceDensity ?? 0;
+    const oldRadius = this.planetData.radius;
+    const newRadius = newState.radius;
+
+    return (
+      oldHeight !== newHeight ||
+      oldDensity !== newDensity ||
+      oldRadius !== newRadius
+    );
+  }
+
+  // Override destroy to clean up atmosphere visual
+  public override destroy(fromScene?: boolean): void {
+    if (this.atmosphereVisual) {
+      this.atmosphereVisual.destroy();
+      this.atmosphereVisual = null;
+      Logger.trace(
+        LOGGER_SOURCE,
+        `Destroyed atmosphere visual for planet ${this.planetId}.`
+      );
+    }
+    super.destroy(fromScene);
   }
 }
