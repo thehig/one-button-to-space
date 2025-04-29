@@ -26,6 +26,7 @@ export class CameraManager extends BaseManager {
   private target: GameObject | null = null;
   private camera: Phaser.Cameras.Scene2D.Camera | null = null;
   private _currentZoom: number = 1;
+  private scene: Phaser.Scene | null = null; // Declare scene property
 
   private constructor(config: Partial<CameraManagerConfig> = {}) {
     super();
@@ -48,7 +49,13 @@ export class CameraManager extends BaseManager {
       return;
     }
     this.camera = this.scene.cameras.main;
-    this._currentZoom = this.camera.zoom; // Initialize zoom from camera
+    // Check if camera exists before accessing zoom
+    if (this.camera) {
+      this._currentZoom = this.camera.zoom; // Initialize zoom from camera
+    } else {
+      Logger.warn(LOGGER_SOURCE, "Main camera not found on scene context.");
+      this._currentZoom = 1; // Default zoom
+    }
     this.target = null; // Reset target on new scene context
 
     // Add zoom listener directly to the scene's input
@@ -157,11 +164,13 @@ export class CameraManager extends BaseManager {
 
   public override destroy(): void {
     Logger.info(LOGGER_SOURCE, "Destroying CameraManager...");
+    // Use optional chaining for safety
     if (this.scene?.input) {
       this.scene.input.off("wheel", this.handleZoom, this);
     }
     this.target = null;
     this.camera = null;
+    this.scene = null; // Clear scene reference
     super.destroy();
   }
 }
