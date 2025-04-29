@@ -14,7 +14,7 @@ interface CameraManagerConfig {
 }
 
 const DEFAULT_CONFIG: CameraManagerConfig = {
-  minZoom: 0.5,
+  minZoom: 0.25,
   maxZoom: 3.0,
   zoomSpeedScroll: 0.001,
   followLerp: 0.1, // Adjust for desired smoothness

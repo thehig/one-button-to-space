@@ -26,8 +26,9 @@ const LOGGER_SOURCE = "🚀🎬";
 // --- Create Global Event Emitter --- //
 export const gameEmitter = new EventEmitter();
 
-// Store the game instance reference
+// Store the game instance and React root references
 let gameInstance: Phaser.Game | null = null;
+let reactRoot: ReactDOM.Root | null = null; // Store the React root
 
 // Game configuration
 const config: Phaser.Types.Core.GameConfig = {
@@ -51,10 +52,14 @@ const config: Phaser.Types.Core.GameConfig = {
   backgroundColor: "#1a1a1a",
 };
 
-// Function to initialize the game
+// Function to initialize or re-initialize the game
 function initGame() {
+  // Destroy existing game instance if it exists (for HMR)
   if (gameInstance) {
-    console.warn("Destroying existing Phaser game instance for HMR.");
+    Logger.info(
+      LOGGER_SOURCE,
+      "Destroying existing Phaser game instance for HMR."
+    );
     gameInstance.destroy(true); // true to remove canvas from DOM
     gameInstance = null;
   }
@@ -71,53 +76,59 @@ function initGame() {
   }
 }
 
-// Initial game initialization
-initGame();
-
-// Mount the React application
-// Check if root already exists to prevent React warning during HMR
-const rootElement = document.getElementById("root");
-if (rootElement) {
-  // Basic check: if the element already has React internals, assume it's mounted.
-  // A more robust check might involve a flag or checking rootElement._reactRootContainer
-  if (!(rootElement as any)._reactRootContainer) {
-    ReactDOM.createRoot(rootElement).render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    );
-  } else {
-    // If root exists, maybe just re-render App if needed (though StrictMode might remount)
-    console.log("React root already exists, skipping createRoot.");
-    // Potentially force-render App if state needs reset
-    // ReactDOM.createRoot(rootElement).render(<React.StrictMode><App /></React.StrictMode>); // This might still cause issues
+// Function to initialize or update the React app
+function renderApp() {
+  const rootElement = document.getElementById("root");
+  if (!rootElement) {
+    console.error("Root element #root not found");
+    return;
   }
-} else {
-  console.error("Root element #root not found");
+
+  // Create root only if it doesn't exist
+  if (!reactRoot) {
+    reactRoot = ReactDOM.createRoot(rootElement);
+  }
+
+  // Render the app using the existing root
+  reactRoot.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+  Logger.info(LOGGER_SOURCE, "React App rendered.");
 }
+
+// Initial setup
+initGame();
+renderApp();
 
 // --- HMR Handling --- //
 if (import.meta.hot) {
-  import.meta.hot.accept(() => {
-    // When this module or its dependencies are updated,
-    // destroy the old game instance before the module re-runs.
-    Logger.info(LOGGER_SOURCE, "HMR update detected. Destroying Phaser game.");
+  // Use dispose for cleanup before the module is replaced
+  import.meta.hot.dispose(() => {
+    Logger.info(LOGGER_SOURCE, "HMR dispose: Destroying Phaser game.");
     if (gameInstance) {
       gameInstance.destroy(true);
       gameInstance = null;
     }
-    // Note: The module re-execution will call initGame() again.
-    // React HMR usually handles component updates well, but full module re-run
-    // might still cause the React root warning if not careful.
-    // The check above aims to mitigate the React warning.
+    // We don't unmount React root here, as the new module execution
+    // will call renderApp() which reuses the existing root.
   });
 
-  // Optional: Dispose callback for more granular cleanup if needed
-  // import.meta.hot.dispose(() => {
-  //   Logger.info(LOGGER_SOURCE, "HMR disposing module. Cleaning up Phaser.");
-  //   if (gameInstance) {
-  //     gameInstance.destroy(true);
-  //     gameInstance = null;
-  //   }
+  // Accept updates for this module
+  import.meta.hot.accept(() => {
+    Logger.info(LOGGER_SOURCE, "HMR accept: Re-initializing application.");
+    // Module has been re-executed. initGame() and renderApp() should run.
+    // Explicitly call them again just in case module scope execution changes behavior.
+    // initGame(); // This is implicitly called by module re-run if top-level
+    // renderApp(); // This is implicitly called by module re-run if top-level
+    // If initGame/renderApp are not top-level calls, uncomment them here.
+  });
+
+  // If App.tsx or its dependencies update, HMR will trigger the accept above.
+  // If App.tsx specifically updates, React Fast Refresh handles it mostly.
+  // import.meta.hot.accept('./App.tsx', () => {
+  //   Logger.info(LOGGER_SOURCE, "HMR accept: App.tsx updated. Re-rendering.");
+  //   renderApp(); // Re-render the app with the updated component
   // });
 }

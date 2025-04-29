@@ -59,7 +59,7 @@ export class StarfieldRenderer {
     Logger.info(LOGGER_SOURCE, `Creating texture: ${this.config.textureKey}`);
 
     // Use a temporary Graphics object to draw
-    const gfx = this.scene.make.graphics({ x: 0, y: 0, add: false });
+    const gfx = this.scene.make.graphics({ x: 0, y: 0 });
 
     // Optional: Fill background of the texture itself
     if (this.config.backgroundColor) {
@@ -132,14 +132,21 @@ export class StarfieldRenderer {
     }
 
     const { width, height } = this.scene.scale;
+    const displayWidth = width * 4;
+    const displayHeight = height * 4;
+
+    // Calculate position to center the larger sprite
+    const x = width / 2 - displayWidth / 2;
+    const y = height / 2 - displayHeight / 2;
+
     this.tileSprite = this.scene.add.tileSprite(
-      0,
-      0,
-      width,
-      height,
+      x,
+      y,
+      displayWidth,
+      displayHeight,
       this.config.textureKey
     );
-    this.tileSprite.setOrigin(0, 0);
+    this.tileSprite.setOrigin(0, 0); // Origin remains top-left for TileSprite positioning
     this.tileSprite.setScrollFactor(0); // Fixed position relative to the camera
     this.tileSprite.setDepth(this.config.depth);
 
@@ -151,10 +158,20 @@ export class StarfieldRenderer {
 
   private handleResize(gameSize: Phaser.Structs.Size): void {
     if (this.isDestroyed || !this.tileSprite) return;
-    this.tileSprite.setSize(gameSize.width, gameSize.height);
+
+    const displayWidth = gameSize.width * 4;
+    const displayHeight = gameSize.height * 4;
+
+    // Recalculate position to re-center
+    const x = gameSize.width / 2 - displayWidth / 2;
+    const y = gameSize.height / 2 - displayHeight / 2;
+
+    this.tileSprite.setPosition(x, y);
+    this.tileSprite.setSize(displayWidth, displayHeight);
+
     Logger.debug(
       LOGGER_SOURCE,
-      `TileSprite resized to ${gameSize.width}x${gameSize.height}`
+      `TileSprite resized to ${displayWidth}x${displayHeight} at (${x}, ${y})`
     );
   }
 
