@@ -19,6 +19,8 @@ import type { Player } from "../../entities/Player"; // Import Player type for c
 // Logger Source for this file
 const LOGGER_SOURCE = "🎮🕹️";
 
+const ANGLE_DELTA_THRESHOLD = 0.005; // Radians - only send if change exceeds this
+
 /**
  * The main scene where the core game logic takes place.
  */
@@ -37,6 +39,7 @@ export class GameScene extends Phaser.Scene {
   private playerInputSequence: number = 0;
   private wasThrusting: boolean = false;
   private readonly rotationSpeed: number = Math.PI / 2; // Radians per second (adjust as needed)
+  private lastSentAngle: number | null = null; // Track last sent angle
 
   // Scene-specific properties
   // private map: Phaser.Tilemaps.Tilemap | null = null;
@@ -243,6 +246,23 @@ export class GameScene extends Phaser.Scene {
         // Normalize angle to be within -PI to PI
         targetAngle = Phaser.Math.Angle.Wrap(targetAngle);
 
+        // --- Delta Check ---
+        // Only send if the change is significant or it's the first message
+        const angleDifference =
+          this.lastSentAngle !== null
+            ? Math.abs(
+                Phaser.Math.Angle.ShortestBetween(
+                  this.lastSentAngle,
+                  targetAngle
+                )
+              )
+            : Infinity; // Always send the first message
+
+        if (angleDifference < ANGLE_DELTA_THRESHOLD) {
+          // Logger.trace(LOGGER_SOURCE, `Skipping angle update: delta ${angleDifference.toFixed(3)} < ${ANGLE_DELTA_THRESHOLD}`);
+          return; // Skip sending if change is too small
+        }
+
         // Send angle update to server
         this.playerInputSequence++;
         const inputMsg: PlayerInputMessage = {
@@ -251,6 +271,7 @@ export class GameScene extends Phaser.Scene {
           value: targetAngle,
         };
         this.networkManager.sendMessage("playerInput", inputMsg);
+        this.lastSentAngle = targetAngle; // Update last sent angle
         Logger.trace(
           LOGGER_SOURCE,
           `Sent input: set_angle (${targetAngle.toFixed(2)})`,
