@@ -26,8 +26,8 @@ export interface StarfieldConfig {
 const DEFAULT_CONFIG: StarfieldConfig = {
   seed: Date.now(),
   density: 50, // Reduced density for tiling
-  minSize: 0.5,
-  maxSize: 1.5, // Smaller max size
+  minSize: 1,
+  maxSize: 3, // Smaller max size
   minBrightness: 0.3,
   maxBrightness: 0.8, // Slightly dimmer max brightness
   textureWidth: 2048,
