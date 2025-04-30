@@ -4,8 +4,6 @@ import { GameObject } from "../core/GameObject";
 import { PlayerState, PlayerConfigSchema, VectorSchema } from "../schema/State"; // Import VectorSchema
 // @ts-ignore - Allow importing from shared potentially outside rootDir
 import { Logger, CollisionCategory } from "@one-button-to-space/shared"; // Import Logger & shared CollisionCategory
-// Import the shared rocket vertices
-import { rocketVertices } from "@one-button-to-space/shared";
 
 // Logger Source for this file
 const LOGGER_SOURCE = "🧑‍🚀✨";
