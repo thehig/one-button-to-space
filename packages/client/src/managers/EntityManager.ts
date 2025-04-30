@@ -32,6 +32,7 @@ export class EntityManager extends BaseManager {
   private scene: Phaser.Scene | null = null;
   private entities: Map<string, GameObject> = new Map(); // Map session ID (or entity ID) to GameObject
   private currentPlayerSessionId: string | null = null; // Track the client's own player
+  private currentRoomState: GameState | null = null; // Store the latest known full state
 
   // Private constructor for singleton pattern
   private constructor() {
@@ -82,6 +83,7 @@ export class EntityManager extends BaseManager {
     }
     Logger.info(LOGGER_SOURCE, "Syncing initial state...");
     this.clearEntities(); // Ensure clean slate
+    this.currentRoomState = state; // Store initial state
 
     // Check if players exist before iterating
     if (state.players) {
@@ -115,6 +117,8 @@ export class EntityManager extends BaseManager {
       // console.warn("EntityManager scene context not set during state update.");
       return;
     }
+
+    this.currentRoomState = state; // Update stored state
 
     // Use Colyseus schema callbacks attached in NetworkManager for efficiency
     // This method can act as a fallback or be used if manual iteration is preferred.
@@ -219,6 +223,16 @@ export class EntityManager extends BaseManager {
       return;
     }
 
+    // Access the stored state instead of scene data
+    if (!this.currentRoomState?.playerConfig) {
+      Logger.error(
+        LOGGER_SOURCE,
+        "Player config not found in current room state. Cannot create player."
+      );
+      return;
+    }
+    const playerConfig = this.currentRoomState.playerConfig;
+
     let player = this.entities.get(sessionId) as Player | undefined;
 
     if (!player) {
@@ -231,8 +245,8 @@ export class EntityManager extends BaseManager {
           state.x, // Initial x from state
           state.y, // Initial y from state
           sessionId, // Pass the session ID
-          isCurrentPlayer // Pass the flag
-          // No texture/frame/options needed here as they are handled in Player constructor
+          isCurrentPlayer, // Pass the flag
+          playerConfig // Pass the configuration from the state
         );
         this.addEntity(sessionId, player);
         Logger.info(

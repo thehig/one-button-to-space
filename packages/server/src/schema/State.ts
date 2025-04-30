@@ -4,7 +4,26 @@
  * ! WHEN EDITING, MAKE SURE TO UPDATE THE CLIENT VERSION AS WELL
  */
 
-import { Schema, type, MapSchema } from "@colyseus/schema";
+import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
+
+// --- Basic Schemas ---
+
+export class ColorData extends Schema {
+  @type("string") base: string = "#ffffff";
+  @type("string") accent1?: string;
+  @type("string") accent2?: string;
+}
+
+export class NoiseParams extends Schema {
+  @type("number") scale: number = 1;
+  @type("number") octaves?: number;
+}
+
+// Simple XY vector for vertices
+export class VectorSchema extends Schema {
+  @type("number") x: number = 0;
+  @type("number") y: number = 0;
+}
 
 // --- PlayerState Definition ---
 export class PlayerState extends Schema {
@@ -45,9 +64,34 @@ export class PlanetData extends Schema {
   @type(PlanetNoiseParams) noiseParams = new PlanetNoiseParams();
 }
 
+// --- Player Configuration Schema ---
+export class PlayerConfigSchema extends Schema {
+  // Physics
+  @type("number") mass: number = 10;
+  @type("number") friction: number = 0.05;
+  @type("number") frictionAir: number = 0.01;
+  @type("number") restitution: number = 0.3;
+  @type([VectorSchema]) vertices = new ArraySchema<VectorSchema>();
+  @type("number") collisionCategory: number = 0x0001; // Default? Should be set server-side
+  @type("number") collisionMask: number = 0xffff; // Default? Should be set server-side
+
+  // Visuals
+  @type("number") textureWidth: number = 100;
+  @type("number") textureHeight: number = 100;
+  @type("number") visualWidth: number = 40;
+  @type("number") visualHeight: number = 100;
+  @type("number") visualOffsetY: number = -11;
+  @type("string") thrusterTexture1: string = "thruster_001";
+  @type("string") thrusterTexture2: string = "thruster_002";
+  @type("number") thrusterScaleFactor: number = 0.75;
+  @type("number") thrusterOffsetYAdjust: number = -5;
+}
+
 // --- RoomState Definition ---
 export class RoomState extends Schema {
   @type({ map: PlayerState }) players = new MapSchema<PlayerState>();
   @type({ map: PlanetData }) planets = new MapSchema<PlanetData>();
   @type("number") physicsStep = 0; // Add physics step counter
+  @type("number") serverTime: number = 0;
+  @type(PlayerConfigSchema) playerConfig = new PlayerConfigSchema();
 }

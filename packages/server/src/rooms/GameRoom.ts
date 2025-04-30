@@ -9,7 +9,13 @@ import { Logger } from "@one-button-to-space/shared";
 // Import shared rocket vertices
 import { rocketVertices, CollisionCategory } from "@one-button-to-space/shared";
 
-import { RoomState, PlayerState, PlanetData } from "../schema/State";
+import {
+  RoomState,
+  PlayerState,
+  PlanetData,
+  VectorSchema,
+  PlayerConfigSchema,
+} from "../schema/State";
 
 import { PlayerInputMessage } from "@one-button-to-space/shared";
 import { PhysicsLogic } from "@one-button-to-space/shared";
@@ -99,6 +105,33 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
     this.setState(new RoomState());
     Logger.info(LOGGER_SOURCE, "GameState initialized.");
     Logger.debug(LOGGER_SOURCE, "onCreate: RoomState initialized.");
+
+    // --- Populate Player Configuration --- //
+    Logger.debug(LOGGER_SOURCE, "onCreate: Populating playerConfig...");
+    this.state.playerConfig.mass = PLAYER_MASS;
+    this.state.playerConfig.friction = 0.05; // Example value, maybe move to Constants?
+    this.state.playerConfig.frictionAir = PLAYER_FRICTION_AIR;
+    this.state.playerConfig.restitution = 0.3; // Example value, maybe move to Constants?
+    // @ts-ignore - Acknowledge likely build/linking issue
+    this.state.playerConfig.collisionCategory = CollisionCategory.PLAYER; // Use PLAYER category
+    // @ts-ignore - Acknowledge likely build/linking issue
+    this.state.playerConfig.collisionMask =
+      CollisionCategory.GROUND | CollisionCategory.PLAYER; // Collide with Ground and Players
+    this.state.playerConfig.textureWidth = 100; // Assumed base texture size
+    this.state.playerConfig.textureHeight = 100; // Assumed base texture size
+    this.state.playerConfig.visualWidth = PLAYER_WIDTH;
+    this.state.playerConfig.visualHeight = PLAYER_HEIGHT;
+    this.state.playerConfig.visualOffsetY = -11; // Example value, maybe move to Constants?
+    this.state.playerConfig.thrusterTexture1 = "thruster_001";
+    this.state.playerConfig.thrusterTexture2 = "thruster_002";
+    this.state.playerConfig.thrusterScaleFactor = 0.75; // Example value, maybe move to Constants?
+    this.state.playerConfig.thrusterOffsetYAdjust = -5; // Example value, maybe move to Constants?
+
+    // Convert and add vertices
+    rocketVertices.forEach((v) => {
+      this.state.playerConfig.vertices.push(new VectorSchema().assign(v));
+    });
+    Logger.info(LOGGER_SOURCE, "Player configuration populated in state.");
 
     // --- Load World Definition ---
     Logger.debug(
@@ -610,21 +643,28 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
     }
     player.cargo = "";
 
-    // Create the player's physics body using Matter.js
+    // Create the player's physics body using Matter.js and config from state
+    const config = this.state.playerConfig;
+    // Convert ArraySchema<VectorSchema> back to Array<{x,y}> for Matter
+    const bodyVertices = Array.from(config.vertices).map((v) => ({
+      x: v.x,
+      y: v.y,
+    }));
+
     const playerBody = Matter.Bodies.fromVertices(
       player.x,
       player.y,
-      [rocketVertices], // Wrap vertices in an extra array layer
+      [bodyVertices], // Use converted vertices (still needs wrapping?)
       {
-        mass: PLAYER_MASS,
-        frictionAir: PLAYER_FRICTION_AIR,
-        label: `rocket-${client.sessionId}`, // Use correct label format
+        mass: config.mass,
+        friction: config.friction,
+        frictionAir: config.frictionAir,
+        restitution: config.restitution,
+        label: `player-${client.sessionId}`, // Changed label prefix
         collisionFilter: {
-          category: CollisionCategory.ROCKET,
-          mask: CollisionCategory.GROUND | CollisionCategory.ROCKET,
+          category: config.collisionCategory,
+          mask: config.collisionMask,
         },
-        // Add angular damping if needed (Constants might define this)
-        // angularDamping: PLAYER_ANGULAR_DAMPING // Example
       }
     );
     Matter.Body.setAngle(playerBody, player.angle);
