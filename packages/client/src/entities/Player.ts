@@ -17,6 +17,8 @@ export class Player extends GameObject {
   public isCurrentPlayer: boolean;
   private _isThrusting: boolean = false;
   public sessionId: string; // Add sessionId property
+  public latestVx: number = 0; // Store latest server velocity X
+  public latestVy: number = 0; // Store latest server velocity Y
 
   // Store the config received from the server
   private config: PlayerConfigSchema;
@@ -120,7 +122,12 @@ export class Player extends GameObject {
   public override updateFromServer(state: PlayerState): void {
     super.updateFromServer(state); // Base handles non-physics/non-interpolation state if any
 
-    // Handle player-specific state updates from the schema
+    // --- Update Velocity Cache ---
+    // Store the latest authoritative velocity from the server state
+    this.latestVx = state.vx;
+    this.latestVy = state.vy;
+
+    // --- Update Other Player-Specific State ---
     if (
       state.isThrusting !== undefined &&
       this.isThrusting !== state.isThrusting

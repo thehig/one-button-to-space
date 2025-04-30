@@ -148,10 +148,28 @@ export class GameScene extends Phaser.Scene {
     if (import.meta.env.DEV) {
       // Setup timed event to emit debug updates
       this.timeManager.addLoop(500, () => {
+        const player = this.entityManager.getCurrentPlayer() as
+          | Player
+          | undefined;
+
+        let playerX: number | undefined;
+        let playerY: number | undefined;
+        let playerSpeed: number | undefined;
+
+        if (player) {
+          playerX = player.x; // Visual position
+          playerY = player.y; // Visual position
+          // Calculate speed from the player's cached server velocity
+          playerSpeed = Math.sqrt(player.latestVx ** 2 + player.latestVy ** 2);
+        }
+
         gameEmitter.emit("debugUpdate", {
           fps: this.timeManager.fps,
           entityCount: this.entityManager.getAllEntities().size,
           playerId: this.networkManager.sessionId || "N/A",
+          x: playerX,
+          y: playerY,
+          speed: playerSpeed,
         });
       });
     }

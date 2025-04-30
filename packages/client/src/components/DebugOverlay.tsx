@@ -5,6 +5,9 @@ interface DebugData {
   fps: number;
   entityCount: number;
   playerId: string;
+  x?: number; // Add optional x coordinate
+  y?: number; // Add optional y coordinate
+  speed?: number; // Add optional speed
 }
 
 const DebugOverlay: React.FC = () => {
@@ -62,6 +65,14 @@ const DebugOverlay: React.FC = () => {
           <div>FPS: {debugData.fps.toFixed(2)}</div>
           <div>Entities: {debugData.entityCount}</div>
           <div>Player ID: {debugData.playerId}</div>
+          {debugData.x !== undefined && debugData.y !== undefined && (
+            <div>
+              Pos: {debugData.x.toFixed(1)}, {debugData.y.toFixed(1)}
+            </div>
+          )}
+          {debugData.speed !== undefined && (
+            <div>Speed: {debugData.speed.toFixed(2)}</div>
+          )}
         </>
       )}
     </div>

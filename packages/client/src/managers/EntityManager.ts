@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+// import Matter from "matter-js"; // Import Matter JS
 import { BaseManager } from "./BaseManager";
 import { GameObject } from "../core/GameObject";
 import { Player } from "../entities/Player";
@@ -197,16 +198,15 @@ export class EntityManager extends BaseManager {
         entity.updatePhysicsFromServer(physicsData);
       } else {
         // Fallback or warn if the specific method doesn't exist
-        // Maybe use updateFromServer as a fallback if appropriate?
         Logger.warn(
           LOGGER_SOURCE,
           `Entity ${entityId} received physics update but lacks updatePhysicsFromServer method.`
         );
-        // Optionally, try a generic update as fallback:
-        // if (typeof entity.updateFromServer === 'function') {
-        //   entity.updateFromServer(physicsData as any); // Cast might be needed
-        // }
       }
+
+      // --- REVERTED: Remove velocity setting logic ---
+      // const body = (entity as any).body as Matter.Body | undefined;
+      // if (body) { ... Matter.Body.setVelocity ... }
     } else {
       // This might happen briefly if state sync is slightly delayed
       // Logger.trace(LOGGER_SOURCE, `Received physics update for unknown entity: ${entityId}`);
