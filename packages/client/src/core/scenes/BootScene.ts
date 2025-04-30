@@ -30,6 +30,13 @@ export class BootScene extends Phaser.Scene {
     // Since physics is involved, maybe load common physics shapes or default textures
     // Consider loading assets in a dedicated PreloadScene if loading takes time
     this.load.setPath("assets/"); // Set base path for assets
+
+    // --- Load Rocket Assets ---
+    this.load.image("rocket", "images/rocket.png"); // Corrected path
+    this.load.image("thruster_001", "images/thruster_001.png"); // Corrected path
+    this.load.image("thruster_002", "images/thruster_002.png"); // Corrected path
+    // --- End Load Rocket Assets ---
+
     // this.load.image("player_texture", "placeholders/player.png"); // Example placeholder
     // Add other essential assets (e.g., map tileset, common sounds)
     // this.load.image('tiles', 'tilesets/my_tileset.png');

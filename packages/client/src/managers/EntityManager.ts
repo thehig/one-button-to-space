@@ -11,8 +11,6 @@ import {
 } from "../schema/State";
 // Import shared constants and types
 import {
-  Constants,
-  CollisionCategory,
   Logger,
   PhysicsStateUpdate, // Import the new type
 } from "@one-button-to-space/shared";
@@ -226,48 +224,37 @@ export class EntityManager extends BaseManager {
     if (!player) {
       const isCurrentPlayer = sessionId === this.currentPlayerSessionId;
 
-      // Define physics options for the player body
-      const playerBodyOptions: Phaser.Types.Physics.Matter.MatterBodyConfig = {
-        mass: Constants.PLAYER_MASS,
-        frictionAir: Constants.PLAYER_FRICTION_AIR,
-        label: `player-${sessionId}`, // Use a descriptive label
-        // Add collision filter if needed
-        // collisionFilter: {
-        //   category: CollisionCategory.PLAYER,
-        //   mask: CollisionCategory.WALL | CollisionCategory.ENEMY // Example
-        // },
-        // Add other necessary Matter options (restitution, etc.)
-      };
-
       // Create new player instance, passing options correctly
       try {
         player = new Player(
-          this.scene.matter.world,
-          state.x,
-          state.y,
-          "player_texture",
-          undefined, // frame
-          playerBodyOptions, // Pass the Matter options object
-          isCurrentPlayer // Pass isCurrentPlayer separately
+          this.scene.matter.world, // Pass the matter world
+          state.x, // Initial x from state
+          state.y, // Initial y from state
+          sessionId, // Pass the session ID
+          isCurrentPlayer // Pass the flag
+          // No texture/frame/options needed here as they are handled in Player constructor
         );
-        // Attach the session ID to the GameObject for easy lookup
-        (player as any).sessionId = sessionId;
         this.addEntity(sessionId, player);
         Logger.info(
           LOGGER_SOURCE,
           `Created player ${sessionId}${isCurrentPlayer ? " (local)" : ""}`
         );
-
-        if (isCurrentPlayer) {
-          // Camera follow for the local player
-          this.scene.cameras.main.startFollow(player, true, 0.1, 0.1); // Smoothed follow
-          this.scene.cameras.main.setZoom(1.5); // Example zoom
+      } catch (error: any) {
+        Logger.error(
+          LOGGER_SOURCE,
+          `Failed to create Player ${sessionId}:`,
+          error
+        );
+        // Optionally remove from entities if partially added?
+        if (this.entities.has(sessionId)) {
+          this.removeEntity(sessionId);
         }
-      } catch (e) {
-        Logger.error(LOGGER_SOURCE, `Failed to create Player ${sessionId}:`, e);
+        player = undefined; // Ensure player is undefined on error
       }
-    } else {
-      // Update existing player (interpolation/state sync handled in updateFromServer)
+    }
+
+    if (player) {
+      // Update existing or newly created player (initial state)
       player.updateFromServer(state);
     }
   }
