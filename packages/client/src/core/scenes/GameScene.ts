@@ -285,7 +285,12 @@ export class GameScene extends Phaser.Scene {
 
     // --- Attempt Orientation Input ONLY if on mobile/touch device --- //
     if (this.sys.game.device.input.touch) {
-      targetAngle = this.inputManager.getTargetRocketAngleRadians();
+      const rawOrientationAngle =
+        this.inputManager.getTargetRocketAngleRadians();
+      if (rawOrientationAngle !== null) {
+        // Apply -90 degree offset
+        targetAngle = Phaser.Math.Angle.Wrap(rawOrientationAngle - Math.PI / 2);
+      }
     }
 
     // Fallback to keyboard if orientation is not available/active
