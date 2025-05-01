@@ -121,18 +121,18 @@ export class NetworkManager extends BaseManager {
 
     // --- State Synchronization ---
     this.room.onStateChange.once((initialState: GameState) => {
-      Logger.debug(LOGGER_SOURCE, "Initial state received.");
+      Logger.debug(LOGGER_SOURCE, "Initial state received.", initialState);
       EntityManager.getInstance().syncInitialState(initialState);
     });
 
     this.room.onStateChange((state: GameState) => {
-      // Logger.trace(LOGGER_SOURCE, "Incremental state received."); // Too noisy
+      Logger.trace(LOGGER_SOURCE, "Incremental state received.", state); // Too noisy
       EntityManager.getInstance().updateFromState(state);
     });
 
     // --- Custom Messages ---
     this.room.onMessage("*", (type, message) => {
-      // Logger.trace(LOGGER_SOURCE, `Received message type "${type}"`, message); // Log raw message if needed
+      Logger.trace(LOGGER_SOURCE, `Received message type "${type}"`, message); // Log raw message if needed
       switch (type) {
         case "worldCreationTime":
           if (typeof message === "number") {
