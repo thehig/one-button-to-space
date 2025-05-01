@@ -14,7 +14,6 @@ interface InputDebugState {
   orientation: {
     alpha: number | null;
     beta: number | null;
-    a;
     gamma: number | null;
     targetAngleRad: number | null;
   };
@@ -113,11 +112,11 @@ export const InputDebugOverlay: React.FC = () => {
           <br />
           --- Orientation ---
           <br />
-          Alpha: {formatDeg(inputState.orientation.alpha)} (Raw - Placeholder)
+          Alpha: {formatDeg(inputState.orientation.alpha)}
           <br />
-          Beta: {formatDeg(inputState.orientation.beta)} (Raw - Placeholder)
+          Beta: {formatDeg(inputState.orientation.beta)}
           <br />
-          Gamma: {formatDeg(inputState.orientation.gamma)} (Raw - Placeholder)
+          Gamma: {formatDeg(inputState.orientation.gamma)}
           <br />
           Target Angle: {formatRad(inputState.orientation.targetAngleRad)} rad
           <br />

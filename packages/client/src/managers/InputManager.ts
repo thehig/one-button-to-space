@@ -108,6 +108,33 @@ export class InputManager extends BaseManager {
     return this.deviceOrientationManager.getTargetRocketAngleRadians();
   }
 
+  /**
+   * Gets the raw device orientation data.
+   * @returns An object containing alpha, beta, gamma, or null if unavailable.
+   */
+  public getRawOrientation(): {
+    alpha: number | null;
+    beta: number | null;
+    gamma: number | null;
+  } | null {
+    // Directly access public properties
+    return {
+      alpha: this.deviceOrientationManager.alpha,
+      beta: this.deviceOrientationManager.beta,
+      gamma: this.deviceOrientationManager.gamma,
+    };
+  }
+
+  /**
+   * Gets the list of currently pressed registered keys.
+   * @returns An array of key code strings.
+   */
+  public getKeysDown(): string[] {
+    return Object.entries(this.registeredKeys)
+      .filter(([, key]) => key.isDown)
+      .map(([code]) => code);
+  }
+
   public override init(): void {
     Logger.info(LOGGER_SOURCE, "Input Manager Initialized");
   }

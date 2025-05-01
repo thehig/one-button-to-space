@@ -21,9 +21,9 @@ const LOGGER_SOURCE = "🧭📱"; // Chosen emojis for DeviceOrientationManager
  */
 export class DeviceOrientationManager {
   // --- Current Orientation Data ---
-  private alpha: number | null = null;
-  private beta: number | null = null;
-  private gamma: number | null = null;
+  public alpha: number | null = null;
+  public beta: number | null = null;
+  public gamma: number | null = null;
 
   // --- Previous Orientation Data (for change detection) ---
   private prevBeta: number | null = null;

@@ -430,8 +430,8 @@ export class GameScene extends Phaser.Scene {
         // Clamp zoom
         targetZoom = Phaser.Math.Clamp(
           targetZoom,
-          this.cameraManager.config.minZoom,
-          this.cameraManager.config.maxZoom
+          this.cameraManager.getMinZoom(),
+          this.cameraManager.getMaxZoom()
         );
 
         if (Math.abs(targetZoom - currentZoom) > 0.01) {
@@ -594,10 +594,10 @@ export class GameScene extends Phaser.Scene {
       ? this.inputManager.getTargetRocketAngleRadians() // Re-calculate with offset for display consistency
       : null;
 
+    const rawOrientation = this.inputManager.getRawOrientation();
+
     const currentState: InputDebugState = {
-      keysDown: Object.entries(this.inputManager.registeredKeys)
-        .filter(([, key]) => key.isDown)
-        .map(([code]) => code),
+      keysDown: this.inputManager.getKeysDown(), // Use the new public method
       pointer1: pointer1State,
       pointer2: pointer2State,
       touchActive: this.touchActive,
@@ -605,9 +605,9 @@ export class GameScene extends Phaser.Scene {
       pinchDistance: currentPinchDistance,
       isThrusting: this.wasThrusting,
       orientation: {
-        alpha: null, // Placeholder - requires manager update
-        beta: null, // Placeholder - requires manager update
-        gamma: null, // Placeholder - requires manager update
+        alpha: rawOrientation?.alpha ?? null,
+        beta: rawOrientation?.beta ?? null,
+        gamma: rawOrientation?.gamma ?? null,
         targetAngleRad: finalOrientationAngle,
       },
     };

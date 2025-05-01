@@ -33,6 +33,7 @@ export class CameraManager extends BaseManager {
     this.config = { ...DEFAULT_CONFIG, ...config };
     this._currentZoom = 1; // Start at default zoom
     Logger.info(LOGGER_SOURCE, "CameraManager initialized.");
+    this.update(0, 0); // Initialize camera state
   }
 
   public static getInstance(): CameraManager {
@@ -86,6 +87,14 @@ export class CameraManager extends BaseManager {
 
   public get currentZoom(): number {
     return this._currentZoom;
+  }
+
+  public getMinZoom(): number {
+    return this.config.minZoom;
+  }
+
+  public getMaxZoom(): number {
+    return this.config.maxZoom;
   }
 
   private handleZoom(
