@@ -22,26 +22,11 @@ export class Player extends GameObject {
     isCurrentPlayer: boolean = false,
     config: PlayerConfigSchema // Add config parameter
   ) {
-    // Call the GameObject (Phaser.Physics.Matter.Sprite) constructor FIRST
-    // Pass minimal options, let setBody handle the complex shape
+    // Call the GameObject (Phaser.Physics.Matter.Sprite) constructor
     super(world, x, y, "rocket", undefined, {
       label: isCurrentPlayer
         ? `Player_Local_${sessionId}`
         : `Player_Remote_${sessionId}`,
-      // No shape here initially
-    });
-
-    // --- Define Physics Options AFTER super() ---
-    // Convert ArraySchema<VectorSchema> back to Array<{x,y}> for Matter
-    const bodyVertices = Array.from(config.vertices).map((v: VectorSchema) => ({
-      x: v.x,
-      y: v.y,
-    }));
-
-    // Restructure physicsOptions for setBody
-    const physicsOptions: Phaser.Types.Physics.Matter.MatterBodyConfig = {
-      // Removed: type: "vertices",
-      vertices: bodyVertices, // Pass vertices directly
       mass: config.mass,
       friction: config.friction,
       frictionAir: config.frictionAir,
@@ -50,12 +35,11 @@ export class Player extends GameObject {
         category: config.collisionCategory,
         mask: config.collisionMask,
       },
-    };
-
-    // --- Apply the custom body AFTER the sprite and default body exist ---
-    this.setBody(
-      physicsOptions as Phaser.Types.Physics.Matter.MatterSetBodyConfig
-    );
+      vertices: Array.from(config.vertices).map((v: VectorSchema) => ({
+        x: v.x,
+        y: v.y,
+      })),
+    });
 
     // --- Set Properties AFTER super() and setBody() ---
     this.isCurrentPlayer = isCurrentPlayer;

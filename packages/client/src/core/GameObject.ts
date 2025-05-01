@@ -1,5 +1,4 @@
 import Phaser from "phaser";
-import { Vector as MatterVector } from "matter-js";
 import type { PhysicsStateUpdate } from "@one-button-to-space/shared"; // Import the type
 import { Logger } from "@one-button-to-space/shared"; // Import the Logger
 
