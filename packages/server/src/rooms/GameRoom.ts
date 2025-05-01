@@ -236,6 +236,27 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
       );
     }
 
+    // --- Setup Message Handlers ---
+    this.onMessage("*", (client, type, message) => {
+      // Handle specific messages here
+      switch (type) {
+        case "ping":
+          // Immediately send back the original timestamp for RTT calculation
+          client.send("pong", message);
+          Logger.trace(LOGGER_SOURCE, `Sent pong to ${client.sessionId}`);
+          break;
+        // Add other message handlers as needed
+        default:
+          // Only log if we intend to handle it later, otherwise ignore
+          // Logger.trace(
+          //   LOGGER_SOURCE,
+          //   `Received unhandled message type "${type}" from ${client.sessionId}:`,
+          //   message,
+          // );
+          break;
+      }
+    });
+
     // Initialize last update time before starting loop
     Logger.debug(
       LOGGER_SOURCE,
@@ -571,12 +592,12 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
     });
 
     // --- ADDED: Ping/Pong Handler ---
-    this.onMessage<{ timestamp: number }>("ping", (client, message) => {
+    this.onMessage<number>("ping", (client, message) => {
       // Immediately send back a pong message to the specific client
-      // Echo the original timestamp to allow the client to calculate RTT
-      client.send("pong", { timestamp: message.timestamp });
+      // Echo the original timestamp number to allow the client to calculate RTT
+      client.send("pong", message);
       // Optional: Log ping reception if needed for debugging
-      // Logger.debug(LOGGER_SOURCE, `Received ping from ${client.sessionId}, sending pong.`);
+      // Logger.trace(LOGGER_SOURCE, `Received ping number ${message} from ${client.sessionId}, sending pong.`);
     });
     // --- END Ping/Pong Handler ---
 

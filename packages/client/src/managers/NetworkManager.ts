@@ -4,6 +4,7 @@ import { BaseManager } from "./BaseManager";
 // --- Type Imports ---
 import { Logger, PhysicsStateUpdate } from "@one-button-to-space/shared";
 import { RoomState as GameState } from "../schema/State"; // Import local GameState alias
+import { gameEmitter } from "../main"; // Ensure gameEmitter is imported
 
 // --- Manager Imports ---
 import { EntityManager } from "./EntityManager";
@@ -18,11 +19,28 @@ interface ConnectionOptions {
   // Add other options like authentication tokens, session IDs, etc.
 }
 
+// Define the structure for network stats
+export interface NetworkStats {
+  // Ensure interface is defined/exported
+  ping: number;
+  msgInPerSec: number;
+  msgOutPerSec: number;
+}
+
 export class NetworkManager extends BaseManager {
   protected static _instance: NetworkManager | null = null;
   private client: Client;
   private room: Room<GameState> | null = null; // Strongly typed room state
   private connectionOptions: ConnectionOptions | null = null;
+
+  // Network Stats Tracking
+  private incomingMessages = 0;
+  private outgoingMessages = 0;
+  private lastStatsUpdateTime = 0;
+  private pingValue = -1; // ms, -1 indicates not measured yet
+  private pingStartTime = 0;
+  private statsInterval: ReturnType<typeof setInterval> | null = null;
+  private readonly STATS_UPDATE_INTERVAL = 1000; // ms - Ensure this is defined
 
   private constructor() {
     super();
@@ -89,6 +107,7 @@ export class NetworkManager extends BaseManager {
       );
       Logger.trace(LOGGER_SOURCE, "Room joined successfully", this.room);
       this.setupRoomListeners();
+      this.startStatsUpdates(); // Start emitting stats
       return this.room;
     } catch (e: any) {
       Logger.error(LOGGER_SOURCE, "Failed to join room:", e);
@@ -99,11 +118,13 @@ export class NetworkManager extends BaseManager {
   }
 
   public async disconnect(): Promise<void> {
+    this.stopStatsUpdates(); // Stop emitting stats
     if (this.room) {
       const roomId = this.room.roomId;
       try {
         Logger.info(LOGGER_SOURCE, `Leaving room: ${roomId}`);
-        await this.room.leave(true);
+        // Pass false to leave immediately without waiting for graceful close
+        await this.room.leave(false);
         Logger.info(LOGGER_SOURCE, `Left room: ${roomId}`);
       } catch (e: any) {
         Logger.error(LOGGER_SOURCE, `Error leaving room ${roomId}:`, e);
@@ -117,23 +138,44 @@ export class NetworkManager extends BaseManager {
   }
 
   private setupRoomListeners(): void {
+    // Added more logging inside this method
     if (!this.room) return;
+
+    Logger.debug(LOGGER_SOURCE, "Setting up room listeners..."); // Added log
 
     // --- State Synchronization ---
     this.room.onStateChange.once((initialState: GameState) => {
       Logger.debug(LOGGER_SOURCE, "Initial state received.", initialState);
+      this.incomingMessages++; // Count initial state as one message
       EntityManager.getInstance().syncInitialState(initialState);
     });
 
     this.room.onStateChange((state: GameState) => {
+      this.incomingMessages++; // Count incremental state change
       Logger.trace(LOGGER_SOURCE, "Incremental state received.", state); // Too noisy
       EntityManager.getInstance().updateFromState(state);
     });
 
     // --- Custom Messages ---
     this.room.onMessage("*", (type, message) => {
-      Logger.trace(LOGGER_SOURCE, `Received message type "${type}"`, message); // Log raw message if needed
+      this.incomingMessages++; // Count every message
+      // Logger.trace(LOGGER_SOURCE, `Received message type "${type}"`, message); // Can be noisy
       switch (type) {
+        case "pong": // Handle pong for ping measurement
+          Logger.trace(LOGGER_SOURCE, "Received pong message", message); // Added log
+          if (typeof message === "number" && this.pingStartTime > 0) {
+            this.pingValue = Date.now() - message; // Use the timestamp sent back by server
+            this.pingStartTime = 0; // Reset ping start time
+            Logger.trace(LOGGER_SOURCE, `Ping measured: ${this.pingValue}ms`);
+          } else {
+            Logger.warn(
+              LOGGER_SOURCE,
+              "Received invalid pong message or ping not initiated:",
+              message
+            );
+          }
+          break;
+
         case "worldCreationTime":
           if (typeof message === "number") {
             Logger.setWorldCreationTime(message);
@@ -214,6 +256,7 @@ export class NetworkManager extends BaseManager {
       Logger.info(LOGGER_SOURCE, `Disconnected from room (code: ${code})`);
       const graceful = code === 1000;
       const wasConnected = !!this.room; // Check if we were actually connected
+      this.stopStatsUpdates(); // Ensure stats stop on leave
       this.room = null;
       this.connectionOptions = null;
       if (wasConnected) {
@@ -225,6 +268,7 @@ export class NetworkManager extends BaseManager {
         });
       }
     });
+    Logger.debug(LOGGER_SOURCE, "Finished setting up room listeners."); // Added log
   }
 
   /**
@@ -234,12 +278,81 @@ export class NetworkManager extends BaseManager {
    */
   public sendMessage(type: string | number, payload?: any): void {
     if (this.isConnected()) {
+      this.outgoingMessages++; // Count outgoing message
       this.room!.send(type, payload);
       // Logger.trace(LOGGER_SOURCE, `Sent message type "${type}"`, payload); // Can be noisy
     } else {
       Logger.warn(LOGGER_SOURCE, "Cannot send message, not connected.");
     }
   }
+
+  // --- Stats Methods ---
+
+  private sendPing(): void {
+    if (this.isConnected() && this.pingStartTime === 0) {
+      this.pingStartTime = Date.now();
+      this.sendMessage("ping", this.pingStartTime); // Send current time
+      Logger.trace(LOGGER_SOURCE, "Sent ping"); // Changed log level
+    }
+  }
+
+  private updateAndEmitStats(): void {
+    Logger.trace(LOGGER_SOURCE, "updateAndEmitStats called"); // Added log
+    const now = Date.now();
+    const deltaTime = (now - this.lastStatsUpdateTime) / 1000; // Delta in seconds
+
+    if (deltaTime > 0) {
+      const msgInPerSec = this.incomingMessages / deltaTime;
+      const msgOutPerSec = this.outgoingMessages / deltaTime;
+
+      const stats: NetworkStats = {
+        ping: this.pingValue,
+        msgInPerSec: msgInPerSec,
+        msgOutPerSec: msgOutPerSec,
+      };
+
+      Logger.trace(LOGGER_SOURCE, "Emitting networkStatsUpdate", stats); // Added log
+      gameEmitter.emit("networkStatsUpdate", stats);
+      // Logger.trace(LOGGER_SOURCE, "Network stats emitted", stats); // Can be noisy
+
+      // Reset counters for the next interval
+      this.incomingMessages = 0;
+      this.outgoingMessages = 0;
+      this.lastStatsUpdateTime = now;
+
+      // Initiate next ping measurement
+      this.sendPing();
+    }
+  }
+
+  private startStatsUpdates(): void {
+    this.stopStatsUpdates(); // Clear any existing interval
+    Logger.info(
+      LOGGER_SOURCE,
+      `Starting network stats updates every ${this.STATS_UPDATE_INTERVAL}ms`
+    ); // Keep info level
+    this.lastStatsUpdateTime = Date.now();
+    this.incomingMessages = 0;
+    this.outgoingMessages = 0;
+    this.pingValue = -1;
+    this.statsInterval = setInterval(
+      () => this.updateAndEmitStats(),
+      this.STATS_UPDATE_INTERVAL
+    );
+    this.sendPing(); // Initial ping
+  }
+
+  private stopStatsUpdates(): void {
+    if (this.statsInterval) {
+      Logger.info(LOGGER_SOURCE, "Stopping network stats updates");
+      clearInterval(this.statsInterval);
+      this.statsInterval = null;
+      this.pingValue = -1; // Reset ping on disconnect
+      this.pingStartTime = 0;
+    }
+  }
+
+  // --- Getters ---
 
   public isConnected(): boolean {
     // Check if room exists and the underlying connection is open
@@ -254,12 +367,15 @@ export class NetworkManager extends BaseManager {
     return this.room?.sessionId;
   }
 
+  // --- Lifecycle ---
+
   public override init(): void {
     // No specific init logic here, constructor handles setup
   }
 
   public override async destroy(): Promise<void> {
     Logger.info(LOGGER_SOURCE, "Network Manager Destroying");
+    this.stopStatsUpdates(); // Stop stats updates on destroy
     await this.disconnect(); // Ensure disconnection on destroy
     NetworkManager._instance = null;
   }
