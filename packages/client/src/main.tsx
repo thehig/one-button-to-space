@@ -89,28 +89,141 @@ function renderApp() {
     return;
   }
 
-  // Create root only if it doesn't exist
-  if (!reactRoot) {
-    Logger.debug(LOGGER_SOURCE, "React root does not exist, creating...");
-    reactRoot = ReactDOM.createRoot(rootElement);
-    Logger.debug(LOGGER_SOURCE, "React root created.");
+  const customRootProperty = "__reactRootInstance";
+
+  // Check if a root instance is already stored on the DOM element
+  if ((rootElement as any)[customRootProperty]) {
+    Logger.debug(
+      LOGGER_SOURCE,
+      "Found existing root instance on DOM element property. Reusing."
+    );
+    // Ensure our module variable is synced with the instance on the DOM
+    reactRoot = (rootElement as any)[customRootProperty] as ReactDOM.Root;
   } else {
-    Logger.debug(LOGGER_SOURCE, "React root already exists, reusing.");
+    // No root found on the element, create a new one
+    Logger.debug(
+      LOGGER_SOURCE,
+      "No root instance found on DOM element. Creating new root..."
+    );
+    try {
+      reactRoot = ReactDOM.createRoot(rootElement);
+      // Store the new root instance on the DOM element
+      (rootElement as any)[customRootProperty] = reactRoot;
+      Logger.debug(
+        LOGGER_SOURCE,
+        "React root created and stored on DOM element property."
+      );
+    } catch (error) {
+      Logger.error(LOGGER_SOURCE, "Error creating React root:", error);
+      // If creation fails, ensure reactRoot is null
+      reactRoot = null;
+      throw error; // Rethrow the error after logging
+    }
   }
 
-  // Render the app using the existing root
-  Logger.debug(LOGGER_SOURCE, "Calling reactRoot.render()...");
-  reactRoot.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
+  // Render the app using the root (if it exists)
+  if (reactRoot) {
+    Logger.debug(LOGGER_SOURCE, "Calling reactRoot.render()...");
+    reactRoot.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+    Logger.info(LOGGER_SOURCE, "React App rendered.");
+  }
+}
+
+// Function to handle cleanup
+function cleanupApp() {
+  Logger.info(
+    LOGGER_SOURCE,
+    "cleanupApp: Stopping scenes, destroying Phaser game, and resetting managers."
   );
-  Logger.info(LOGGER_SOURCE, "React App rendered.");
+  if (gameInstance) {
+    // Stop all active scenes first
+    gameInstance.scene.getScenes(true).forEach((scene) => {
+      Logger.debug(
+        LOGGER_SOURCE,
+        `Preparing to stop scene: ${scene.scene.key}`
+      );
+      try {
+        // 1. Clear entities while scene context is potentially still needed for entity cleanup
+        Logger.debug(
+          LOGGER_SOURCE,
+          `Clearing entities for scene: ${scene.scene.key}`
+        );
+        EntityManager.getInstance().clearEntities();
+
+        // 2. Stop the scene - this will trigger the scene's own shutdown() method
+        Logger.debug(
+          LOGGER_SOURCE,
+          `Stopping scene systems: ${scene.scene.key}`
+        );
+        if (scene && scene.sys && scene.sys.isActive()) {
+          scene.sys.game.scene.stop(scene.scene.key);
+        } else {
+          Logger.warn(
+            LOGGER_SOURCE,
+            `Scene ${scene.scene.key} or its systems not available for stopping.`
+          );
+        }
+      } catch (e) {
+        Logger.error(
+          LOGGER_SOURCE,
+          `Error during scene stop/cleanup for ${scene.scene.key}:`,
+          e
+        );
+      }
+    });
+
+    // 3. Now destroy the game instance itself
+    Logger.debug(LOGGER_SOURCE, "Destroying Phaser game instance.");
+    gameInstance.destroy(true);
+    gameInstance = null;
+  }
+  // 4. Reset global singletons *after* game destruction
+  Logger.debug(LOGGER_SOURCE, "Resetting global managers.");
+  SceneManager.resetInstance();
+  EntityManager.resetInstance(); // Reset the EntityManager *after* scenes are stopped/destroyed
+
+  // React root cleanup: Using custom property on DOM element
+  const rootElement = document.getElementById("root");
+  const customRootProperty = "__reactRootInstance";
+  if (rootElement && (rootElement as any)[customRootProperty]) {
+    Logger.debug(
+      LOGGER_SOURCE,
+      "cleanupApp: Found existing root instance on DOM element. Preparing to unmount."
+    );
+    const existingRoot = (rootElement as any)[
+      customRootProperty
+    ] as ReactDOM.Root;
+    existingRoot.unmount();
+    delete (rootElement as any)[customRootProperty]; // Remove the property
+    Logger.debug(
+      LOGGER_SOURCE,
+      "cleanupApp: Unmounted React root from DOM element and removed property."
+    );
+  } else {
+    Logger.debug(
+      LOGGER_SOURCE,
+      "cleanupApp: No existing root instance found on DOM element property."
+    );
+  }
+  // Always nullify the module variable as well
+  reactRoot = null;
 }
 
 // Function to handle initial setup and HMR re-initialization
 function initializeApp() {
-  Logger.debug(LOGGER_SOURCE, "initializeApp() called");
+  Logger.debug(
+    LOGGER_SOURCE,
+    "initializeApp() called - Performing cleanup first..."
+  );
+  cleanupApp(); // Call cleanup at the beginning
+  Logger.debug(
+    LOGGER_SOURCE,
+    "initializeApp() - Cleanup complete, proceeding with init."
+  );
   initGame();
   renderApp();
 }
@@ -124,63 +237,8 @@ Logger.debug(LOGGER_SOURCE, "Initial setup complete.");
 if (import.meta.hot) {
   // Use dispose for cleanup before the module is replaced
   import.meta.hot.dispose(() => {
-    Logger.info(
-      LOGGER_SOURCE,
-      "HMR dispose: Stopping scenes, destroying Phaser game, and resetting managers."
-    );
-    if (gameInstance) {
-      // Stop all active scenes first
-      gameInstance.scene.getScenes(true).forEach((scene) => {
-        Logger.debug(
-          LOGGER_SOURCE,
-          `Preparing to stop scene: ${scene.scene.key}`
-        );
-        try {
-          // 1. Clear entities while scene context is potentially still needed for entity cleanup
-          Logger.debug(
-            LOGGER_SOURCE,
-            `Clearing entities for scene: ${scene.scene.key}`
-          );
-          EntityManager.getInstance().clearEntities();
-
-          // 2. Stop the scene - this will trigger the scene's own shutdown() method
-          Logger.debug(
-            LOGGER_SOURCE,
-            `Stopping scene systems: ${scene.scene.key}`
-          );
-          if (scene && scene.sys && scene.sys.isActive()) {
-            scene.sys.game.scene.stop(scene.scene.key);
-          } else {
-            Logger.warn(
-              LOGGER_SOURCE,
-              `Scene ${scene.scene.key} or its systems not available for stopping.`
-            );
-          }
-        } catch (e) {
-          Logger.error(
-            LOGGER_SOURCE,
-            `Error during scene stop/cleanup for ${scene.scene.key}:`,
-            e
-          );
-        }
-      });
-
-      // 3. Now destroy the game instance itself
-      Logger.debug(LOGGER_SOURCE, "Destroying Phaser game instance.");
-      gameInstance.destroy(true);
-      gameInstance = null;
-    }
-    // 4. Reset global singletons *after* game destruction
-    Logger.debug(LOGGER_SOURCE, "Resetting global managers.");
-    SceneManager.resetInstance();
-    EntityManager.resetInstance(); // Reset the EntityManager *after* scenes are stopped/destroyed
-
-    // React root cleanup: Crucial for HMR to prevent conflicts
-    if (reactRoot) {
-      Logger.debug(LOGGER_SOURCE, "Unmounting React root.");
-      reactRoot.unmount();
-      reactRoot = null; // Clear the variable reference as well
-    }
+    Logger.info(LOGGER_SOURCE, "HMR dispose: Triggering cleanupApp.");
+    cleanupApp(); // Also call cleanup here for standard HMR flow
   });
 
   // Accept updates for this module
