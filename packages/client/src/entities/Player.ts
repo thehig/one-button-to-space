@@ -26,31 +26,18 @@ export class Player extends GameObject {
     config: PlayerConfigSchema // Add config parameter
   ) {
     // Call the GameObject (Phaser.Physics.Matter.Sprite) constructor
-    super(world, x, y, "rocket", undefined, {
-      label: isCurrentPlayer
-        ? `Player_Local_${sessionId}`
-        : `Player_Remote_${sessionId}`,
-      mass: config.mass,
-      friction: config.friction,
-      frictionAir: config.frictionAir,
-      restitution: config.restitution,
-      collisionFilter: {
-        category: config.collisionCategory,
-        mask: config.collisionMask,
-      },
-      vertices: Array.from(config.vertices).map((v: VectorSchema) => ({
-        x: v.x,
-        y: v.y,
-      })),
-    });
+    super(world, x, y, "rocket", undefined);
 
     // Store original texture dimensions
     const originalWidth = this.width;
     const originalHeight = this.height;
 
-    // Calculate body dimensions (using user's existing code)
-    const { x: minX, y: minY } = (this.body as Matter.Body).bounds.min;
-    const { x: maxX, y: maxY } = (this.body as Matter.Body).bounds.max;
+    // Calculate body dimensions from vertices
+    const vertices = config.vertices;
+    const minX = Math.min(...vertices.map((v) => v.x));
+    const maxX = Math.max(...vertices.map((v) => v.x));
+    const minY = Math.min(...vertices.map((v) => v.y));
+    const maxY = Math.max(...vertices.map((v) => v.y));
     const bodyWidth = maxX - minX;
     const bodyHeight = maxY - minY;
 
@@ -58,22 +45,30 @@ export class Player extends GameObject {
     const scaleX = bodyWidth / originalWidth;
     const scaleY = bodyHeight / originalHeight;
 
-    // Apply scale factors instead of setDisplaySize
+    // Apply scale factors (Only affects the size of the Texture/Sprite)
     this.setScale(scaleX, scaleY);
-    // Then scale UP the body by the inverse amount to keep the physics calculations correct
-    Matter.Body.scale(this.body as Matter.Body, 1 / scaleX, 1 / scaleY);
 
-    // Calculate the physics center relative to the body's top-left corner
-    const relativeCenterX = (this.body as Matter.Body).position.x - minX;
-    const relativeCenterY = (this.body as Matter.Body).position.y - minY;
-
-    // Normalize the relative center to get the origin (0-1 range)
-    // Avoid division by zero if dimensions are zero
-    const originX = bodyWidth > 0 ? relativeCenterX / bodyWidth : 0.5;
-    const originY = bodyHeight > 0 ? relativeCenterY / bodyHeight : 0.5;
-
-    // Set the sprite's origin to align its visual center with the body's center of mass
-    this.setOrigin(originX, originY);
+    // *** Re-apply the body definition AFTER scaling and origin setting ***
+    // This ensures the client-side physics body matches the intended shape.
+    this.setBody(
+      {},
+      {
+        // Pass other relevant options from config again
+        mass: config.mass,
+        friction: config.friction,
+        frictionAir: config.frictionAir,
+        restitution: config.restitution,
+        collisionFilter: {
+          category: config.collisionCategory,
+          mask: config.collisionMask,
+        },
+        // label: this.label, // Use the label already set
+        vertices: Array.from(config.vertices).map((v: VectorSchema) => ({
+          x: v.x,
+          y: v.y,
+        })),
+      }
+    );
 
     this.label = isCurrentPlayer
       ? `Player_Local_${sessionId}`

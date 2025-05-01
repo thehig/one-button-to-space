@@ -15,7 +15,7 @@ import { EntityManager } from "./managers/EntityManager"; // Import EntityManage
 // Create a set of sources to exclude
 const blacklistSources = new Set<string>([
   // "🧑‍🚀✨", // Player.ts
-  // "🌐", // NetworkManager.ts
+  "🌐", // NetworkManager.ts
 ]);
 
 // Invoke debugger after 1 second in development mode. Set to 0 to disable.
