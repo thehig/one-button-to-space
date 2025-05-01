@@ -1,25 +1,27 @@
 // Import file system and path modules
 import fs from "fs";
 import path from "path";
+
 // Import the generator function
 import { generatePlanetDataFromName } from "../utils/PlanetGenerator";
 import { ServerPhysicsManager } from "../physics/ServerPhysicsManager";
-import { Logger } from "@one-button-to-space/shared";
-
-// Import shared rocket vertices
-import { rocketVertices, CollisionCategory } from "@one-button-to-space/shared";
 
 import {
   RoomState,
   PlayerState,
   PlanetData,
   VectorSchema,
-  PlayerConfigSchema,
 } from "../schema/State";
 
-import { PlayerInputMessage } from "@one-button-to-space/shared";
-import { PhysicsLogic } from "@one-button-to-space/shared";
-import { Constants } from "@one-button-to-space/shared";
+import {
+  Logger,
+  rocketVertices,
+  CollisionCategory,
+  PlayerInputMessage,
+  PhysicsLogic,
+  Constants,
+} from "@one-button-to-space/shared";
+
 const {
   PLAYER_THRUST_FORCE,
   PLAYER_MASS,
@@ -28,8 +30,6 @@ const {
   SYNC_THRESHOLD_POSITION,
   SYNC_THRESHOLD_VELOCITY,
   SYNC_THRESHOLD_ANGLE,
-  PLAYER_WIDTH,
-  PLAYER_HEIGHT,
   PHYSICS_TIMESTEP_MS,
   INITIAL_ORBITAL_BUFFER,
   DEFAULT_SPAWN_AREA_SIZE,
@@ -102,7 +102,7 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
 
     // Initialize the game state
     Logger.debug(LOGGER_SOURCE, "onCreate: Initializing RoomState...");
-    this.setState(new RoomState());
+    this.state = new RoomState();
     Logger.info(LOGGER_SOURCE, "GameState initialized.");
     Logger.debug(LOGGER_SOURCE, "onCreate: RoomState initialized.");
 
@@ -112,20 +112,9 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
     this.state.playerConfig.friction = 0.05; // Example value, maybe move to Constants?
     this.state.playerConfig.frictionAir = PLAYER_FRICTION_AIR;
     this.state.playerConfig.restitution = 0.3; // Example value, maybe move to Constants?
-    // @ts-ignore - Acknowledge likely build/linking issue
-    this.state.playerConfig.collisionCategory = CollisionCategory.PLAYER; // Use PLAYER category
-    // @ts-ignore - Acknowledge likely build/linking issue
+    this.state.playerConfig.collisionCategory = CollisionCategory.ROCKET;
     this.state.playerConfig.collisionMask =
-      CollisionCategory.GROUND | CollisionCategory.PLAYER; // Collide with Ground and Players
-    this.state.playerConfig.textureWidth = 100; // Assumed base texture size
-    this.state.playerConfig.textureHeight = 100; // Assumed base texture size
-    this.state.playerConfig.visualWidth = PLAYER_WIDTH;
-    this.state.playerConfig.visualHeight = PLAYER_HEIGHT;
-    this.state.playerConfig.visualOffsetY = -11; // Example value, maybe move to Constants?
-    this.state.playerConfig.thrusterTexture1 = "thruster_001";
-    this.state.playerConfig.thrusterTexture2 = "thruster_002";
-    this.state.playerConfig.thrusterScaleFactor = 0.75; // Example value, maybe move to Constants?
-    this.state.playerConfig.thrusterOffsetYAdjust = -5; // Example value, maybe move to Constants?
+      CollisionCategory.GROUND | CollisionCategory.ROCKET; // Collide with Ground and Players
 
     // Convert and add vertices
     rocketVertices.forEach((v) => {

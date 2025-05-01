@@ -17,8 +17,7 @@ export class ServerPhysicsManager {
     this.world = this.engine.world;
 
     // Disable default world gravity, as we'll likely apply custom forces
-    this.world.gravity.x = 0;
-    this.world.gravity.y = 0;
+    this.engine.gravity.scale = 0;
 
     Logger.info(
       LOGGER_SOURCE,

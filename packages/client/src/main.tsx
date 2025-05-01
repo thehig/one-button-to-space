@@ -20,7 +20,7 @@ const blacklistSources = new Set<string>([
 ]);
 
 // Invoke debugger after 1 second in development mode. Set to 0 to disable.
-const DEBUG_DELAY = 1000;
+const DEBUG_DELAY = 0;
 
 // Set log level to TRACE, but blacklist specific sources
 Logger.setFilters(LogLevel.TRACE, undefined, blacklistSources);
