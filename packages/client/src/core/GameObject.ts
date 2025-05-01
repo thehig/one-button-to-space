@@ -20,9 +20,12 @@ export abstract class GameObject extends Phaser.Physics.Matter.Sprite {
     y: number,
     texture: string,
     frame?: string | number,
-    options?: Phaser.Types.Physics.Matter.MatterBodyConfig
+    options?: Phaser.Types.Physics.Matter.MatterBodyConfig,
+    name?: string
   ) {
     super(world, x, y, texture, frame, options);
+
+    this.name = name || this.constructor.name;
 
     // Initialize target state to initial state
     this.targetX = x;

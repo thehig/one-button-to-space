@@ -15,9 +15,12 @@ import { EntityManager } from "./managers/EntityManager"; // Import EntityManage
 // -- Logging Setup --
 // Create a set of sources to exclude
 const blacklistSources = new Set<string>([
-  "🧑‍🚀✨", // Player.ts
-  "🌐", // NetworkManager.ts
+  // "🧑‍🚀✨", // Player.ts
+  // "🌐", // NetworkManager.ts
 ]);
+
+// Invoke debugger after 1 second in development mode. Set to 0 to disable.
+const DEBUG_DELAY = 1000;
 
 // Set log level to TRACE, but blacklist specific sources
 Logger.setFilters(LogLevel.TRACE, undefined, blacklistSources);
@@ -197,8 +200,7 @@ if (import.meta.hot) {
 }
 
 // --- Debug Timer ---
-if (import.meta.env.DEV) {
-  const DEBUG_DELAY = 3000; // 3 seconds
+if (import.meta.env.DEV && DEBUG_DELAY > 0) {
   Logger.info(
     LOGGER_SOURCE,
     `Setting up debugger to trigger in ${DEBUG_DELAY / 1000} seconds.`

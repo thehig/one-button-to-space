@@ -233,6 +233,8 @@ export class EntityManager extends BaseManager {
     }
     const playerConfig = this.currentRoomState.playerConfig;
 
+    Logger.trace(LOGGER_SOURCE, "Creating Player", playerConfig);
+
     let player = this.entities.get(sessionId) as Player | undefined;
 
     if (!player) {

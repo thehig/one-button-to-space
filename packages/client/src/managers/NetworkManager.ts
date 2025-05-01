@@ -87,6 +87,7 @@ export class NetworkManager extends BaseManager {
         LOGGER_SOURCE,
         `Joined room: ${this.room.roomId}, Session ID: ${this.room.sessionId}`
       );
+      Logger.trace(LOGGER_SOURCE, "Room joined successfully", this.room);
       this.setupRoomListeners();
       return this.room;
     } catch (e: any) {
