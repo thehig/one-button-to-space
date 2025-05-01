@@ -23,8 +23,20 @@ const LOGGER_SOURCE = "🎮🕹️";
 // Define the interface for the state we'll emit
 interface InputDebugState {
   keysDown: string[];
-  pointer1: { id: number; x: number; y: number; active: boolean };
-  pointer2: { id: number; x: number; y: number; active: boolean };
+  pointer1: {
+    id: number;
+    x: number;
+    y: number;
+    active: boolean;
+    isDown: boolean;
+  };
+  pointer2: {
+    id: number;
+    x: number;
+    y: number;
+    active: boolean;
+    isDown: boolean;
+  };
   isPinching: boolean;
   pinchDistance: number;
   isThrusting: boolean;
@@ -150,6 +162,9 @@ export class GameScene extends Phaser.Scene {
             LOGGER_SOURCE,
             "Mobile device detected, setting up touch listeners and attempting orientation."
           );
+          // Explicitly enable listening for a second pointer
+          this.input.addPointer(1);
+
           // Add tap listeners
           this.input.on(
             Phaser.Input.Events.POINTER_DOWN,
@@ -582,11 +597,11 @@ export class GameScene extends Phaser.Scene {
 
     // Safely get pointer states
     const pointer1State = p1
-      ? { id: p1.id, x: p1.x, y: p1.y, active: p1.active }
-      : { id: -1, x: 0, y: 0, active: false };
+      ? { id: p1.id, x: p1.x, y: p1.y, active: p1.active, isDown: p1.isDown }
+      : { id: -1, x: 0, y: 0, active: false, isDown: false };
     const pointer2State = p2
-      ? { id: p2.id, x: p2.x, y: p2.y, active: p2.active }
-      : { id: -1, x: 0, y: 0, active: false };
+      ? { id: p2.id, x: p2.x, y: p2.y, active: p2.active, isDown: p2.isDown }
+      : { id: -1, x: 0, y: 0, active: false, isDown: false };
 
     // Get orientation data - NOTE: Requires access to raw data
     // For now, just showing the final angle. Need InputManager/DeviceOrientationManager update for raw data.

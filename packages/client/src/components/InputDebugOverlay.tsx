@@ -5,8 +5,20 @@ import { gameEmitter } from "../main"; // Adjust path if needed
 // Define the interface matching the emitted state from GameScene
 interface InputDebugState {
   keysDown: string[];
-  pointer1: { id: number; x: number; y: number; active: boolean };
-  pointer2: { id: number; x: number; y: number; active: boolean };
+  pointer1: {
+    id: number;
+    x: number;
+    y: number;
+    active: boolean;
+    isDown: boolean;
+  };
+  pointer2: {
+    id: number;
+    x: number;
+    y: number;
+    active: boolean;
+    isDown: boolean;
+  };
   isPinching: boolean;
   pinchDistance: number;
   isThrusting: boolean;
@@ -21,8 +33,8 @@ interface InputDebugState {
 
 const InitialInputState: InputDebugState = {
   keysDown: [],
-  pointer1: { id: -1, x: 0, y: 0, active: false },
-  pointer2: { id: -1, x: 0, y: 0, active: false },
+  pointer1: { id: -1, x: 0, y: 0, active: false, isDown: false },
+  pointer2: { id: -1, x: 0, y: 0, active: false, isDown: false },
   isPinching: false,
   pinchDistance: 0,
   isThrusting: false,
@@ -91,25 +103,30 @@ export const InputDebugOverlay: React.FC = () => {
         <>
           --- Touch ---
           <br />
-          P1:{" "}
-          {inputState.pointer1.active
-            ? `Active (ID: ${inputState.pointer1.id}) @ ${formatPos(
-                inputState.pointer1
-              )}`
-            : "Inactive"}
-          <br />
-          P2:{" "}
-          {inputState.pointer2.active
-            ? `Active (ID: ${inputState.pointer2.id}) @ ${formatPos(
-                inputState.pointer2
-              )}`
-            : "Inactive"}
-          <br />
-          Pinching:{" "}
-          {inputState.isPinching
-            ? `YES (Dist: ${inputState.pinchDistance.toFixed(1)})`
-            : "NO"}
-          <br />
+          {inputState.pointer1.isDown && (
+            <>
+              P1 (ID: {inputState.pointer1.id}):{" "}
+              {formatPos(inputState.pointer1)}
+              <br />
+            </>
+          )}
+          {inputState.pointer2.isDown && (
+            <>
+              P2 (ID: {inputState.pointer2.id}):{" "}
+              {formatPos(inputState.pointer2)}
+              <br />
+            </>
+          )}
+          {/* Only show pinching info if relevant (both pointers down) */}
+          {inputState.pointer1.isDown && inputState.pointer2.isDown && (
+            <>
+              Pinching:{" "}
+              {inputState.isPinching
+                ? `YES (Dist: ${inputState.pinchDistance.toFixed(1)})`
+                : "NO"}
+              <br />
+            </>
+          )}
           --- Orientation ---
           <br />
           Alpha: {formatDeg(inputState.orientation.alpha)}
