@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import Matter from "matter-js";
 import { GameObject } from "../core/GameObject";
 import { PlayerState, PlayerConfigSchema, VectorSchema } from "../schema/State"; // Import VectorSchema
 import { Logger } from "@one-button-to-space/shared"; // Import Logger & shared CollisionCategory
@@ -7,6 +8,7 @@ import { Logger } from "@one-button-to-space/shared"; // Import Logger & shared 
 const LOGGER_SOURCE = "🧑‍🚀✨";
 
 export class Player extends GameObject {
+  public label: string;
   public isCurrentPlayer: boolean;
   private _isThrusting: boolean = false;
 
@@ -41,7 +43,33 @@ export class Player extends GameObject {
       })),
     });
 
-    // --- Set Properties AFTER super() and setBody() ---
+    // Store original texture dimensions
+    const originalWidth = this.width;
+    const originalHeight = this.height;
+
+    // Calculate body dimensions (using user's existing code)
+    const { x: minX, y: minY } = (this.body as Matter.Body).bounds.min;
+    const { x: maxX, y: maxY } = (this.body as Matter.Body).bounds.max;
+    const bodyWidth = maxX - minX;
+    const bodyHeight = maxY - minY;
+
+    // Calculate scale factors
+    const scaleX = bodyWidth / originalWidth;
+    const scaleY = bodyHeight / originalHeight;
+
+    // Shrink the sprite to fit the vertices
+    (this.body?.gameObject as Phaser.GameObjects.Sprite).setScale(
+      scaleX,
+      scaleY
+    );
+    // Then scale UP the body by the inverse amount to keep the physics calculations correct
+    Matter.Body.scale(this.body as Matter.Body, 1 / scaleX, 1 / scaleY);
+
+    this.label = isCurrentPlayer
+      ? `Player_Local_${sessionId}`
+      : `Player_Remote_${sessionId}`;
+
+    // --- Set Properties AFTER super() ---
     this.isCurrentPlayer = isCurrentPlayer;
     this.sessionId = sessionId;
 
