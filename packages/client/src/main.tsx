@@ -7,7 +7,6 @@ import { BootScene } from "./core/scenes/BootScene.ts";
 import { GameScene } from "./core/scenes/GameScene.ts";
 import { MainMenuScene } from "./core/scenes/MainMenuScene.ts"; // Import the new scene
 import { Logger, LogLevel } from "@one-button-to-space/shared"; // Import Logger
-import { run } from "./core/Game";
 import { EventEmitter } from "./utils/EventEmitter"; // Import the EventEmitter
 import { SceneManager } from "./managers/SceneManager"; // Corrected Import SceneManager
 import { EntityManager } from "./managers/EntityManager"; // Import EntityManager

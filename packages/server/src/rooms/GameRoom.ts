@@ -15,8 +15,6 @@ import {
 
 import {
   Logger,
-  rocketVertices,
-  CollisionCategory,
   PlayerInputMessage,
   PhysicsLogic,
   Constants,
@@ -34,6 +32,12 @@ const {
   INITIAL_ORBITAL_BUFFER,
   DEFAULT_SPAWN_AREA_SIZE,
   MAX_PLAYERS,
+  PLAYER_FRICTION,
+  PLAYER_RESTITUTION,
+  DEFAULT_ATMOSPHERE_HEIGHT,
+  ANGULAR_VELOCITY_SNAP_THRESHOLD,
+  CollisionCategory,
+  rocketVertices,
 } = Constants;
 
 // Import Matter.js types
@@ -109,9 +113,9 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
     // --- Populate Player Configuration --- //
     Logger.debug(LOGGER_SOURCE, "onCreate: Populating playerConfig...");
     this.state.playerConfig.mass = PLAYER_MASS;
-    this.state.playerConfig.friction = 0.05; // Example value, maybe move to Constants?
+    this.state.playerConfig.friction = PLAYER_FRICTION;
     this.state.playerConfig.frictionAir = PLAYER_FRICTION_AIR;
-    this.state.playerConfig.restitution = 0.3; // Example value, maybe move to Constants?
+    this.state.playerConfig.restitution = PLAYER_RESTITUTION;
     this.state.playerConfig.collisionCategory = CollisionCategory.ROCKET;
     this.state.playerConfig.collisionMask =
       CollisionCategory.GROUND | CollisionCategory.ROCKET; // Collide with Ground and Players
@@ -177,7 +181,8 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
             y: worldPlanet.y,
             radius: basePlanetData.radius,
             mass: basePlanetData.mass,
-            atmosphereHeight: basePlanetData.atmosphereHeight,
+            atmosphereHeight:
+              basePlanetData.atmosphereHeight ?? DEFAULT_ATMOSPHERE_HEIGHT,
             surfaceDensity: basePlanetData.surfaceDensity,
             seed: worldPlanet.name, // Use name as seed for consistency
           });
@@ -322,7 +327,10 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
           // 3. Apply Angular Damping
           const dampingFactor = 1 - PLAYER_ANGULAR_DAMPING; // Damping factor (e.g., 0.95 for 0.05 damping)
           // Ensure angular velocity doesn't get infinitesimally small causing NaN issues
-          if (Math.abs(playerBody.angularVelocity) > 0.0001) {
+          if (
+            Math.abs(playerBody.angularVelocity) >
+            ANGULAR_VELOCITY_SNAP_THRESHOLD
+          ) {
             Matter.Body.setAngularVelocity(
               playerBody,
               playerBody.angularVelocity * dampingFactor
@@ -595,7 +603,7 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
       if (firstPlanetState) {
         const orbitalDistance =
           firstPlanetState.radius +
-          (firstPlanetState.atmosphereHeight ?? 50) +
+          (firstPlanetState.atmosphereHeight ?? DEFAULT_ATMOSPHERE_HEIGHT) +
           INITIAL_ORBITAL_BUFFER;
         const randomAngle = Math.random() * Math.PI * 2;
         player.x = firstPlanetState.x + orbitalDistance * Math.cos(randomAngle);

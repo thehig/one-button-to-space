@@ -12,6 +12,15 @@ const LOGGER_SOURCE = "🧑‍🚀✨";
 const THRUSTER_FLICKER_RATE = 50; // ms per thruster animation frame
 const PLAYER_DEPTH = 10; // Render depth
 const THRUSTER_DEPTH = 9; // Render depth (behind player)
+const VISUAL_WIDTH = 40; // Target visual width
+const VISUAL_HEIGHT = 100; // Target visual height
+const TEXTURE_WIDTH = 64; // Actual width of the rocket texture frame
+const TEXTURE_HEIGHT = 128; // Actual height of the rocket texture frame
+const THRUSTER_TEXTURE_1 = "thruster1"; // Texture key for thruster frame 1
+const THRUSTER_TEXTURE_2 = "thruster2"; // Texture key for thruster frame 2
+const THRUSTER_OFFSET_Y_ADJUST = 5; // Fine-tune thruster vertical position relative to bottom center
+const VISUAL_OFFSET_Y = 0; // Optional global offset for the visual sprite
+const THRUSTER_SCALE_FACTOR = 1.0; // Scale factor for the thruster sprite relative to player
 
 export class Player extends GameObject {
   public isCurrentPlayer: boolean;
@@ -49,23 +58,24 @@ export class Player extends GameObject {
       x: v.x,
       y: v.y,
     }));
-    const physicsOptions = {
-      type: "vertices",
-      verts: [bodyVertices], // Use converted vertices from config
+
+    // Restructure physicsOptions for setBody
+    const physicsOptions: Phaser.Types.Physics.Matter.MatterBodyConfig = {
+      // Removed: type: "vertices",
+      vertices: bodyVertices, // Pass vertices directly
       mass: config.mass,
       friction: config.friction,
       frictionAir: config.frictionAir,
       restitution: config.restitution,
       collisionFilter: {
-        // @ts-ignore - Acknowledge likely build/linking issue
+        // @ts-ignore - Kept for now, but might be removable if types align
         category: config.collisionCategory,
-        // @ts-ignore - Acknowledge likely build/linking issue
+        // @ts-ignore - Kept for now, but might be removable if types align
         mask: config.collisionMask,
       },
     };
 
     // --- Apply the custom body AFTER the sprite and default body exist ---
-    // The type assertion might be needed if TS still complains
     this.setBody(
       physicsOptions as Phaser.Types.Physics.Matter.MatterSetBodyConfig
     );
@@ -78,27 +88,26 @@ export class Player extends GameObject {
     // --- Visual Setup (on `this` Player object) ---
     const rocketColor = this._generateColorFromId(this.sessionId);
     this.setTint(rocketColor);
-    // Scale the main sprite based on config
-    const scaleX = config.visualWidth / config.textureWidth;
-    const scaleY = config.visualHeight / config.textureHeight;
+    // Scale the main sprite based on constants
+    const scaleX = VISUAL_WIDTH / TEXTURE_WIDTH;
+    const scaleY = VISUAL_HEIGHT / TEXTURE_HEIGHT;
     this.setScale(scaleX, scaleY);
     this.setDepth(PLAYER_DEPTH); // Use client-side constant
 
     // --- Create Thruster Sprite --- (Manually managed)
-    // Calculate offset based on config
-    const thrusterBaseY =
-      config.visualHeight * 0.5 + config.thrusterOffsetYAdjust;
-    const thrusterYOffset = thrusterBaseY * scaleY + config.visualOffsetY;
+    // Calculate offset based on constants
+    const thrusterBaseY = VISUAL_HEIGHT * 0.5 + THRUSTER_OFFSET_Y_ADJUST;
+    const thrusterYOffset = thrusterBaseY * scaleY + VISUAL_OFFSET_Y;
 
     this.thrusterSprite = this.scene.add.sprite(
       this.x, // Initial position, will follow Player
       this.y + thrusterYOffset, // Apply offset relative to player center
-      config.thrusterTexture1 // Use texture key from config
+      THRUSTER_TEXTURE_1 // Use constant texture key
     );
     this.thrusterSprite.setOrigin(0.5, 0); // Top-center origin
     this.thrusterSprite.setScale(
-      config.thrusterScaleFactor * scaleX,
-      config.thrusterScaleFactor * scaleY
+      THRUSTER_SCALE_FACTOR * scaleX,
+      THRUSTER_SCALE_FACTOR * scaleY
     );
     this.thrusterSprite.setDepth(THRUSTER_DEPTH); // Use client-side constant
     this.thrusterSprite.setVisible(false); // Initially hidden
@@ -144,16 +153,10 @@ export class Player extends GameObject {
 
     // --- Update Thruster Position --- (Follow Player)
     const scaleY = this.scaleY; // Use current visual scale
-    // Calculate offset based on config and current scale
-    // Use the stored config instead of scene data
-    const config = this.config;
-    if (!config) {
-      Logger.warn(LOGGER_SOURCE, "Player config missing in preUpdate");
-      return;
-    }
+    // Calculate offset based on constants and current scale
     const thrusterBaseOffsetY =
-      (config.visualHeight * 0.5 + config.thrusterOffsetYAdjust) * scaleY +
-      config.visualOffsetY;
+      (VISUAL_HEIGHT * 0.5 + THRUSTER_OFFSET_Y_ADJUST) * scaleY +
+      VISUAL_OFFSET_Y;
     // Calculate position relative to the rotated player
     const angle = this.rotation;
     const offsetX = Math.sin(angle) * thrusterBaseOffsetY;
@@ -167,7 +170,7 @@ export class Player extends GameObject {
       // Simple flicker based on current time
       const showFrame1 = Math.floor(time / THRUSTER_FLICKER_RATE) % 2 === 0;
       this.thrusterSprite.setTexture(
-        showFrame1 ? config.thrusterTexture1 : config.thrusterTexture2
+        showFrame1 ? THRUSTER_TEXTURE_1 : THRUSTER_TEXTURE_2 // Use constants
       );
     }
   }
@@ -179,16 +182,7 @@ export class Player extends GameObject {
       this.thrusterSprite.setVisible(this._isThrusting);
       if (!this._isThrusting) {
         // Reset to default frame when hidden
-        // Use the stored config instead of scene data
-        const config = this.config;
-        if (!config) {
-          Logger.warn(
-            LOGGER_SOURCE,
-            "Player config missing in updateThrusterVisual"
-          );
-          return;
-        }
-        this.thrusterSprite.setTexture(config.thrusterTexture1);
+        this.thrusterSprite.setTexture(THRUSTER_TEXTURE_1); // Use constant
       }
     }
   }

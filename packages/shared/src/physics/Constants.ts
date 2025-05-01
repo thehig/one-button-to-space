@@ -4,22 +4,52 @@
 
 export const MAX_PLAYERS = 256;
 
+// --- World Physics ---
 export const G = 0.005; // Gravitational constant (adjust for gameplay)
 export const DRAG_COEFFICIENT = 0.01; // Air resistance coefficient (adjust for gameplay)
+export const DEFAULT_ATMOSPHERE_HEIGHT = 50; // Default planet atmosphere height if not specified
 
-// Constants for player physics body used on server and potentially client prediction
+// --- Player Physics ---
 export const PLAYER_THRUST_FORCE = 0.0005;
 export const PLAYER_MASS = 10; // Mass of the player rocket
+export const PLAYER_FRICTION = 0.05; // Surface friction (e.g., when landed)
 export const PLAYER_FRICTION_AIR = 0; // Air friction for the rocket (Set to 0 to rely on custom DRAG_COEFFICIENT logic)
+export const PLAYER_RESTITUTION = 0.3; // Bounciness (0=none, 1=perfectly elastic)
 export const PLAYER_ANGULAR_DAMPING = 0.05; // Damping factor to reduce spin over time (0 = no damping, 1 = immediate stop)
-export const PLAYER_WIDTH = 40;
-export const PLAYER_HEIGHT = 100;
+export const ANGULAR_VELOCITY_SNAP_THRESHOLD = 0.0001; // Threshold below which angular velocity snaps to 0
+export const PLAYER_WIDTH = 40; // Visual/approximate width
+export const PLAYER_HEIGHT = 100; // Visual/approximate height
 
-// Physics Engine Settings
+/**
+ * Defines the vertices for the rocket's physics collision shape.
+ * Vertices are relative to the body's center (0,0).
+ * Must be convex and defined in clockwise or counter-clockwise order.
+ */
+export const rocketVertices = [
+  { x: 0, y: -50 }, // Nose tip
+  { x: 10, y: -40 }, // Right shoulder (narrower)
+  { x: 10, y: 35 }, // Right side base (narrower)
+  { x: 20, y: 50 }, // Right fin tip (slightly narrower)
+  { x: -20, y: 50 }, // Left fin tip (slightly narrower)
+  { x: -10, y: 35 }, // Left side base (narrower)
+  { x: -10, y: -40 }, // Left shoulder (narrower)
+];
+
+/**
+ * Defines shared collision categories for Matter.js physics bodies.
+ * Uses powers of 2 for bitmasking.
+ */
+export const CollisionCategory = {
+  ROCKET: 0x0001, // Category 1 (bit 0)
+  GROUND: 0x0002, // Category 2 (bit 1)
+  // Add more categories later (e.g., DEBRIS: 0x0004, LANDING_PAD: 0x0008)
+};
+
+// --- Physics Engine Settings ---
 export const PHYSICS_TICK_RATE_HZ = 60;
 export const PHYSICS_TIMESTEP_MS = 1000 / PHYSICS_TICK_RATE_HZ;
 
-// Player Spawning
+// --- Player Spawning ---
 export const INITIAL_ORBITAL_BUFFER = 100; // Extra distance above atmosphere for initial spawn
 export const DEFAULT_SPAWN_AREA_SIZE = 100; // Range for random spawn if no planets exist
 

@@ -1,7 +1,8 @@
 import Phaser from "phaser";
 import { GameObject } from "../core/GameObject";
 import { PlanetData } from "../schema/State"; // Import server state definition
-import { CollisionCategory } from "@one-button-to-space/shared"; // Assuming categories are shared
+import { Constants } from "@one-button-to-space/shared"; // Assuming categories are shared
+const { CollisionCategory } = Constants;
 import { Logger } from "@one-button-to-space/shared"; // Import Logger
 import { createNoise2D } from "simplex-noise"; // Import noise library
 
