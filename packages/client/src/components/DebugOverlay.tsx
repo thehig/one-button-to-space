@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { gameEmitter } from "../main"; // Import the global emitter
-import { NetworkStats } from "../managers/NetworkManager"; // Import the interface
-import { Logger } from "@one-button-to-space/shared"; // Import Logger
-
-// Logger Source for this component
-const LOGGER_SOURCE = "⚛️📊";
 
 interface DebugData {
   fps: number;
@@ -18,11 +13,6 @@ interface DebugData {
 const DebugOverlay: React.FC = () => {
   const [phaserVersion, setPhaserVersion] = useState<string>("");
   const [debugData, setDebugData] = useState<DebugData | null>(null);
-  const [networkStats, setNetworkStats] = useState<NetworkStats>({
-    ping: -1,
-    msgInPerSec: 0,
-    msgOutPerSec: 0,
-  });
 
   useEffect(() => {
     // Listener for continuous updates
@@ -41,27 +31,10 @@ const DebugOverlay: React.FC = () => {
       handlePhaserVersion
     );
 
-    // Listener for continuous network stats updates
-    const handleNetworkStatsUpdate = (stats: NetworkStats) => {
-      Logger.debug(
-        LOGGER_SOURCE,
-        "Received networkStatsUpdate",
-        `${stats.ping}ms`,
-        `In/s: ${stats.msgInPerSec.toFixed(0)}`,
-        `Out/s: ${stats.msgOutPerSec.toFixed(0)}`
-      ); // Use Logger.debug
-      setNetworkStats(stats); // Add this line back to update the state
-    };
-    const unsubscribeNetworkStats = gameEmitter.on(
-      "networkStatsUpdate",
-      handleNetworkStatsUpdate
-    );
-
     // Cleanup listeners on component unmount
     return () => {
       unsubscribeUpdate();
       unsubscribeVersion();
-      unsubscribeNetworkStats();
     };
   }, []); // Empty dependency array ensures this runs only on mount and unmount
 
@@ -102,11 +75,6 @@ const DebugOverlay: React.FC = () => {
           )}
         </>
       )}
-      <div>
-        Ping: {networkStats.ping >= 0 ? `${networkStats.ping}ms` : "N/A"} ⬇️{" "}
-        {networkStats.msgInPerSec.toFixed(0)}/s ⬆️{" "}
-        {networkStats.msgOutPerSec.toFixed(0)}/s
-      </div>
     </div>
   );
 };

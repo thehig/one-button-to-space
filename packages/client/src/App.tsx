@@ -2,6 +2,7 @@ import React from "react";
 import { Logger } from "@one-button-to-space/shared";
 import "./App.css"; // Optional: for App-specific styles
 import DebugOverlay from "./components/DebugOverlay"; // Import the new component
+import NetworkOverlay from "./components/NetworkOverlay"; // Import the NetworkOverlay
 import Compass from "./components/Compass"; // Import the Compass component
 import { InputDebugOverlay } from "./components/InputDebugOverlay"; // Import the new input debug component
 
@@ -21,6 +22,9 @@ function App() {
     <div className="App">
       {/* Render the Debug Overlay only in development */}
       {import.meta.env.DEV && <DebugOverlay />}
+
+      {/* Render the Network Overlay only in development */}
+      {import.meta.env.DEV && <NetworkOverlay />}
 
       {/* Render the Input Debug Overlay only in development */}
       {import.meta.env.DEV && <InputDebugOverlay />}
