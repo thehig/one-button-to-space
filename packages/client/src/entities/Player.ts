@@ -11,6 +11,7 @@ export class Player extends GameObject {
   public label: string;
   public isCurrentPlayer: boolean;
   private _isThrusting: boolean = false;
+  private debugGraphics: Phaser.GameObjects.Graphics | null = null; // For debug drawing
 
   public sessionId: string; // Add sessionId property
   public latestVx: number = 0; // Store latest server velocity X
@@ -57,13 +58,22 @@ export class Player extends GameObject {
     const scaleX = bodyWidth / originalWidth;
     const scaleY = bodyHeight / originalHeight;
 
-    // Shrink the sprite to fit the vertices
-    (this.body?.gameObject as Phaser.GameObjects.Sprite).setScale(
-      scaleX,
-      scaleY
-    );
+    // Apply scale factors instead of setDisplaySize
+    this.setScale(scaleX, scaleY);
     // Then scale UP the body by the inverse amount to keep the physics calculations correct
     Matter.Body.scale(this.body as Matter.Body, 1 / scaleX, 1 / scaleY);
+
+    // Calculate the physics center relative to the body's top-left corner
+    const relativeCenterX = (this.body as Matter.Body).position.x - minX;
+    const relativeCenterY = (this.body as Matter.Body).position.y - minY;
+
+    // Normalize the relative center to get the origin (0-1 range)
+    // Avoid division by zero if dimensions are zero
+    const originX = bodyWidth > 0 ? relativeCenterX / bodyWidth : 0.5;
+    const originY = bodyHeight > 0 ? relativeCenterY / bodyHeight : 0.5;
+
+    // Set the sprite's origin to align its visual center with the body's center of mass
+    this.setOrigin(originX, originY);
 
     this.label = isCurrentPlayer
       ? `Player_Local_${sessionId}`
@@ -75,6 +85,10 @@ export class Player extends GameObject {
 
     // Attach this GameObject instance to the Matter body for collision identification
     this.body!.gameObject = this;
+
+    // Initialize debug graphics
+    this.debugGraphics = this.scene.add.graphics();
+    // Optional: Set depth if needed, e.g., this.debugGraphics.setDepth(this.depth + 1);
   }
 
   // --- Getters/Setters for Thrust State ---
@@ -107,6 +121,21 @@ export class Player extends GameObject {
 
   // Override preUpdate for interpolation
   preUpdate(time: number, delta: number): void {
+    // Draw debug dots BEFORE interpolation shifts the visual position
+    if (this.debugGraphics && this.body) {
+      this.debugGraphics.clear();
+
+      // Dot for texture center (visual center using getCenter())
+      const visualCenter = this.getCenter(); // Center after scale/rotation
+      this.debugGraphics.fillStyle(0xff0000, 1); // Red for texture center
+      this.debugGraphics.fillCircle(visualCenter.x, visualCenter.y, 3);
+
+      // Dot for physics body center (center of mass)
+      const bodyCenter = this.body.position;
+      this.debugGraphics.fillStyle(0x0000ff, 1); // Blue for body center
+      this.debugGraphics.fillCircle(bodyCenter.x, bodyCenter.y, 3);
+    }
+
     super.preUpdate(time, delta); // IMPORTANT: Call base for interpolation
 
     // Removed thruster logic
@@ -115,6 +144,11 @@ export class Player extends GameObject {
   // --- Helper Methods ---
   // Override destroyGameObject to clean up
   public override destroyGameObject(): void {
+    // Destroy debug graphics
+    if (this.debugGraphics) {
+      this.debugGraphics.destroy();
+      this.debugGraphics = null;
+    }
     Logger.info(LOGGER_SOURCE, `Destroying player (ID: ${this.sessionId})`);
     super.destroyGameObject(); // Call base class destroy
   }

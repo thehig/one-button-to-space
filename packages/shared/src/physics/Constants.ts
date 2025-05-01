@@ -27,12 +27,12 @@ export const PLAYER_HEIGHT = 100; // Visual/approximate height
  */
 export const rocketVertices = [
   { x: 0, y: -50 }, // Nose tip
-  { x: 10, y: -40 }, // Right shoulder (narrower)
-  { x: 10, y: 35 }, // Right side base (narrower)
-  { x: 20, y: 50 }, // Right fin tip (slightly narrower)
-  { x: -20, y: 50 }, // Left fin tip (slightly narrower)
-  { x: -10, y: 35 }, // Left side base (narrower)
-  { x: -10, y: -40 }, // Left shoulder (narrower)
+  { x: 9, y: -40 }, // Right Shoulder
+  { x: 18, y: 35 }, // Right Fin Upper Edge (outward to trace wing)
+  { x: 18, y: 50 }, // Right Fin Lower Point
+  { x: -18, y: 50 }, // Left Fin Lower Point
+  { x: -18, y: 35 }, // Left Fin Upper Edge (outward to trace wing)
+  { x: -9, y: -40 }, // Left Shoulder
 ];
 
 /**
