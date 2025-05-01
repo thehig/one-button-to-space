@@ -20,7 +20,10 @@ import type { Player } from "../../entities/Player"; // Import Player type for c
 // Logger Source for this file
 const LOGGER_SOURCE = "🎮🕹️";
 
-const ANGLE_DELTA_THRESHOLD = 0.005; // Radians - only send if change exceeds this
+// Threshold for sending angle updates based on orientation
+const ORIENTATION_ANGLE_DELTA_THRESHOLD = Phaser.Math.DegToRad(2.5); // Radians (e.g., 2.5 degrees)
+
+const ANGLE_DELTA_THRESHOLD = 0.005; // Radians - only send if change exceeds this for KEYBOARD input
 
 /**
  * The main scene where the core game logic takes place.
@@ -115,6 +118,23 @@ export class GameScene extends Phaser.Scene {
           "DOWN", // Register down if needed
           "RIGHT",
         ]);
+
+        // --- Auto-start Orientation Listening on Mobile --- //
+        if (this.sys.game.device.input.touch) {
+          Logger.info(
+            LOGGER_SOURCE,
+            "Mobile device detected, attempting to start orientation listening."
+          );
+          // Delay slightly to ensure DOM/permissions might be ready after initial load
+          this.time.delayedCall(500, () => {
+            this.inputManager.startOrientationListening();
+          });
+        } else {
+          Logger.info(
+            LOGGER_SOURCE,
+            "Non-mobile device detected, orientation listening not started automatically."
+          );
+        }
 
         // Initial state sync will be triggered by NetworkManager listener
         this.time.delayedCall(100, () => {
@@ -260,46 +280,57 @@ export class GameScene extends Phaser.Scene {
     this.wasThrusting = isThrusting; // Update state for next frame
 
     // --- Rotation Input --- //
-    const rotateLeft =
-      this.inputManager.isKeyDown("A") || this.inputManager.isKeyDown("LEFT");
-    const rotateRight =
-      this.inputManager.isKeyDown("D") || this.inputManager.isKeyDown("RIGHT");
+    let targetAngle: number | null = null; // Initialize to null
+    let usingKeyboardRotation = false;
 
-    if (rotateLeft || rotateRight) {
-      const player = this.entityManager.getCurrentPlayer() as
-        | Player
-        | undefined;
-      if (player) {
-        const rotationDelta = (this.rotationSpeed * delta) / 1000; // Convert delta ms to seconds
-        let targetAngle = player.rotation; // Start with current visual angle
+    // --- Attempt Orientation Input ONLY if on mobile/touch device --- //
+    if (this.sys.game.device.input.touch) {
+      targetAngle = this.inputManager.getTargetRocketAngleRadians();
+    }
 
-        if (rotateLeft) {
-          targetAngle -= rotationDelta;
+    // Fallback to keyboard if orientation is not available/active
+    if (targetAngle === null) {
+      const rotateLeft =
+        this.inputManager.isKeyDown("A") || this.inputManager.isKeyDown("LEFT");
+      const rotateRight =
+        this.inputManager.isKeyDown("D") ||
+        this.inputManager.isKeyDown("RIGHT");
+
+      if (rotateLeft || rotateRight) {
+        const player = this.entityManager.getCurrentPlayer() as
+          | Player
+          | undefined;
+        if (player) {
+          usingKeyboardRotation = true;
+          const rotationDelta = (this.rotationSpeed * delta) / 1000; // Convert delta ms to seconds
+          let keyboardTargetAngle = this.lastSentAngle ?? player.rotation; // Start from last sent or current visual angle
+
+          if (rotateLeft) {
+            keyboardTargetAngle -= rotationDelta;
+          }
+          if (rotateRight) {
+            keyboardTargetAngle += rotationDelta;
+          }
+          targetAngle = Phaser.Math.Angle.Wrap(keyboardTargetAngle);
         }
-        if (rotateRight) {
-          targetAngle += rotationDelta;
-        }
+      }
+    }
 
-        // Normalize angle to be within -PI to PI
-        targetAngle = Phaser.Math.Angle.Wrap(targetAngle);
+    // --- Send Angle Update if Changed Significantly --- //
+    if (targetAngle !== null) {
+      const angleDifference =
+        this.lastSentAngle !== null
+          ? Math.abs(
+              Phaser.Math.Angle.ShortestBetween(this.lastSentAngle, targetAngle)
+            )
+          : Infinity; // Always send the first update
 
-        // --- Delta Check ---
-        // Only send if the change is significant or it's the first message
-        const angleDifference =
-          this.lastSentAngle !== null
-            ? Math.abs(
-                Phaser.Math.Angle.ShortestBetween(
-                  this.lastSentAngle,
-                  targetAngle
-                )
-              )
-            : Infinity; // Always send the first message
+      // Use different thresholds for orientation vs keyboard
+      const threshold = usingKeyboardRotation
+        ? ANGLE_DELTA_THRESHOLD
+        : ORIENTATION_ANGLE_DELTA_THRESHOLD;
 
-        if (angleDifference < ANGLE_DELTA_THRESHOLD) {
-          // Logger.trace(LOGGER_SOURCE, `Skipping angle update: delta ${angleDifference.toFixed(3)} < ${ANGLE_DELTA_THRESHOLD}`);
-          return; // Skip sending if change is too small
-        }
-
+      if (angleDifference >= threshold) {
         // Send angle update to server
         this.playerInputSequence++;
         const inputMsg: PlayerInputMessage = {
@@ -311,14 +342,15 @@ export class GameScene extends Phaser.Scene {
         this.lastSentAngle = targetAngle; // Update last sent angle
         Logger.trace(
           LOGGER_SOURCE,
-          `Sent input: set_angle (${targetAngle.toFixed(2)})`,
+          `Sent input: set_angle (${targetAngle.toFixed(
+            2
+          )}), Diff: ${angleDifference.toFixed(3)}, Thresh: ${threshold.toFixed(
+            3
+          )}, Source: ${usingKeyboardRotation ? "Keyboard" : "Orientation"}`,
           { seq: inputMsg.seq }
         );
-
-        // Optional: Client-side prediction - apply rotation visually immediately
-        // player.setRotation(targetAngle);
       }
-    }
+    } // End if targetAngle !== null
 
     // --- Action Input (Example - Not implemented for server yet) --- //
     // const actionPressed = this.inputManager.isKeyJustDown("SPACE"); // Need isKeyJustDown in InputManager if used

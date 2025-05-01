@@ -3,6 +3,7 @@ import { BaseManager } from "./BaseManager";
 import { Client, Room } from "colyseus.js";
 import { RoomState } from "../schema/State";
 import { Logger } from "@one-button-to-space/shared";
+import { DeviceOrientationManager } from "../utils/DeviceOrientationManager";
 
 // Logger Source for this file
 const LOGGER_SOURCE = "⌨️🖱️";
@@ -19,9 +20,11 @@ export class InputManager extends BaseManager {
   private scene: Phaser.Scene | null = null;
   private registeredKeys: KeyMap = {}; // Stores specific keys requested by scenes
   private room: Room<RoomState> | null = null;
+  private deviceOrientationManager: DeviceOrientationManager;
 
   private constructor() {
     super();
+    this.deviceOrientationManager = new DeviceOrientationManager();
   }
 
   public static getInstance(): InputManager {
@@ -89,12 +92,29 @@ export class InputManager extends BaseManager {
     return key ? key.isDown : false;
   }
 
+  /**
+   * Starts listening for device orientation changes.
+   * Should be called after user interaction, e.g., a button click.
+   */
+  public startOrientationListening(): void {
+    this.deviceOrientationManager.startListening();
+  }
+
+  /**
+   * Gets the calculated target rocket angle based on device orientation.
+   * @returns The angle in radians (0 right, -PI/2 up), or null if unavailable.
+   */
+  public getTargetRocketAngleRadians(): number | null {
+    return this.deviceOrientationManager.getTargetRocketAngleRadians();
+  }
+
   public override init(): void {
     Logger.info(LOGGER_SOURCE, "Input Manager Initialized");
   }
 
   public override destroy(): void {
     Logger.info(LOGGER_SOURCE, "Input Manager Destroyed");
+    this.deviceOrientationManager.destroy();
     // Clean up registered keys
     Object.values(this.registeredKeys).forEach((key) => key.destroy());
     this.registeredKeys = {};
