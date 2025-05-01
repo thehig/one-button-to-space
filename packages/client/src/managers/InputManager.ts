@@ -19,7 +19,6 @@ export class InputManager extends BaseManager {
   public static instance: InputManager;
   private scene: Phaser.Scene | null = null;
   private registeredKeys: KeyMap = {}; // Stores specific keys requested by scenes
-  private room: Room<RoomState> | null = null;
   private deviceOrientationManager: DeviceOrientationManager;
 
   private constructor() {
@@ -34,9 +33,10 @@ export class InputManager extends BaseManager {
     return InputManager.instance;
   }
 
-  public setSceneContext(scene: Phaser.Scene, room: Room<RoomState>): void {
+  public setSceneContext(
+    scene: Phaser.Scene /*, room: Room<RoomState>*/
+  ): void {
     this.scene = scene;
-    this.room = room;
     if (!scene.input.keyboard) {
       Logger.error(
         LOGGER_SOURCE,
@@ -146,6 +146,5 @@ export class InputManager extends BaseManager {
     Object.values(this.registeredKeys).forEach((key) => key.destroy());
     this.registeredKeys = {};
     this.scene = null;
-    this.room = null;
   }
 }
