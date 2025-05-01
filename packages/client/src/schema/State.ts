@@ -66,25 +66,66 @@ export class PlanetData extends Schema {
 
 // --- Player Configuration Schema ---
 export class PlayerConfigSchema extends Schema {
-  // Physics
+  /**
+   * A Number that defines the mass of the body.
+   * The higher the mass the more force is required to change the motion of the body.
+   * See also Body.density.
+   * **Read only**. Use Body.setMass to set.
+   *
+   * https://brm.io/matter-js/docs/classes/Body.html#property_mass
+   */
   @type("number") mass: number = 10;
+  /**
+   * A Number that defines the friction of the body.
+   * The value is always positive and is in the range (0, 1).
+   * A value of 0 means that the body may slide indefinitely.
+   * A value of 1 means the body may come to a stop almost instantly after a force is applied.
+   *
+   * https://brm.io/matter-js/docs/classes/Body.html#property_friction
+   */
   @type("number") friction: number = 0.05;
+  /**
+   * A Number that defines the air friction of the body.
+   * The value is always positive and is in the range (0, 1).
+   * A value of 0 means the body will never slow as it moves through space.
+   * The higher the value, the faster a body slows when moving through space.
+   *
+   * https://brm.io/matter-js/docs/classes/Body.html#property_frictionAir
+   */
   @type("number") frictionAir: number = 0.01;
+  /**
+   * A Number that defines the restitution (elasticity) of the body.
+   * The value is always positive and is in the range (0, 1).
+   * A value of 0 means collisions may be perfectly inelastic and no bouncing may occur.
+   * A value of 0.8 means the body may bounce back with approximately 80% of its kinetic energy.
+   * Note that collision response is based on *pairs* of bodies, and that restitution values are *combined*
+   * with the following formula: Math.max(bodyA.restitution, bodyB.restitution)
+   *
+   * https://brm.io/matter-js/docs/classes/Body.html#property_restitution
+   */
   @type("number") restitution: number = 0.3;
-  @type([VectorSchema]) vertices = new ArraySchema<VectorSchema>();
+  /**
+   * A bit field that specifies the collision category this body belongs to.
+   * There are 32 available categories (0x0001 to 0x80000000).
+   * This property is part of the collisionFilter object.
+   *
+   * https://brm.io/matter-js/docs/classes/Body.html#property_collisionFilter.category
+   */
   @type("number") collisionCategory: number = 0x0001; // Default? Should be set server-side
+  /**
+   * A bit mask that specifies the collision categories this body may collide with.
+   * This property is part of the collisionFilter object.
+   *
+   * https://brm.io/matter-js/docs/classes/Body.html#property_collisionFilter.mask
+   */
   @type("number") collisionMask: number = 0xffff; // Default? Should be set server-side
 
-  // Visuals
-  @type("number") textureWidth: number = 100;
-  @type("number") textureHeight: number = 100;
-  @type("number") visualWidth: number = 40;
-  @type("number") visualHeight: number = 100;
-  @type("number") visualOffsetY: number = -11;
-  @type("string") thrusterTexture1: string = "thruster_001";
-  @type("string") thrusterTexture2: string = "thruster_002";
-  @type("number") thrusterScaleFactor: number = 0.75;
-  @type("number") thrusterOffsetYAdjust: number = -5;
+  /**
+   * A list of vertices that define the shape of the body.
+   *
+   * https://brm.io/matter-js/docs/classes/Body.html#property_vertices
+   */
+  @type([VectorSchema]) vertices = new ArraySchema<VectorSchema>();
 }
 
 // --- RoomState Definition ---
