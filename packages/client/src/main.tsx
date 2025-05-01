@@ -195,3 +195,17 @@ if (import.meta.hot) {
   //   renderApp(); // Only re-render React part if only App.tsx changed
   // });
 }
+
+// --- Debug Timer ---
+if (import.meta.env.DEV) {
+  const DEBUG_DELAY = 3000; // 3 seconds
+  Logger.info(
+    LOGGER_SOURCE,
+    `Setting up debugger to trigger in ${DEBUG_DELAY / 1000} seconds.`
+  );
+  setTimeout(() => {
+    Logger.warn(LOGGER_SOURCE, "Triggering debugger!");
+    // eslint-disable-next-line no-debugger
+    debugger;
+  }, DEBUG_DELAY);
+}
