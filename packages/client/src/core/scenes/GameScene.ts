@@ -20,6 +20,24 @@ import type { Player } from "../../entities/Player"; // Import Player type for c
 // Logger Source for this file
 const LOGGER_SOURCE = "🎮🕹️";
 
+// Define the interface for the state we'll emit
+interface InputDebugState {
+  keysDown: string[];
+  pointer1: { id: number; x: number; y: number; active: boolean };
+  pointer2: { id: number; x: number; y: number; active: boolean };
+  isPinching: boolean;
+  pinchDistance: number;
+  isThrusting: boolean;
+  touchActive: boolean;
+  orientation: {
+    // Get raw values directly from manager instance if possible, or pass via InputManager
+    alpha: number | null;
+    beta: number | null;
+    gamma: number | null;
+    targetAngleRad: number | null; // The final angle used by the game
+  };
+}
+
 // Threshold for sending angle updates based on orientation
 const ORIENTATION_ANGLE_DELTA_THRESHOLD = Phaser.Math.DegToRad(2.5); // Radians (e.g., 2.5 degrees)
 
@@ -41,9 +59,15 @@ export class GameScene extends Phaser.Scene {
 
   // Input state tracking
   private playerInputSequence: number = 0;
-  private wasThrusting: boolean = false;
-  private readonly rotationSpeed: number = Math.PI / 2; // Radians per second (adjust as needed)
+  private wasThrusting: boolean = false; // Tracks thrust state from ANY source
+  private readonly rotationSpeed: number = Math.PI / 2; // Radians per second (adjust as needed) for keyboard
   private lastSentAngle: number | null = null; // Track last sent angle
+
+  // Touch specific state
+  private touchActive: boolean = false; // Flag if touch controls are active
+  private pinchStartDistance: number = 0;
+  private isPinching: boolean = false;
+  private lastEmittedDebugState: Partial<InputDebugState> = {}; // Track last emitted state
 
   // Scene-specific properties
   // private map: Phaser.Tilemaps.Tilemap | null = null;
@@ -110,21 +134,40 @@ export class GameScene extends Phaser.Scene {
         this.inputManager.registerKeys([
           "W",
           "A",
-          "S", // Still register S if needed for other client-side actions
+          "S",
           "D",
-          "SPACE", // Register space if needed
+          "SPACE",
           "UP",
           "LEFT",
-          "DOWN", // Register down if needed
+          "DOWN",
           "RIGHT",
         ]);
 
-        // --- Auto-start Orientation Listening on Mobile --- //
+        // --- Setup Touch Input IF on mobile --- //
         if (this.sys.game.device.input.touch) {
+          this.touchActive = true;
           Logger.info(
             LOGGER_SOURCE,
-            "Mobile device detected, attempting to start orientation listening."
+            "Mobile device detected, setting up touch listeners and attempting orientation."
           );
+          // Add tap listeners
+          this.input.on(
+            Phaser.Input.Events.POINTER_DOWN,
+            this.handleTapStart,
+            this
+          );
+          this.input.on(
+            Phaser.Input.Events.POINTER_UP,
+            this.handleTapEnd,
+            this
+          );
+          // Add pinch listeners (using pointer move)
+          this.input.on(
+            Phaser.Input.Events.POINTER_MOVE,
+            this.handlePointerMove,
+            this
+          );
+
           // Delay slightly to ensure DOM/permissions might be ready after initial load
           this.time.delayedCall(500, () => {
             this.inputManager.startOrientationListening();
@@ -132,7 +175,7 @@ export class GameScene extends Phaser.Scene {
         } else {
           Logger.info(
             LOGGER_SOURCE,
-            "Non-mobile device detected, orientation listening not started automatically."
+            "Non-mobile device detected, touch/orientation controls disabled."
           );
         }
 
@@ -219,6 +262,11 @@ export class GameScene extends Phaser.Scene {
   update(time: number, delta: number): void {
     // --- Input Handling --- //
     this.processAndSendInput(delta);
+    // --- Pinch Update (only if touch is active) --- //
+    let pinchDistanceForDebug = 0;
+    if (this.touchActive) {
+      pinchDistanceForDebug = this.updatePinchZoom();
+    }
 
     // --- Entity Updates --- (Handled by Phaser loop + updateFromServer)
 
@@ -240,6 +288,162 @@ export class GameScene extends Phaser.Scene {
     this.cameraManager.update(time, delta);
 
     // --- Manager Updates --- (If needed)
+
+    // --- Emit Input Debug State (if DEV) --- //
+    if (import.meta.env.DEV) {
+      this.emitInputDebugState(pinchDistanceForDebug);
+    }
+  }
+
+  /**
+   * Handles the start of a touch input (tap).
+   */
+  private handleTapStart(pointer: Phaser.Input.Pointer): void {
+    Logger.debug(
+      LOGGER_SOURCE,
+      `handleTapStart triggered by pointer ID: ${pointer.id}`
+    );
+    // Only handle primary touch for thrust to avoid multi-touch issues
+    if (!this.touchActive || !pointer.isDown || this.input.pointer1 !== pointer)
+      return;
+
+    // Ignore if pinching
+    if (this.isPinching || this.input.pointer2.isDown) {
+      Logger.debug(
+        LOGGER_SOURCE,
+        "handleTapStart ignored: Pinching or second pointer active."
+      );
+      return;
+    }
+
+    // Send thrust start if not already thrusting
+    if (!this.wasThrusting) {
+      this.playerInputSequence++;
+      const inputMsg: PlayerInputMessage = {
+        seq: this.playerInputSequence,
+        input: "thrust_start",
+      };
+      this.networkManager.sendMessage("playerInput", inputMsg);
+      Logger.trace(LOGGER_SOURCE, "Sent touch input: thrust_start", {
+        seq: inputMsg.seq,
+      });
+      this.wasThrusting = true;
+    }
+  }
+
+  /**
+   * Handles the end of a touch input (tap release).
+   */
+  private handleTapEnd(pointer: Phaser.Input.Pointer): void {
+    Logger.debug(
+      LOGGER_SOURCE,
+      `handleTapEnd triggered by pointer ID: ${pointer.id}`
+    );
+    // Only handle primary touch for thrust
+    if (!this.touchActive || this.input.pointer1 !== pointer) return;
+
+    // Reset pinch state if primary pointer goes up
+    if (this.isPinching) {
+      this.isPinching = false;
+      this.pinchStartDistance = 0;
+    }
+
+    // Send thrust stop if thrusting
+    if (this.wasThrusting) {
+      this.playerInputSequence++;
+      const inputMsg: PlayerInputMessage = {
+        seq: this.playerInputSequence,
+        input: "thrust_stop",
+      };
+      this.networkManager.sendMessage("playerInput", inputMsg);
+      Logger.trace(LOGGER_SOURCE, "Sent touch input: thrust_stop", {
+        seq: inputMsg.seq,
+      });
+      this.wasThrusting = false;
+    }
+  }
+
+  /**
+   * Handles pointer movement, primarily for detecting pinch start.
+   */
+  private handlePointerMove(pointer: Phaser.Input.Pointer): void {
+    // Logger.debug(LOGGER_SOURCE, `handlePointerMove triggered by pointer ID: ${pointer.id}`); // Can be very spammy
+    if (!this.touchActive) return;
+
+    const p1 = this.input.pointer1;
+    const p2 = this.input.pointer2;
+
+    // Check if starting a pinch (both pointers down, not already pinching)
+    if (p1.isDown && p2.isDown && !this.isPinching) {
+      this.isPinching = true;
+      this.pinchStartDistance = Phaser.Math.Distance.Between(
+        p1.x,
+        p1.y,
+        p2.x,
+        p2.y
+      );
+      Logger.trace(
+        LOGGER_SOURCE,
+        `Pinch started. Dist: ${this.pinchStartDistance.toFixed(1)}`
+      );
+      // If tap was active, stop thrusting when pinch starts
+      if (this.wasThrusting) {
+        this.handleTapEnd(p1); // Treat as if primary finger lifted for thrust
+      }
+    }
+  }
+
+  /**
+   * Calculates pinch zoom changes in the update loop.
+   * @returns The current pinch distance for debugging purposes.
+   */
+  private updatePinchZoom(): number {
+    // Logger.debug(LOGGER_SOURCE, `updatePinchZoom called. isPinching: ${this.isPinching}`); // Potentially spammy
+    const p1 = this.input.pointer1;
+    const p2 = this.input.pointer2;
+    let currentDistance = 0;
+
+    if (this.isPinching) {
+      // If one pointer lifts, stop pinching
+      if (!p1.isDown || !p2.isDown) {
+        this.isPinching = false;
+        this.pinchStartDistance = 0;
+        Logger.trace(LOGGER_SOURCE, "Pinch ended (one pointer up).");
+        return 0; // Return 0 distance when pinch ends
+      }
+
+      currentDistance = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+      const distanceChange = currentDistance - this.pinchStartDistance;
+
+      // Apply zoom based on distance change (adjust sensitivity as needed)
+      // Check for a minimum change to avoid jitter
+      if (Math.abs(distanceChange) > 5) {
+        // Adjust threshold (5 pixels)
+        Logger.debug(
+          LOGGER_SOURCE,
+          `Pinch detected: DistChange=${distanceChange.toFixed(1)}`
+        );
+        const zoomFactor = distanceChange * 0.005; // Adjust sensitivity (0.005)
+        const currentZoom = this.cameraManager.currentZoom;
+        let targetZoom = currentZoom + zoomFactor;
+
+        // Clamp zoom
+        targetZoom = Phaser.Math.Clamp(
+          targetZoom,
+          this.cameraManager.config.minZoom,
+          this.cameraManager.config.maxZoom
+        );
+
+        if (Math.abs(targetZoom - currentZoom) > 0.01) {
+          // Check significant change
+          this.cameraManager.zoomTo(targetZoom, 50); // Apply smooth zoom
+          // Logger.trace(LOGGER_SOURCE, `Pinch Zoom: Target=${targetZoom.toFixed(2)}, Factor=${zoomFactor.toFixed(3)}`);
+        }
+        // Update start distance for continuous pinch
+        this.pinchStartDistance = currentDistance;
+      }
+    }
+    return currentDistance; // Return current distance
   }
 
   /**
@@ -250,41 +454,46 @@ export class GameScene extends Phaser.Scene {
     // Check if InputManager instance exists and network is connected
     if (!this.inputManager || !this.networkManager.isConnected()) return;
 
-    // --- Thrust Input --- //
-    const isThrusting =
-      this.inputManager.isKeyDown("W") || this.inputManager.isKeyDown("UP");
+    // --- Thrust Input (Keyboard - only if touch is NOT active) --- //
+    if (!this.touchActive) {
+      const isThrusting =
+        this.inputManager.isKeyDown("W") || this.inputManager.isKeyDown("UP");
 
-    if (isThrusting && !this.wasThrusting) {
-      // Started thrusting
-      this.playerInputSequence++;
-      const inputMsg: PlayerInputMessage = {
-        seq: this.playerInputSequence,
-        input: "thrust_start",
-      };
-      this.networkManager.sendMessage("playerInput", inputMsg);
-      Logger.trace(LOGGER_SOURCE, "Sent input: thrust_start", {
-        seq: inputMsg.seq,
-      });
-    } else if (!isThrusting && this.wasThrusting) {
-      // Stopped thrusting
-      this.playerInputSequence++;
-      const inputMsg: PlayerInputMessage = {
-        seq: this.playerInputSequence,
-        input: "thrust_stop",
-      };
-      this.networkManager.sendMessage("playerInput", inputMsg);
-      Logger.trace(LOGGER_SOURCE, "Sent input: thrust_stop", {
-        seq: inputMsg.seq,
-      });
-    }
-    this.wasThrusting = isThrusting; // Update state for next frame
+      if (isThrusting && !this.wasThrusting) {
+        // Started thrusting
+        this.playerInputSequence++;
+        const inputMsg: PlayerInputMessage = {
+          seq: this.playerInputSequence,
+          input: "thrust_start",
+        };
+        this.networkManager.sendMessage("playerInput", inputMsg);
+        Logger.trace(LOGGER_SOURCE, "Sent KB input: thrust_start", {
+          seq: inputMsg.seq,
+        });
+        this.wasThrusting = true; // Set state
+      } else if (!isThrusting && this.wasThrusting) {
+        // Stopped thrusting
+        this.playerInputSequence++;
+        const inputMsg: PlayerInputMessage = {
+          seq: this.playerInputSequence,
+          input: "thrust_stop",
+        };
+        this.networkManager.sendMessage("playerInput", inputMsg);
+        Logger.trace(LOGGER_SOURCE, "Sent KB input: thrust_stop", {
+          seq: inputMsg.seq,
+        });
+        this.wasThrusting = false; // Set state
+      }
+      // Don't update this.wasThrusting here, let tap handlers manage it if touchActive
+    } // End keyboard thrust check
 
     // --- Rotation Input --- //
     let targetAngle: number | null = null; // Initialize to null
     let usingKeyboardRotation = false;
 
     // --- Attempt Orientation Input ONLY if on mobile/touch device --- //
-    if (this.sys.game.device.input.touch) {
+    if (this.touchActive) {
+      // Check touchActive flag
       const rawOrientationAngle =
         this.inputManager.getTargetRocketAngleRadians();
       if (rawOrientationAngle !== null) {
@@ -293,7 +502,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // Fallback to keyboard if orientation is not available/active
+    // Fallback to keyboard if orientation is not available/active OR if not on touch device
     if (targetAngle === null) {
       const rotateLeft =
         this.inputManager.isKeyDown("A") || this.inputManager.isKeyDown("LEFT");
@@ -308,7 +517,8 @@ export class GameScene extends Phaser.Scene {
         if (player) {
           usingKeyboardRotation = true;
           const rotationDelta = (this.rotationSpeed * delta) / 1000; // Convert delta ms to seconds
-          let keyboardTargetAngle = this.lastSentAngle ?? player.rotation; // Start from last sent or current visual angle
+          // Start keyboard rotation from last SENT angle to avoid jumps when switching from orientation
+          let keyboardTargetAngle = this.lastSentAngle ?? player.rotation;
 
           if (rotateLeft) {
             keyboardTargetAngle -= rotationDelta;
@@ -358,12 +568,58 @@ export class GameScene extends Phaser.Scene {
     } // End if targetAngle !== null
 
     // --- Action Input (Example - Not implemented for server yet) --- //
-    // const actionPressed = this.inputManager.isKeyJustDown("SPACE"); // Need isKeyJustDown in InputManager if used
-    // if (actionPressed) {
-    //   this.playerInputSequence++;
-    //   const inputMsg = { seq: this.playerInputSequence, input: "action_fire" }; // Define message type
-    //   this.networkManager.sendMessage("playerInput", inputMsg);
-    // }
+    // Remains commented out
+  }
+
+  /**
+   * Gathers current input state and emits it if changed significantly.
+   */
+  private emitInputDebugState(currentPinchDistance: number): void {
+    if (!this.inputManager) return;
+
+    const p1 = this.input.pointer1;
+    const p2 = this.input.pointer2;
+
+    // Safely get pointer states
+    const pointer1State = p1
+      ? { id: p1.id, x: p1.x, y: p1.y, active: p1.active }
+      : { id: -1, x: 0, y: 0, active: false };
+    const pointer2State = p2
+      ? { id: p2.id, x: p2.x, y: p2.y, active: p2.active }
+      : { id: -1, x: 0, y: 0, active: false };
+
+    // Get orientation data - NOTE: Requires access to raw data
+    // For now, just showing the final angle. Need InputManager/DeviceOrientationManager update for raw data.
+    const finalOrientationAngle = this.touchActive
+      ? this.inputManager.getTargetRocketAngleRadians() // Re-calculate with offset for display consistency
+      : null;
+
+    const currentState: InputDebugState = {
+      keysDown: Object.entries(this.inputManager.registeredKeys)
+        .filter(([, key]) => key.isDown)
+        .map(([code]) => code),
+      pointer1: pointer1State,
+      pointer2: pointer2State,
+      touchActive: this.touchActive,
+      isPinching: this.isPinching,
+      pinchDistance: currentPinchDistance,
+      isThrusting: this.wasThrusting,
+      orientation: {
+        alpha: null, // Placeholder - requires manager update
+        beta: null, // Placeholder - requires manager update
+        gamma: null, // Placeholder - requires manager update
+        targetAngleRad: finalOrientationAngle,
+      },
+    };
+
+    // Basic change detection (can be made more granular)
+    if (
+      JSON.stringify(currentState) !==
+      JSON.stringify(this.lastEmittedDebugState)
+    ) {
+      gameEmitter.emit("inputStateUpdate", currentState);
+      this.lastEmittedDebugState = { ...currentState }; // Store a copy
+    }
   }
 
   handleConnectionError(message: string): void {
@@ -389,9 +645,21 @@ export class GameScene extends Phaser.Scene {
     Logger.info(LOGGER_SOURCE, "GameScene Shutdown");
     // Clean up scene-specific resources and listeners
     this.scale.off("resize", this.onResize, this);
-    // Managers are typically destroyed globally or when the game instance is destroyed,
-    // but if a manager holds scene-specific resources, clean them here.
-    // this.entityManager.clearSceneSpecificData(); // Example
+
+    // Remove touch listeners IF they were added
+    if (this.touchActive) {
+      this.input.off(
+        Phaser.Input.Events.POINTER_DOWN,
+        this.handleTapStart,
+        this
+      );
+      this.input.off(Phaser.Input.Events.POINTER_UP, this.handleTapEnd, this);
+      this.input.off(
+        Phaser.Input.Events.POINTER_MOVE,
+        this.handlePointerMove,
+        this
+      );
+    }
 
     // Attempt to disconnect if the network manager still exists
     if (this.networkManager && this.networkManager.isConnected()) {

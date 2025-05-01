@@ -3,6 +3,7 @@ import { Logger } from "@one-button-to-space/shared";
 import "./App.css"; // Optional: for App-specific styles
 import DebugOverlay from "./components/DebugOverlay"; // Import the new component
 import Compass from "./components/Compass"; // Import the Compass component
+import { InputDebugOverlay } from "./components/InputDebugOverlay"; // Import the new input debug component
 
 // Logger Source for this file
 const LOGGER_SOURCE = "⚛️🖼️";
@@ -20,6 +21,9 @@ function App() {
     <div className="App">
       {/* Render the Debug Overlay only in development */}
       {import.meta.env.DEV && <DebugOverlay />}
+
+      {/* Render the Input Debug Overlay only in development */}
+      {import.meta.env.DEV && <InputDebugOverlay />}
 
       {/* Render the Compass */}
       <Compass />
