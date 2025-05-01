@@ -15,6 +15,8 @@ import {
   Logger,
   PhysicsStateUpdate, // Import the new type
 } from "@one-button-to-space/shared";
+// import { EventEmitter } from "../../utils/EventEmitter"; // Correct path if it's local
+import { gameEmitter } from "../main"; // Correct path to main.tsx from managers dir
 
 // Logger Source for this file
 const LOGGER_SOURCE = "👥🧩";
@@ -248,13 +250,23 @@ export class EntityManager extends BaseManager {
           state.y, // Initial y from state
           sessionId, // Pass the session ID
           isCurrentPlayer, // Pass the flag
-          playerConfig // Pass the configuration from the state
+          playerConfig // Pass the PlayerConfig
         );
+
         this.addEntity(sessionId, player);
         Logger.info(
           LOGGER_SOURCE,
           `Created player ${sessionId}${isCurrentPlayer ? " (local)" : ""}`
         );
+
+        // Emit event *after* creating and adding the local player
+        if (isCurrentPlayer && player) {
+          Logger.debug(
+            LOGGER_SOURCE,
+            `Emitting localPlayerReady for ${sessionId}`
+          );
+          gameEmitter.emit("localPlayerReady", player);
+        }
       } catch (error: any) {
         Logger.error(
           LOGGER_SOURCE,

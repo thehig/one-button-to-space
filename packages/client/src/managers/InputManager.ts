@@ -33,6 +33,23 @@ export class InputManager extends BaseManager {
     return InputManager.instance;
   }
 
+  /**
+   * Resets the singleton instance, ensuring a fresh start.
+   * Should be called during cleanup processes like HMR.
+   */
+  public static resetInstance(): void {
+    if (InputManager.instance) {
+      Logger.debug(LOGGER_SOURCE, "Resetting InputManager instance.");
+      InputManager.instance.destroy(); // Call the instance's destroy method
+      InputManager.instance = null!; // Explicitly nullify the static instance
+    } else {
+      Logger.trace(
+        LOGGER_SOURCE,
+        "InputManager instance already null, skipping reset."
+      );
+    }
+  }
+
   public setSceneContext(
     scene: Phaser.Scene /*, room: Room<RoomState>*/
   ): void {
@@ -143,8 +160,17 @@ export class InputManager extends BaseManager {
     Logger.info(LOGGER_SOURCE, "Input Manager Destroyed");
     this.deviceOrientationManager.destroy();
     // Clean up registered keys
-    Object.values(this.registeredKeys).forEach((key) => key.destroy());
+    Logger.debug(LOGGER_SOURCE, "Destroying registered Phaser key objects...");
+    Object.values(this.registeredKeys).forEach((key) => {
+      try {
+        key.destroy();
+      } catch (error) {
+        // Log error if a key is already destroyed or invalid, but continue
+        Logger.warn(LOGGER_SOURCE, `Error destroying key object:`, error);
+      }
+    });
     this.registeredKeys = {};
-    this.scene = null;
+    this.scene = null; // Clear scene reference
+    Logger.debug(LOGGER_SOURCE, "Input Manager cleanup complete.");
   }
 }

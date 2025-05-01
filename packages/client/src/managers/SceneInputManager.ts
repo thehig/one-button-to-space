@@ -130,7 +130,10 @@ export class SceneInputManager {
   // --- Moved from GameScene ---
   public processInput(delta: number): void {
     // Check if network is connected (InputManager existence checked by constructor indirectly)
-    if (!this.networkManager.isConnected()) return;
+    const isConnected = this.networkManager.isConnected();
+    if (!isConnected) {
+      return;
+    }
 
     // --- Thrust Input (Keyboard - only if touch is NOT active) --- //
     if (!this.touchActive) {
@@ -193,7 +196,12 @@ export class SceneInputManager {
         const player = this.entityManager.getCurrentPlayer() as
           | Player
           | undefined;
-        if (player) {
+        if (!player) {
+          // Logger.trace(
+          //   LOGGER_SOURCE,
+          //   "processInput: Keyboard rotation skipped, player entity not found."
+          // ); // Removed
+        } else {
           // Only proceed if player exists
           usingKeyboardRotation = true;
           const rotationDelta = (this.rotationSpeed * delta) / 1000; // Convert delta ms to seconds
@@ -207,6 +215,10 @@ export class SceneInputManager {
             keyboardTargetAngle += rotationDelta;
           }
           targetAngle = Phaser.Math.Angle.Wrap(keyboardTargetAngle);
+          // Logger.trace(
+          //   LOGGER_SOURCE,
+          //   `Calculated keyboard targetAngle: ${targetAngle.toFixed(2)}`
+          // ); // Removed
         }
       }
     }

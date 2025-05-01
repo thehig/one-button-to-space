@@ -80,6 +80,7 @@ export class GameScene extends Phaser.Scene {
   // private pinchStartDistance: number = 0;
   // private isPinching: boolean = false;
   private lastEmittedDebugState: Partial<InputDebugState> = {}; // Track last emitted state
+  private localPlayerReadyListener?: (player: Player) => void; // Store listener reference
 
   // Scene-specific properties
   // private map: Phaser.Tilemaps.Tilemap | null = null;
@@ -174,19 +175,42 @@ export class GameScene extends Phaser.Scene {
         }
 
         // Initial state sync will be triggered by NetworkManager listener
-        this.time.delayedCall(100, () => {
-          const player = this.entityManager.getCurrentPlayer() as
-            | Player
-            | undefined;
+        // -- REMOVED DELAYED CALL FOR CAMERA TARGET --
+        // this.time.delayedCall(100, () => { ... });
+
+        // --- Setup Event Listener for Local Player --- //
+        // Define the listener function and store it
+        this.localPlayerReadyListener = (player: Player) => {
+          // Check if this scene instance is still active before proceeding
+          if (
+            !this.scene ||
+            !this.scene.key ||
+            this.scene.key !== "GameScene"
+          ) {
+            Logger.warn(
+              LOGGER_SOURCE,
+              `localPlayerReady event ignored, scene ${
+                this.scene?.key || "unknown"
+              } is no longer active.`
+            );
+            return;
+          }
           if (player) {
+            Logger.info(
+              LOGGER_SOURCE,
+              `localPlayerReady event received. Setting camera target to: ${player.sessionId}` // Use sessionId
+            );
             this.cameraManager.setTarget(player);
+            // SceneInputManager will continue to use entityManager.getCurrentPlayer()
           } else {
             Logger.warn(
               LOGGER_SOURCE,
-              "Player not found after connection. This might be normal if the player is created shortly after connection."
+              "localPlayerReady event received but player object was null/undefined."
             );
           }
-        });
+        };
+        // Attach the stored listener
+        gameEmitter.once("localPlayerReady", this.localPlayerReadyListener);
       } else {
         Logger.error(
           LOGGER_SOURCE,
@@ -251,9 +275,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    // Logger.trace(LOGGER_SOURCE, "GameScene.update called"); // Removed
+
     // --- Input Handling --- //
     // Delegate to SceneInputManager
-    if (this.sceneInputManager) {
+    if (!this.sceneInputManager) {
+      // Logger.warn(
+      //   LOGGER_SOURCE,
+      //   "GameScene.update: sceneInputManager is missing!"
+      // ); // Removed
+    } else {
       this.sceneInputManager.processInput(delta);
     }
     // --- Pinch Update (handled within SceneInputManager.processInput now) --- //
@@ -370,7 +401,14 @@ export class GameScene extends Phaser.Scene {
   }
 
   shutdown(): void {
-    Logger.info(LOGGER_SOURCE, "GameScene Shutdown");
+    Logger.info(LOGGER_SOURCE, `GameScene Shutdown: ${this.scene.key}`);
+
+    // Remove the specific listener if it exists
+    if (this.localPlayerReadyListener) {
+      gameEmitter.off("localPlayerReady", this.localPlayerReadyListener);
+      this.localPlayerReadyListener = undefined; // Clear the stored reference
+    }
+
     // Clean up scene-specific resources and listeners
     this.scale.off("resize", this.onResize, this);
 

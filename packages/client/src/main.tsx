@@ -10,6 +10,7 @@ import { Logger, LogLevel } from "@one-button-to-space/shared"; // Import Logger
 import { EventEmitter } from "./utils/EventEmitter"; // Import the EventEmitter
 import { SceneManager } from "./managers/SceneManager"; // Corrected Import SceneManager
 import { EntityManager } from "./managers/EntityManager"; // Import EntityManager
+import { InputManager } from "./managers/InputManager"; // Import InputManager
 
 // -- Logging Setup --
 // Create a set of sources to exclude
@@ -177,37 +178,24 @@ function cleanupApp() {
     });
 
     // 3. Now destroy the game instance itself
-    Logger.debug(LOGGER_SOURCE, "Destroying Phaser game instance.");
     gameInstance.destroy(true);
     gameInstance = null;
   }
   // 4. Reset global singletons *after* game destruction
   Logger.debug(LOGGER_SOURCE, "Resetting global managers.");
   SceneManager.resetInstance();
-  EntityManager.resetInstance(); // Reset the EntityManager *after* scenes are stopped/destroyed
+  EntityManager.resetInstance();
+  InputManager.resetInstance();
 
   // React root cleanup: Using custom property on DOM element
   const rootElement = document.getElementById("root");
   const customRootProperty = "__reactRootInstance";
   if (rootElement && (rootElement as any)[customRootProperty]) {
-    Logger.debug(
-      LOGGER_SOURCE,
-      "cleanupApp: Found existing root instance on DOM element. Preparing to unmount."
-    );
     const existingRoot = (rootElement as any)[
       customRootProperty
     ] as ReactDOM.Root;
     existingRoot.unmount();
-    delete (rootElement as any)[customRootProperty]; // Remove the property
-    Logger.debug(
-      LOGGER_SOURCE,
-      "cleanupApp: Unmounted React root from DOM element and removed property."
-    );
-  } else {
-    Logger.debug(
-      LOGGER_SOURCE,
-      "cleanupApp: No existing root instance found on DOM element property."
-    );
+    delete (rootElement as any)[customRootProperty];
   }
   // Always nullify the module variable as well
   reactRoot = null;
@@ -215,29 +203,18 @@ function cleanupApp() {
 
 // Function to handle initial setup and HMR re-initialization
 function initializeApp() {
-  Logger.debug(
-    LOGGER_SOURCE,
-    "initializeApp() called - Performing cleanup first..."
-  );
   cleanupApp(); // Call cleanup at the beginning
-  Logger.debug(
-    LOGGER_SOURCE,
-    "initializeApp() - Cleanup complete, proceeding with init."
-  );
   initGame();
   renderApp();
 }
 
 // Initial setup
-Logger.debug(LOGGER_SOURCE, "Starting initial setup...");
 initializeApp();
-Logger.debug(LOGGER_SOURCE, "Initial setup complete.");
 
 // --- HMR Handling --- //
 if (import.meta.hot) {
   // Use dispose for cleanup before the module is replaced
   import.meta.hot.dispose(() => {
-    Logger.info(LOGGER_SOURCE, "HMR dispose: Triggering cleanupApp.");
     cleanupApp(); // Also call cleanup here for standard HMR flow
   });
 
@@ -248,12 +225,6 @@ if (import.meta.hot) {
       "HMR accept: Module reloaded. Application should re-initialize via top-level script execution."
     );
   });
-
-  // Specific handler for App.tsx updates (optional)
-  // import.meta.hot.accept(\'./App.tsx\', () => {
-  //   Logger.info(LOGGER_SOURCE, \"HMR accept: App.tsx updated. Re-rendering React only.\");
-  //   renderApp(); // Only re-render React part if only App.tsx changed
-  // });
 }
 
 // --- Debug Timer ---
