@@ -14,6 +14,7 @@ import { InputManager } from "./managers/InputManager"; // Import InputManager
 import { NetworkManager } from "./managers/NetworkManager"; // Import NetworkManager
 import { RoomProvider } from "./colyseus"; // Import RoomProvider from the new local file
 import { GameManagerRegistry } from "./managers/GameManagerRegistry"; // Import GameManagerRegistry
+import { LifecycleManager } from "./managers/lifecycle/LifecycleManager"; // ADD THIS IMPORT
 
 // -- Logging Setup --
 // Create a set of sources to exclude
@@ -147,7 +148,7 @@ function renderApp() {
  * Cleans up application resources, optionally skipping network disconnect for HMR.
  * @param isHMRDispose - True if called during HMR dispose, false otherwise.
  */
-function cleanupApp(isHMRDispose: boolean) {
+async function cleanupApp(isHMRDispose: boolean) {
   Logger.info(
     LOGGER_SOURCE,
     `cleanupApp: Stopping scenes, destroying Phaser game, resetting managers. (HMR Dispose: ${isHMRDispose})`
@@ -161,19 +162,16 @@ function cleanupApp(isHMRDispose: boolean) {
     Logger.debug(LOGGER_SOURCE, "Phaser game instance destroyed.");
   }
 
-  // 2. Handle Managers via Registry *AFTER* game/scenes are destroyed
-  // The registry's cleanup will call cleanup on each manager, passing isHMRDispose
+  // 2. Handle Managers via LifecycleManager *AFTER* game/scenes are destroyed
   try {
-    GameManagerRegistry.getInstance().cleanup(isHMRDispose);
+    await LifecycleManager.getInstance().disposeAll(isHMRDispose);
   } catch (error) {
     Logger.error(
       LOGGER_SOURCE,
-      "Error during GameManagerRegistry cleanup:",
+      "Error during LifecycleManager disposal:",
       error
     );
   }
-
-  // 3. Reset other global singletons *after* game destruction & network cleanup << Handled by registry
 
   // 4. React root cleanup: Using custom property on DOM element
   const rootElement = document.getElementById("root");
@@ -191,19 +189,17 @@ function cleanupApp(isHMRDispose: boolean) {
 
 // Function to handle initial setup and HMR re-initialization
 async function initializeApp() {
-  // No need to call cleanupApp here, it's handled by HMR dispose or page unload
-  // await cleanupApp(false); // Await the cleanup process << REMOVED
-
-  // Initialize managers via the registry BEFORE creating the game or rendering React
+  // Initialize managers via the LifecycleManager BEFORE creating the game or rendering React
   try {
-    GameManagerRegistry.getInstance().initializeManagers();
+    await LifecycleManager.getInstance().initializeAll();
   } catch (error) {
     Logger.error(
       LOGGER_SOURCE,
-      "Error during GameManagerRegistry initialization:",
+      "Error during LifecycleManager initialization:",
       error
     );
     // Decide how to handle critical initialization errors
+    return; // Stop initialization if LifecycleManager fails
   }
 
   initGame(); // Creates Phaser Game

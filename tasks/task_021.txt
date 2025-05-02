@@ -524,7 +524,7 @@ The registry should initialize managers in dependency order:
 - Attempting to access destroyed resources after cleanup
 </info added on 2025-05-02T11:35:59.439Z>
 
-## 2. Design and Implement Lifecycle Interface and Hooks [pending]
+## 2. Design and Implement Lifecycle Interface and Hooks [done]
 ### Dependencies: 21.1
 ### Description: Create a standardized lifecycle interface with hooks for initialization, runtime, and cleanup phases that all game managers will implement, with rigorous cleanup procedures for Phaser/MatterJS objects.
 ### Details:
@@ -552,7 +552,98 @@ Testing approach:
 - Check console output for clear lifecycle event logging
 - Verify Phaser and MatterJS objects are properly cleaned up during disposal
 
-## 3. Implement HMR Detection and Cleanup Logic [pending]
+<info added on 2025-05-02T12:33:19.838Z>
+## Implementation Details for Lifecycle Interface and Hooks
+
+### Interface Implementation Specifics
+- Use TypeScript's `implements` keyword to enforce lifecycle contract: `class GameManager implements LifecycleAware`
+- Make cleanup methods return `boolean` to indicate success/failure for better debugging
+- Add optional `priority` property (number) to control initialization/disposal order
+
+### Lifecycle Manager Enhancements
+```typescript
+// State transition validation matrix
+private readonly validTransitions: Record<ApplicationLifecycleState, ApplicationLifecycleState[]> = {
+  [ApplicationLifecycleState.IDLE]: [ApplicationLifecycleState.INITIALIZING],
+  [ApplicationLifecycleState.INITIALIZING]: [ApplicationLifecycleState.ACTIVE, ApplicationLifecycleState.DISPOSING],
+  [ApplicationLifecycleState.ACTIVE]: [ApplicationLifecycleState.INACTIVE, ApplicationLifecycleState.DISPOSING],
+  [ApplicationLifecycleState.INACTIVE]: [ApplicationLifecycleState.ACTIVE, ApplicationLifecycleState.DISPOSING],
+  [ApplicationLifecycleState.DISPOSING]: [ApplicationLifecycleState.IDLE]
+};
+
+// MatterJS pause/resume implementation
+private handleMatterJSState(active: boolean): void {
+  const physicsManager = this.registry.getManager('physics') as PhysicsManager;
+  if (physicsManager?.matter) {
+    if (active) {
+      physicsManager.matter.world.resume();
+    } else {
+      physicsManager.matter.world.pause();
+    }
+  }
+}
+```
+
+### Disposal Strategy Pattern
+Implement a strategy pattern for different cleanup scenarios:
+```typescript
+// Define cleanup strategies
+type CleanupStrategy = (manager: LifecycleAware) => void;
+
+private cleanupStrategies: Record<string, CleanupStrategy> = {
+  'phaser': (manager) => manager.cleanupPhaserObjects?.(),
+  'matter': (manager) => manager.cleanupMatterObjects?.(),
+  'events': (manager) => manager.cleanupEventListeners?.(),
+  'timers': (manager) => manager.cleanupTimers?.()
+};
+
+// Execute all cleanup strategies
+public executeCleanup(manager: LifecycleAware): void {
+  Object.values(this.cleanupStrategies).forEach(strategy => {
+    try {
+      strategy(manager);
+    } catch (error) {
+      console.error(`Cleanup strategy failed:`, error);
+    }
+  });
+}
+```
+
+### Dependency-Aware Initialization
+```typescript
+public initializeAll(): void {
+  // Sort managers by dependencies before initialization
+  const sortedManagers = this.sortManagersByDependencies(
+    this.registry.getAllManagers().filter(isLifecycleAware)
+  );
+  
+  for (const manager of sortedManagers) {
+    manager.initialize();
+  }
+}
+
+private sortManagersByDependencies(managers: LifecycleAware[]): LifecycleAware[] {
+  // Topological sort implementation based on manager dependencies
+  // This ensures dependent managers initialize after their dependencies
+}
+```
+
+### Diagnostic Tools
+Add diagnostic methods to help debug lifecycle issues:
+```typescript
+public getManagerStates(): Record<string, ApplicationLifecycleState> {
+  const states: Record<string, ApplicationLifecycleState> = {};
+  this.registry.getAllManagers().forEach(manager => {
+    if (isLifecycleAware(manager)) {
+      states[manager.constructor.name] = this.getManagerState(manager);
+    }
+  });
+  return states;
+}
+```
+</info added on 2025-05-02T12:33:19.838Z>
+
+## 3. Implement HMR Detection and Cleanup Logic [in-progress]
 ### Dependencies: 21.2
 ### Description: Add logic to detect Hot Module Replacement events and properly dispose resources before the application reloads, with special focus on Phaser/MatterJS cleanup and multiplayer state resynchronization.
 ### Details:
