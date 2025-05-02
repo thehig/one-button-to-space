@@ -76,7 +76,7 @@ export class NetworkManager extends BaseManager {
     }
 
     this.client = new Client(endpoint);
-    this.startStatsUpdater();
+    this.startStatsUpdates();
   }
 
   public static getInstance(): NetworkManager {
@@ -126,7 +126,7 @@ export class NetworkManager extends BaseManager {
       );
       Logger.trace(LOGGER_SOURCE, "Room joined successfully", this.room);
       this.setupRoomListeners();
-      this.startStatsUpdater(); // Start emitting stats
+      this.startStatsUpdates();
       gameEmitter.emit("roomReady", this.room); // Emit room ready event
       return this.room;
     } catch (e: any) {
@@ -139,7 +139,7 @@ export class NetworkManager extends BaseManager {
   }
 
   public async disconnect(): Promise<void> {
-    this.stopStatsUpdater(); // Stop emitting stats
+    this.stopStatsUpdates(); // Stop emitting stats
     if (this.room) {
       const roomId = this.room.roomId;
       try {
@@ -403,13 +403,12 @@ export class NetworkManager extends BaseManager {
     );
     this.stopStatsUpdates(); // Ensure stats updates stop
 
-    if (!isHMRDispose && this.room) {
-      // Only disconnect if it's NOT HMR dispose AND we have a room
-      // HMR dispose is handled externally in main.tsx before cleanupApp
+    // Always attempt to leave the room if connected, even during HMR
+    if (this.room) {
       const roomId = this.room.roomId;
       try {
         Logger.info(LOGGER_SOURCE, `Cleanup: Leaving room: ${roomId}`);
-        await this.room.leave(false);
+        await this.room.leave(false); // Use false for immediate disconnect
         Logger.info(LOGGER_SOURCE, `Cleanup: Left room: ${roomId}`);
       } catch (e: any) {
         Logger.error(
@@ -418,11 +417,6 @@ export class NetworkManager extends BaseManager {
           e
         );
       }
-    } else if (isHMRDispose) {
-      Logger.debug(
-        LOGGER_SOURCE,
-        "Cleanup: Skipping room.leave() during HMR dispose."
-      );
     } else {
       Logger.debug(LOGGER_SOURCE, "Cleanup: No room connection to leave.");
     }
@@ -431,9 +425,10 @@ export class NetworkManager extends BaseManager {
     this.room = null;
     this.connectionOptions = null;
     // Don't emit roomLeave here if it's HMR, main.tsx handles that context
-    if (!isHMRDispose) {
-      gameEmitter.emit("roomLeave"); // Emit leave event only on full cleanup
-    }
+    // Emitter should only fire on intentional disconnects or errors, not HMR cycles.
+    // if (!isHMRDispose) {
+    //   gameEmitter.emit("roomLeave"); // Emit leave event only on full cleanup
+    // }
 
     Logger.debug(LOGGER_SOURCE, "Network Manager cleanup complete.");
   }

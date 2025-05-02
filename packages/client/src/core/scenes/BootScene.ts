@@ -73,7 +73,7 @@ export class BootScene extends Phaser.Scene {
     // Transition to the next scene
     // Usually, you'd go to a MainMenuScene first, but we'll jump to GameScene for now
     Logger.info(LOGGER_SOURCE, "Starting GameScene...");
-    this.sceneManager.startScene("GameScene");
+    this.scene.start("GameScene");
 
     // If you had a loading screen (more typical in a PreloadScene):
     // ... (loading bar logic as before) ...

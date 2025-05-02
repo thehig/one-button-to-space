@@ -643,3 +643,9 @@ Testing approach:
 - Test multiplayer functionality through HMR cycles
 - Review documentation for clarity and completeness
 
+## 6. Investigate camera losing player target after HMR [pending]
+### Dependencies: None
+### Description: Verify why the camera stops following the player character after a Hot Module Replacement event occurs in the client.
+### Details:
+
+

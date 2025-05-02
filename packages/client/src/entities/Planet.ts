@@ -345,7 +345,12 @@ export class Planet extends GameObject {
 
   // Override destroy to clean up atmosphere visual
   public override destroy(fromScene?: boolean): void {
+    Logger.trace(LOGGER_SOURCE, `Planet destroy called for ${this.planetId}.`);
     if (this.atmosphereVisual) {
+      Logger.trace(
+        LOGGER_SOURCE,
+        `Destroying atmosphere visual for ${this.planetId}.`
+      );
       this.atmosphereVisual.destroy();
       this.atmosphereVisual = null;
       Logger.trace(
@@ -354,5 +359,9 @@ export class Planet extends GameObject {
       );
     }
     super.destroy(fromScene);
+    Logger.trace(
+      LOGGER_SOURCE,
+      `Planet super.destroy finished for ${this.planetId}.`
+    );
   }
 }

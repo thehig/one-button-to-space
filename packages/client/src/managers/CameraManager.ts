@@ -28,6 +28,9 @@ export class CameraManager extends BaseManager {
   private camera: Phaser.Cameras.Scene2D.Camera | null = null;
   private _currentZoom: number = 1;
   private scene: Phaser.Scene | null = null; // Declare scene property
+  private isDragging: boolean = false;
+  private lastDragPoint: Phaser.Math.Vector2 | null = null;
+  private targetJustSet: boolean = false; // Flag to delay following
 
   protected constructor(config: Partial<CameraManagerConfig> = {}) {
     super();
@@ -90,6 +93,7 @@ export class CameraManager extends BaseManager {
     if (target === this.target) return; // No change
 
     this.target = target;
+    this.targetJustSet = true; // Set flag when target changes
     if (this.target && this.camera) {
       // Optionally snap camera immediately to target on set
       // this.camera.centerOn(this.target.x, this.target.y);
@@ -172,37 +176,59 @@ export class CameraManager extends BaseManager {
   }
 
   public update(time: number, delta: number): void {
-    // Guard against missing camera or target
-    if (!this.camera || !this.target) {
-      // Optional: log a warning if target is missing when expected
-      // if (!this.target) Logger.trace(LOGGER_SOURCE, 'Camera update skipped, no target.');
-      return;
-    }
-
-    // Ensure the target's body exists before accessing position
-    // This helps prevent errors during entity initialization/destruction
-    if (!this.target.body) {
+    // Add check for valid target and body at the start
+    if (!this.target || !this.target.body || !this.scene?.cameras?.main) {
       Logger.trace(
         LOGGER_SOURCE,
-        "Camera update skipped, target body not ready."
+        `Camera update skipped: Target=${
+          this.target ? this.target.name : "null"
+        }, Body=${this.target?.body ? "exists" : "null"}, Camera=${
+          this.scene?.cameras?.main ? "exists" : "null"
+        }`
       );
+      return; // Exit if target, body, or camera isn't ready
+    }
+
+    // Skip the first update frame after target is set
+    if (this.targetJustSet) {
+      Logger.trace(
+        LOGGER_SOURCE,
+        "Skipping camera follow for one frame after target set."
+      );
+      this.targetJustSet = false; // Reset flag for next frame
       return;
     }
 
-    // Follow target smoothly
-    // Use optional chaining just in case, though the body check should suffice
-    const targetX =
-      this.target.body?.position?.x ??
-      this.camera.scrollX + this.camera.width / 2;
-    const targetY =
-      this.target.body?.position?.y ??
-      this.camera.scrollY + this.camera.height / 2;
+    const camera = this.scene.cameras.main; // Camera is guaranteed to exist here
 
-    this.camera.centerOn(targetX, targetY);
+    // Refined log
+    Logger.trace(
+      LOGGER_SOURCE,
+      `Update: Target=${this.target.name}, TargetPos=(${this.target.x.toFixed(
+        1
+      )}, ${this.target.y.toFixed(
+        1
+      )}), BodyPos=(${this.target.body.position.x.toFixed(
+        1 // Access body position directly
+      )}, ${this.target.body.position.y.toFixed(1)}), Dragging=${
+        this.isDragging
+      }`
+    );
 
-    // Smoother follow (Lerp - alternative)
-    // this.camera.scrollX = Phaser.Math.Linear(this.camera.scrollX, targetX - this.camera.width / 2, this.config.followLerp);
-    // this.camera.scrollY = Phaser.Math.Linear(this.camera.scrollY, targetY - this.camera.height / 2, this.config.followLerp);
+    if (!this.isDragging) {
+      // Only follow if not dragging
+      // Use lerp for smooth following
+
+      // Follow target smoothly using GameObject position (more reliable immediately after creation)
+      const targetX = this.target.x;
+      const targetY = this.target.y;
+
+      camera.centerOn(targetX, targetY);
+
+      // Smoother follow (Lerp - alternative)
+      // this.camera.scrollX = Phaser.Math.Linear(this.camera.scrollX, targetX - this.camera.width / 2, this.config.followLerp);
+      // this.camera.scrollY = Phaser.Math.Linear(this.camera.scrollY, targetY - this.camera.height / 2, this.config.followLerp);
+    }
 
     // Add any other camera effects or updates here
   }

@@ -153,7 +153,15 @@ function cleanupApp(isHMRDispose: boolean) {
     `cleanupApp: Stopping scenes, destroying Phaser game, resetting managers. (HMR Dispose: ${isHMRDispose})`
   );
 
-  // 1. Handle Managers via Registry
+  // 1. Destroy Phaser game. This implicitly stops all scenes and destroys their GameObjects.
+  if (gameInstance) {
+    Logger.debug(LOGGER_SOURCE, "Destroying Phaser game instance...");
+    gameInstance.destroy(true); // true removes canvas and stops scenes
+    gameInstance = null;
+    Logger.debug(LOGGER_SOURCE, "Phaser game instance destroyed.");
+  }
+
+  // 2. Handle Managers via Registry *AFTER* game/scenes are destroyed
   // The registry's cleanup will call cleanup on each manager, passing isHMRDispose
   try {
     GameManagerRegistry.getInstance().cleanup(isHMRDispose);
@@ -165,61 +173,9 @@ function cleanupApp(isHMRDispose: boolean) {
     );
   }
 
-  // 2. Destroy Phaser game (stops scenes)
-  if (gameInstance) {
-    // Stop all active scenes first
-    gameInstance.scene.getScenes(true).forEach((scene) => {
-      Logger.debug(
-        LOGGER_SOURCE,
-        `Preparing to stop scene: ${scene.scene.key}`
-      );
-      try {
-        // TODO: Revisit this - Entity cleanup should probably happen within EntityManager.cleanup
-        // // 1. Clear entities while scene context is potentially still needed for entity cleanup
-        // Logger.debug(
-        //   LOGGER_SOURCE,
-        //   `Clearing entities for scene: ${scene.scene.key}`
-        // );
-        // EntityManager.getInstance().clearEntities(); // << MOVE TO ENTITY MANAGER CLEANUP
+  // 3. Reset other global singletons *after* game destruction & network cleanup << Handled by registry
 
-        // 2. Stop the scene - this will trigger the scene's own shutdown() method
-        Logger.debug(
-          LOGGER_SOURCE,
-          `Stopping scene systems: ${scene.scene.key}`
-        );
-        if (scene && scene.sys && scene.sys.isActive()) {
-          scene.sys.game.scene.stop(scene.scene.key);
-          Logger.debug(LOGGER_SOURCE, `Scene ${scene.scene.key} stopped.`);
-        } else {
-          Logger.warn(
-            LOGGER_SOURCE,
-            `Scene ${scene.scene.key} or its systems not available for stopping.`
-          );
-        }
-      } catch (e) {
-        Logger.error(
-          LOGGER_SOURCE,
-          `Error during scene stop/cleanup for ${scene.scene.key}:`,
-          e
-        );
-      }
-    });
-
-    // 3. Now destroy the game instance itself
-    Logger.debug(LOGGER_SOURCE, "Destroying Phaser game instance...");
-    gameInstance.destroy(true); // true removes canvas
-    gameInstance = null;
-    Logger.debug(LOGGER_SOURCE, "Phaser game instance destroyed.");
-  }
-
-  // 4. Reset other global singletons *after* game destruction & network cleanup
-  // Logger.debug(LOGGER_SOURCE, "Resetting other global managers."); << Handled by registry
-  // SceneManager.resetInstance();
-  // EntityManager.resetInstance();
-  // InputManager.resetInstance();
-  // NetworkManager is reset via its static resetInstance() method above << Handled by registry
-
-  // React root cleanup: Using custom property on DOM element
+  // 4. React root cleanup: Using custom property on DOM element
   const rootElement = document.getElementById("root");
   const customRootProperty = "__reactRootInstance";
   if (rootElement && (rootElement as any)[customRootProperty]) {
@@ -270,8 +226,16 @@ if (import.meta.hot) {
   import.meta.hot.accept(() => {
     Logger.info(
       LOGGER_SOURCE,
-      "HMR accept: Module reloaded. Application should re-initialize via top-level script execution."
+      "HMR accept: Module reloaded. Explicitly calling initializeApp()."
     );
+    // Explicitly call initializeApp() to ensure re-initialization
+    initializeApp().catch((error) => {
+      Logger.error(
+        LOGGER_SOURCE,
+        "Error during explicit HMR re-initialization:",
+        error
+      );
+    });
   });
 }
 

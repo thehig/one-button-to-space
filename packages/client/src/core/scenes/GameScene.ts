@@ -415,15 +415,6 @@ export class GameScene extends Phaser.Scene {
     // Destroy SceneInputManager (which removes its listeners)
     if (this.sceneInputManager) {
       this.sceneInputManager.destroy();
-      // this.sceneInputManager = null; // Optional: Explicitly nullify
-    }
-
-    // Remove touch listeners IF they were added - MOVED TO SceneInputManager.destroy()
-    // if (this.touchActive) { ... } // Removed
-
-    // Attempt to disconnect if the network manager still exists
-    if (this.networkManager && this.networkManager.isConnected()) {
-      this.networkManager.disconnect();
     }
 
     // Destroy starfield renderer
@@ -431,14 +422,14 @@ export class GameScene extends Phaser.Scene {
       this.starfieldRenderer.destroy();
     }
 
-    // Destroy CameraManager
-    if (this.cameraManager) {
-      this.cameraManager.destroy();
+    // Clean up entities managed by EntityManager *before* scene fully shuts down
+    if (this.entityManager) {
+      // Pass true to indicate it's potentially an HMR cleanup
+      // EntityManager's cleanup should handle destroying game objects
+      this.entityManager.cleanup(true);
     }
 
-    // Destroy other managers if needed (often handled globally)
-    if (this.inputManager) {
-      this.inputManager.destroy(); // Global input manager cleanup
-    }
+    // *** REMOVED destruction of singleton managers (NetworkManager, CameraManager, InputManager) ***
+    // Their lifecycle is managed globally by GameManagerRegistry in main.tsx
   }
 }

@@ -122,8 +122,16 @@ export abstract class GameObject extends Phaser.Physics.Matter.Sprite {
     this.setRotation(newAngle);
   }
 
-  public destroyGameObject(): void {
-    // Custom cleanup logic before destroying (e.g., remove from groups)
-    this.destroy(); // Call Phaser's destroy method (handles removing body from world)
+  // Changed from destroyGameObject to match Phaser standard
+  public override destroy(fromScene?: boolean): void {
+    Logger.trace(
+      `${this.constructor.name}-${this.name}`,
+      "Base destroy called. Calling super.destroy..."
+    );
+    super.destroy(fromScene); // Call Phaser's destroy method (handles removing body from world)
+    Logger.trace(
+      `${this.constructor.name}-${this.name}`,
+      "Base super.destroy finished."
+    );
   }
 }

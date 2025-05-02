@@ -415,7 +415,7 @@ export class EntityManager extends BaseManager {
    * Cleanup EntityManager resources.
    * @param isHMRDispose - True if called during HMR dispose.
    */
-  public override cleanup(isHMRDispose: boolean): void {
+  public override async cleanup(isHMRDispose: boolean): Promise<void> {
     Logger.info(
       LOGGER_SOURCE,
       `EntityManager cleanup called (HMR: ${isHMRDispose}).`
@@ -432,9 +432,9 @@ export class EntityManager extends BaseManager {
    * Destroy the EntityManager.
    * Currently calls cleanup, might have more specific logic later.
    */
-  public override destroy(): void {
+  public override async destroy(): Promise<void> {
     Logger.info(LOGGER_SOURCE, "EntityManager destroy called.");
-    this.cleanup(false); // Perform full cleanup on destroy
+    await this.cleanup(false); // Added await
     // Any other final destruction tasks for the manager itself
   }
 }

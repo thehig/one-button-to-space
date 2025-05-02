@@ -161,39 +161,26 @@ export class InputManager extends BaseManager {
    * Cleans up InputManager resources.
    * @param isHMRDispose - True if called during HMR dispose.
    */
-  public override cleanup(isHMRDispose: boolean): void {
+  public override async cleanup(isHMRDispose: boolean): Promise<void> {
     Logger.info(
       LOGGER_SOURCE,
       `Input Manager cleanup called (HMR: ${isHMRDispose}).`
     );
-    this.deviceOrientationManager.destroy();
-
-    Logger.debug(LOGGER_SOURCE, "Destroying registered Phaser key objects...");
-    Object.values(this.registeredKeys).forEach((key) => {
-      try {
-        if (key && key.scene) {
-          key.destroy();
-        } else if (key) {
-          Logger.warn(
-            LOGGER_SOURCE,
-            `Key object for code ${key.keyCode} exists but has no scene, cannot destroy properly.`
-          );
-        }
-      } catch (error) {
-        Logger.warn(
-          LOGGER_SOURCE,
-          `Error destroying key object: ${key?.keyCode}`,
-          error
-        );
-      }
-    });
+    // Don't try to destroy key objects here, assume scene shutdown handles it
+    // or they become invalid anyway. Just clear the internal map.
+    Logger.debug(
+      LOGGER_SOURCE,
+      "Clearing internal Phaser key object references..."
+    );
     this.registeredKeys = {};
+
+    // Reset context
     this.scene = null;
     Logger.debug(LOGGER_SOURCE, "Input Manager cleanup complete.");
   }
 
-  public override destroy(): void {
+  public override async destroy(): Promise<void> {
     Logger.info(LOGGER_SOURCE, "Input Manager Destroyed");
-    this.cleanup(false);
+    await this.cleanup(false);
   }
 }

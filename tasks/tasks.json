@@ -841,6 +841,15 @@
           "details": "Implementation steps:\n1. Create an `ApplicationLifecycle` class that:\n   - Controls the overall application startup sequence\n   - Manages the transition between application states\n   - Integrates with the HMR handler and lifecycle manager\n   - Provides hooks for future components\n   - Orchestrates Phaser/MatterJS cleanup during shutdown\n   - Handles multiplayer state resynchronization after HMR\n2. Refactor the main application entry point to use the new lifecycle system\n3. Implement server state resynchronization between HMR reloads for multiplayer consistency\n4. Create comprehensive sequence diagrams documenting the new lifecycle flow\n5. Add detailed developer documentation explaining:\n   - How to integrate new components with the lifecycle\n   - Best practices for initialization and cleanup\n   - Specific guidelines for Phaser object cleanup\n   - Specific guidelines for MatterJS physics cleanup\n   - How to handle event listeners properly\n   - How HMR works with the application\n   - Multiplayer state handling during HMR\n   - Troubleshooting common issues\n\nTesting approach:\n- End-to-end testing of the complete application lifecycle\n- Verify application correctly initializes on first load\n- Test multiple HMR cycles to ensure stability\n- Validate that all game managers properly participate in the lifecycle\n- Verify Phaser and MatterJS resources are properly cleaned up\n- Test multiplayer functionality through HMR cycles\n- Review documentation for clarity and completeness",
           "status": "pending",
           "parentTaskId": 21
+        },
+        {
+          "id": 6,
+          "title": "Investigate camera losing player target after HMR",
+          "description": "Verify why the camera stops following the player character after a Hot Module Replacement event occurs in the client.",
+          "details": "",
+          "status": "pending",
+          "dependencies": [],
+          "parentTaskId": 21
         }
       ]
     }

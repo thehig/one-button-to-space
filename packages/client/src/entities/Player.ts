@@ -137,14 +137,23 @@ export class Player extends GameObject {
   }
 
   // --- Helper Methods ---
-  // Override destroyGameObject to clean up
-  public override destroyGameObject(): void {
+  // Changed from destroyGameObject to match Phaser standard
+  public override destroy(fromScene?: boolean): void {
+    Logger.trace(LOGGER_SOURCE, `Player destroy called for ${this.sessionId}.`);
     // Destroy debug graphics
     if (this.debugGraphics) {
+      Logger.trace(
+        LOGGER_SOURCE,
+        `Destroying debug graphics for ${this.sessionId}.`
+      );
       this.debugGraphics.destroy();
       this.debugGraphics = null;
     }
     Logger.info(LOGGER_SOURCE, `Destroying player (ID: ${this.sessionId})`);
-    super.destroyGameObject(); // Call base class destroy
+    super.destroy(fromScene); // Call base class destroy (which calls Phaser's destroy)
+    Logger.trace(
+      LOGGER_SOURCE,
+      `Player super.destroy finished for ${this.sessionId}.`
+    );
   }
 }
