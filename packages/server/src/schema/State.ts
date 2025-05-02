@@ -135,4 +135,5 @@ export class RoomState extends Schema {
   @type("number") physicsStep = 0; // Add physics step counter
   @type("number") serverTime: number = 0;
   @type(PlayerConfigSchema) playerConfig = new PlayerConfigSchema();
+  @type("string") serverControlMode: string = "run"; // Added server control mode state
 }

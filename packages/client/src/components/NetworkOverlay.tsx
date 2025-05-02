@@ -11,9 +11,13 @@ type ServerControlMode = "run" | "step" | "pause";
 const NetworkOverlay: React.FC = () => {
   // Get room and network stats from context
   const { room, networkStats } = useRoom();
+  // Read server mode directly from synced room state
+  const serverMode = room?.state?.serverControlMode as
+    | ServerControlMode
+    | undefined;
 
-  // State for server control mode (moved from DebugOverlay)
-  const [serverMode, setServerMode] = useState<ServerControlMode>("run");
+  // REMOVED: State for server control mode (moved from DebugOverlay)
+  // const [serverMode, setServerMode] = useState<ServerControlMode>("run");
 
   // Handler to send server control messages (moved from DebugOverlay)
   const handleSetServerMode = (mode: ServerControlMode) => {
@@ -21,9 +25,10 @@ const NetworkOverlay: React.FC = () => {
       room.send("setServerControlMode", mode);
       // Update local state optimistically or wait for server confirmation
       // Only update local state for 'run' and 'pause', 'step' is momentary
-      if (mode === "run" || mode === "pause") {
-        setServerMode(mode);
-      }
+      // REMOVED: setServerMode(mode);
+      // if (mode === 'run' || mode === 'pause') {
+      //     setServerMode(mode);
+      // }
       Logger.debug(LOGGER_SOURCE, `Sent server control mode: ${mode}`);
     } else {
       Logger.error(
@@ -70,14 +75,14 @@ const NetworkOverlay: React.FC = () => {
         <button
           onClick={() => handleSetServerMode("run")}
           disabled={serverMode === "run" || !room} // Also disable if room not connected
-          style={buttonStyle(serverMode === "run")}
+          style={buttonStyle(serverMode === "run")} // Use state from context
         >
           Run
         </button>
         <button
           onClick={() => handleSetServerMode("pause")}
           disabled={serverMode === "pause" || !room} // Also disable if room not connected
-          style={buttonStyle(serverMode === "pause")}
+          style={buttonStyle(serverMode === "pause")} // Use state from context
         >
           Pause
         </button>

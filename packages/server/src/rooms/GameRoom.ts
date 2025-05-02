@@ -90,9 +90,8 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
     [sessionId: string]: Partial<InstanceType<typeof PlayerState>>;
   } = {};
 
-  // Add state for server control
-  private serverControlMode: ServerControlMode = "run";
-  private stepRequested: boolean = false;
+  // Internal flag for step requests, as state sync might be too slow
+  private stepRequestedInternal: boolean = false;
 
   onCreate(options: any) {
     Logger.debug(LOGGER_SOURCE, `onCreate called for room ${this.roomId}`);
@@ -116,6 +115,7 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
     this.state = new RoomState();
     Logger.info(LOGGER_SOURCE, "GameState initialized.");
     Logger.debug(LOGGER_SOURCE, "onCreate: RoomState initialized.");
+    this.state.serverControlMode = "run"; // Initialize state variable
 
     // --- Populate Player Configuration --- //
     Logger.debug(LOGGER_SOURCE, "onCreate: Populating playerConfig...");
@@ -305,16 +305,28 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
       // Perform fixed updates as long as accumulator allows
       while (this.accumulator >= this.physicsTimeStep) {
         let performUpdate = true; // Flag to control if physics update runs
+        let stepRequestedThisTick = false; // Temp flag for step logic
 
         // --- Server Control Logic ---
-        if (this.serverControlMode === "pause") {
-          if (this.stepRequested) {
-            // If stepping, allow one update and reset the flag
-            this.stepRequested = false;
-            Logger.trace(LOGGER_SOURCE, "Performing single step.");
+        if (this.state.serverControlMode === "pause") {
+          // We need a local flag to track if *this specific tick* was triggered by a step request
+          // The client might send multiple 'step' requests before the loop gets to process them.
+          // We only want to process one physics step per 'step' message processed.
+          // This is tricky because the message handler runs outside the loop.
+          // A simple boolean flag might lead to multiple steps if the loop runs fast.
+          // Revisit: A potential solution is to queue step requests like inputs,
+          // or use a counter, but let's try a simple flag first.
+          if (this.stepRequestedInternal) {
+            // Use an internal flag set by message handler
+            stepRequestedThisTick = true;
+            this.stepRequestedInternal = false; // Consume the request for this tick
+            Logger.trace(
+              LOGGER_SOURCE,
+              "Performing single step for this tick."
+            );
             // performUpdate remains true
           } else {
-            // If paused and not stepping, skip the update
+            // If paused and not stepping for this tick, skip the update
             performUpdate = false;
             // Logger.trace(LOGGER_SOURCE, "Physics paused, skipping update."); // Optional: Log pause skipping
           }
@@ -631,7 +643,7 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
 
         if (mode === "run" || mode === "pause" || mode === "step") {
           // Check if switching back to 'run' from a paused state
-          if (mode === "run" && this.serverControlMode !== "run") {
+          if (mode === "run" && this.state.serverControlMode !== "run") {
             Logger.info(
               LOGGER_SOURCE,
               "Resuming physics loop, resetting time."
@@ -641,9 +653,9 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
           }
 
           if (mode === "step") {
-            if (this.serverControlMode === "pause") {
+            if (this.state.serverControlMode === "pause") {
               Logger.debug(LOGGER_SOURCE, "Requesting single physics step.");
-              this.stepRequested = true;
+              this.stepRequestedInternal = true;
               // Don't change serverControlMode, stays paused until next step or run
             } else {
               Logger.warn(
@@ -653,7 +665,7 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
             }
           } else {
             // For 'run' or 'pause', just set the mode
-            this.serverControlMode = mode;
+            this.state.serverControlMode = mode;
             Logger.debug(LOGGER_SOURCE, `Server control mode set to: ${mode}`);
           }
         } else {
