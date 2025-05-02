@@ -1,19 +1,37 @@
 import Phaser from "phaser";
 import { BaseManager } from "./BaseManager";
+import { GameManagerRegistry } from "./GameManagerRegistry";
+import { Logger } from "@one-button-to-space/shared";
+
+const LOGGER_SOURCE = "⏱️⏳";
 
 export class TimeManager extends BaseManager {
-  protected static _instance: TimeManager | null = null;
+  protected static override _instance: TimeManager | null = null;
   private scene: Phaser.Scene | null = null;
 
-  private constructor() {
+  protected constructor() {
     super();
   }
 
   public static getInstance(): TimeManager {
     if (!TimeManager._instance) {
       TimeManager._instance = new TimeManager();
+      GameManagerRegistry.getInstance().registerManager(TimeManager._instance);
     }
     return TimeManager._instance;
+  }
+
+  public static resetInstance(): void {
+    if (TimeManager._instance) {
+      Logger.debug(LOGGER_SOURCE, "Resetting TimeManager instance.");
+      TimeManager._instance.cleanup(false);
+      TimeManager._instance = null;
+    } else {
+      Logger.trace(
+        LOGGER_SOURCE,
+        "TimeManager instance already null, skipping reset."
+      );
+    }
   }
 
   /**
@@ -80,13 +98,30 @@ export class TimeManager extends BaseManager {
   }
 
   public override init(): void {
-    console.log("Time Manager Initialized");
+    Logger.debug(LOGGER_SOURCE, "Time Manager Initialized");
   }
 
+  /**
+   * Cleans up TimeManager resources.
+   * Currently just clears the scene reference.
+   * Explicit timer cleanup might be needed if timers span scenes/HMR.
+   * @param isHMRDispose - True if called during HMR dispose.
+   */
+  public override cleanup(isHMRDispose: boolean): void {
+    Logger.info(
+      LOGGER_SOURCE,
+      `Time Manager cleanup called (HMR: ${isHMRDispose}).`
+    );
+    this.scene = null;
+    Logger.debug(LOGGER_SOURCE, "Time Manager cleanup complete.");
+  }
+
+  /**
+   * Destroys the TimeManager.
+   */
   public override destroy(): void {
-    console.log("Time Manager Destroyed");
-    this.scene = null; // Clear scene reference
-    TimeManager._instance = null;
+    Logger.info(LOGGER_SOURCE, "Time Manager Destroyed");
+    this.cleanup(false);
   }
 
   // Update might be used for custom time scaling or effects in the future

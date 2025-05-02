@@ -13,6 +13,7 @@ import { EntityManager } from "./managers/EntityManager"; // Import EntityManage
 import { InputManager } from "./managers/InputManager"; // Import InputManager
 import { NetworkManager } from "./managers/NetworkManager"; // Import NetworkManager
 import { RoomProvider } from "./colyseus"; // Import RoomProvider from the new local file
+import { GameManagerRegistry } from "./managers/GameManagerRegistry"; // Import GameManagerRegistry
 
 // -- Logging Setup --
 // Create a set of sources to exclude
@@ -152,33 +153,16 @@ function cleanupApp(isHMRDispose: boolean) {
     `cleanupApp: Stopping scenes, destroying Phaser game, resetting managers. (HMR Dispose: ${isHMRDispose})`
   );
 
-  // 1. Handle NetworkManager differently based on HMR
-  if (isHMRDispose) {
-    // During HMR, we want to explicitly leave the Colyseus room
-    // so the server knows the old client is gone immediately.
-    // We *don't* reset the NetworkManager instance itself, as a new one
-    // will be created by the re-executed module code.
-    try {
-      NetworkManager.getInstance().leaveRoom(); // Explicitly leave
-      Logger.debug(
-        LOGGER_SOURCE,
-        "Called NetworkManager.leaveRoom() during HMR dispose."
-      );
-    } catch (error) {
-      Logger.warn(
-        LOGGER_SOURCE,
-        "Error calling leaveRoom during HMR dispose (maybe instance was already gone?)",
-        error
-      );
-    }
-    // Skip resetting the NetworkManager instance during HMR dispose
-    Logger.warn(
+  // 1. Handle Managers via Registry
+  // The registry's cleanup will call cleanup on each manager, passing isHMRDispose
+  try {
+    GameManagerRegistry.getInstance().cleanup(isHMRDispose);
+  } catch (error) {
+    Logger.error(
       LOGGER_SOURCE,
-      "Skipping NetworkManager reset during HMR dispose."
+      "Error during GameManagerRegistry cleanup:",
+      error
     );
-  } else {
-    // For normal page unload, reset the singleton
-    NetworkManager.resetInstance();
   }
 
   // 2. Destroy Phaser game (stops scenes)
@@ -190,12 +174,13 @@ function cleanupApp(isHMRDispose: boolean) {
         `Preparing to stop scene: ${scene.scene.key}`
       );
       try {
-        // 1. Clear entities while scene context is potentially still needed for entity cleanup
-        Logger.debug(
-          LOGGER_SOURCE,
-          `Clearing entities for scene: ${scene.scene.key}`
-        );
-        EntityManager.getInstance().clearEntities();
+        // TODO: Revisit this - Entity cleanup should probably happen within EntityManager.cleanup
+        // // 1. Clear entities while scene context is potentially still needed for entity cleanup
+        // Logger.debug(
+        //   LOGGER_SOURCE,
+        //   `Clearing entities for scene: ${scene.scene.key}`
+        // );
+        // EntityManager.getInstance().clearEntities(); // << MOVE TO ENTITY MANAGER CLEANUP
 
         // 2. Stop the scene - this will trigger the scene's own shutdown() method
         Logger.debug(
@@ -204,6 +189,7 @@ function cleanupApp(isHMRDispose: boolean) {
         );
         if (scene && scene.sys && scene.sys.isActive()) {
           scene.sys.game.scene.stop(scene.scene.key);
+          Logger.debug(LOGGER_SOURCE, `Scene ${scene.scene.key} stopped.`);
         } else {
           Logger.warn(
             LOGGER_SOURCE,
@@ -220,16 +206,18 @@ function cleanupApp(isHMRDispose: boolean) {
     });
 
     // 3. Now destroy the game instance itself
-    gameInstance.destroy(true);
+    Logger.debug(LOGGER_SOURCE, "Destroying Phaser game instance...");
+    gameInstance.destroy(true); // true removes canvas
     gameInstance = null;
+    Logger.debug(LOGGER_SOURCE, "Phaser game instance destroyed.");
   }
 
   // 4. Reset other global singletons *after* game destruction & network cleanup
-  Logger.debug(LOGGER_SOURCE, "Resetting other global managers.");
-  SceneManager.resetInstance();
-  EntityManager.resetInstance();
-  InputManager.resetInstance();
-  // NetworkManager is reset via its static resetInstance() method above
+  // Logger.debug(LOGGER_SOURCE, "Resetting other global managers."); << Handled by registry
+  // SceneManager.resetInstance();
+  // EntityManager.resetInstance();
+  // InputManager.resetInstance();
+  // NetworkManager is reset via its static resetInstance() method above << Handled by registry
 
   // React root cleanup: Using custom property on DOM element
   const rootElement = document.getElementById("root");
@@ -247,9 +235,23 @@ function cleanupApp(isHMRDispose: boolean) {
 
 // Function to handle initial setup and HMR re-initialization
 async function initializeApp() {
-  await cleanupApp(false); // Await the cleanup process
-  initGame();
-  renderApp();
+  // No need to call cleanupApp here, it's handled by HMR dispose or page unload
+  // await cleanupApp(false); // Await the cleanup process << REMOVED
+
+  // Initialize managers via the registry BEFORE creating the game or rendering React
+  try {
+    GameManagerRegistry.getInstance().initializeManagers();
+  } catch (error) {
+    Logger.error(
+      LOGGER_SOURCE,
+      "Error during GameManagerRegistry initialization:",
+      error
+    );
+    // Decide how to handle critical initialization errors
+  }
+
+  initGame(); // Creates Phaser Game
+  renderApp(); // Renders React App
 }
 
 // Initial setup using an IIAFE to handle top-level await

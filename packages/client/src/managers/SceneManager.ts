@@ -1,68 +1,94 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Phaser from "phaser";
 import { BaseManager } from "./BaseManager";
+import { GameManagerRegistry } from "./GameManagerRegistry";
+import { Logger } from "@one-button-to-space/shared";
+
+// Logger Source for this file
+const LOGGER_SOURCE = "🎬🎞️"; // Scene/film emojis
 
 export class SceneManager extends BaseManager {
-  protected static _instance: SceneManager | null = null;
-  private game: Phaser.Game;
+  protected static override _instance: SceneManager | null = null;
 
-  private constructor(game: Phaser.Game) {
+  protected constructor() {
     super();
-    this.game = game;
   }
 
-  public static getInstance(game?: Phaser.Game): SceneManager {
+  public static getInstance(): SceneManager {
     if (!SceneManager._instance) {
-      if (!game) {
-        throw new Error(
-          "SceneManager requires a Phaser.Game instance on first call."
-        );
-      }
-      SceneManager._instance = new SceneManager(game);
+      SceneManager._instance = new SceneManager();
+      GameManagerRegistry.getInstance().registerManager(SceneManager._instance);
     }
     return SceneManager._instance;
   }
 
   public static resetInstance(): void {
-    SceneManager._instance = null;
+    if (SceneManager._instance) {
+      Logger.debug(LOGGER_SOURCE, "Resetting SceneManager instance.");
+      SceneManager._instance.cleanup(false);
+      SceneManager._instance = null;
+    } else {
+      Logger.trace(
+        LOGGER_SOURCE,
+        "SceneManager instance already null, skipping reset."
+      );
+    }
+  }
+
+  private getGame(): Phaser.Game | null {
+    if (import.meta.env.DEV && (window as any).phaserGame) {
+      return (window as any).phaserGame as Phaser.Game;
+    }
+    Logger.error(LOGGER_SOURCE, "Cannot reliably access Phaser.Game instance!");
+    return null;
   }
 
   public startScene(key: string, data?: object): void {
-    if (this.game.scene.isActive(key)) {
-      console.warn(`Scene ${key} is already active.`);
+    const game = this.getGame();
+    if (!game) return;
+
+    if (game.scene.isActive(key)) {
+      Logger.warn(LOGGER_SOURCE, `Scene ${key} is already active.`);
       return;
     }
-    // Stop other scenes if needed, or manage parallel scenes
-    // Example: Stop all other scenes before starting the new one
-    // this.game.scene.getScenes(true).forEach(scene => {
-    //     if (scene.scene.key !== key) {
-    //         this.game.scene.stop(scene.scene.key);
-    //     }
-    // });
-    this.game.scene.start(key, data);
+    Logger.info(LOGGER_SOURCE, `Starting scene: ${key}`, data);
+    game.scene.start(key, data);
   }
 
   public stopScene(key: string): void {
-    if (this.game.scene.isActive(key)) {
-      this.game.scene.stop(key);
+    const game = this.getGame();
+    if (!game) return;
+
+    if (game.scene.isActive(key)) {
+      Logger.info(LOGGER_SOURCE, `Stopping scene: ${key}`);
+      game.scene.stop(key);
+    } else {
+      Logger.warn(LOGGER_SOURCE, `Attempted to stop inactive scene: ${key}`);
     }
   }
 
   public getCurrentScene(): Phaser.Scene | null {
-    const activeScenes = this.game.scene.getScenes(true);
-    return activeScenes[0] ?? null;
+    const game = this.getGame();
+    if (!game) return null;
+
+    const activeScenes = game.scene.getScenes(true);
+    return activeScenes.length > 0 ? activeScenes[0] : null;
   }
 
-  // Add other scene management methods as needed (e.g., transition effects)
-
   public override init(): void {
-    console.log("Scene Manager Initialized");
-    // Initialization logic, maybe set up scene event listeners
+    Logger.debug(LOGGER_SOURCE, "Scene Manager Initialized");
+  }
+
+  public override cleanup(isHMRDispose: boolean): void {
+    Logger.info(
+      LOGGER_SOURCE,
+      `Scene Manager cleanup called (HMR: ${isHMRDispose}).`
+    );
+    Logger.debug(LOGGER_SOURCE, "Scene Manager cleanup complete.");
   }
 
   public override destroy(): void {
-    console.log("Scene Manager Destroyed");
-    SceneManager._instance = null;
-    // Cleanup logic
+    Logger.info(LOGGER_SOURCE, "Scene Manager Destroyed");
+    this.cleanup(false);
   }
 }

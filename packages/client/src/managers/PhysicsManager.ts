@@ -1,6 +1,11 @@
 import Phaser from "phaser";
 import Matter from "matter-js"; // Explicit import for Matter types if needed elsewhere
 import { BaseManager } from "./BaseManager";
+import { GameManagerRegistry } from "./GameManagerRegistry"; // Import registry
+import { Logger } from "@one-button-to-space/shared"; // Import Logger
+
+// Logger Source for this file
+const LOGGER_SOURCE = "⚖️🔩"; // Physics/mechanics emojis
 
 // Define collision categories (example)
 // Ensure these align with server-side definitions if used for filtering
@@ -16,20 +21,41 @@ export const CollisionCategories = {
 };
 
 export class PhysicsManager extends BaseManager {
-  protected static _instance: PhysicsManager | null = null;
+  // Use protected static for instance according to BaseManager pattern
+  protected static override _instance: PhysicsManager | null = null;
   private scene: Phaser.Scene | null = null;
   private engine: Matter.Engine | null = null;
   private world: Phaser.Physics.Matter.World | null = null;
 
-  private constructor() {
+  protected constructor() {
     super();
+    // Don't register here
   }
 
   public static getInstance(): PhysicsManager {
     if (!PhysicsManager._instance) {
       PhysicsManager._instance = new PhysicsManager();
+      // Register the newly created instance
+      GameManagerRegistry.getInstance().registerManager(
+        PhysicsManager._instance
+      );
     }
     return PhysicsManager._instance;
+  }
+
+  // Static method to reset the singleton instance
+  public static resetInstance(): void {
+    if (PhysicsManager._instance) {
+      Logger.debug(LOGGER_SOURCE, "Resetting PhysicsManager instance.");
+      // Call instance cleanup before nullifying
+      PhysicsManager._instance.cleanup(false); // Pass false for full reset
+      PhysicsManager._instance = null;
+    } else {
+      Logger.trace(
+        LOGGER_SOURCE,
+        "PhysicsManager instance already null, skipping reset."
+      );
+    }
   }
 
   public setSceneContext(scene: Phaser.Scene): void {
@@ -47,44 +73,72 @@ export class PhysicsManager extends BaseManager {
   }
 
   private setupCollisionEvents(): void {
-    if (!this.scene || !this.world) return;
+    if (!this.scene || !this.world || !this.engine) {
+      Logger.warn(
+        LOGGER_SOURCE,
+        "Cannot setup collision events: Scene, World, or Engine not available."
+      );
+      return;
+    }
 
-    // Remove previous listeners if setting context multiple times
+    // Remove previous listeners first to prevent duplicates
+    // Note: Phaser's world.on also uses an EventEmitter, but removing from Matter.Events is safer if direct engine listeners were ever added.
+    Logger.debug(
+      LOGGER_SOURCE,
+      "Clearing existing Matter collision listeners (if any)..."
+    );
     Matter.Events.off(this.engine, "collisionStart");
     Matter.Events.off(this.engine, "collisionActive");
     Matter.Events.off(this.engine, "collisionEnd");
+    // Also clear Phaser's listeners on the world
+    this.world.off("collisionstart");
+    this.world.off("collisionactive");
+    this.world.off("collisionend");
 
-    this.scene.matter.world.on(
+    Logger.debug(LOGGER_SOURCE, "Setting up new Matter collision listeners...");
+    // Use Phaser's world event emitter which wraps Matter's
+    this.world.on(
       "collisionstart",
-      (event: Matter.IEventCollision<Matter.Engine>) => {
-        event.pairs.forEach((pair) => {
-          this.handleCollision(pair, "onCollisionStart");
-        });
+      (
+        event: Matter.IEventCollision<Matter.Engine>,
+        bodyA: Matter.Body,
+        bodyB: Matter.Body
+      ) => {
+        // Phaser passes bodyA and bodyB directly
+        this.handleCollisionPair(bodyA, bodyB, "onCollisionStart");
       }
     );
 
-    this.scene.matter.world.on(
+    this.world.on(
       "collisionactive",
-      (event: Matter.IEventCollision<Matter.Engine>) => {
-        event.pairs.forEach((pair) => {
-          this.handleCollision(pair, "onCollisionActive");
-        });
+      (
+        event: Matter.IEventCollision<Matter.Engine>,
+        bodyA: Matter.Body,
+        bodyB: Matter.Body
+      ) => {
+        this.handleCollisionPair(bodyA, bodyB, "onCollisionActive");
       }
     );
 
-    this.scene.matter.world.on(
+    this.world.on(
       "collisionend",
-      (event: Matter.IEventCollision<Matter.Engine>) => {
-        event.pairs.forEach((pair) => {
-          this.handleCollision(pair, "onCollisionEnd");
-        });
+      (
+        event: Matter.IEventCollision<Matter.Engine>,
+        bodyA: Matter.Body,
+        bodyB: Matter.Body
+      ) => {
+        this.handleCollisionPair(bodyA, bodyB, "onCollisionEnd");
       }
     );
+    Logger.debug(LOGGER_SOURCE, "Collision listeners setup complete.");
   }
 
-  private handleCollision(pair: Matter.Pair, handlerMethodName: string): void {
-    const { bodyA, bodyB } = pair;
-
+  // Updated handler to take bodies directly as passed by Phaser world events
+  private handleCollisionPair(
+    bodyA: Matter.Body,
+    bodyB: Matter.Body,
+    handlerMethodName: string
+  ): void {
     // Access the GameObject instance attached to the Matter body
     const gameObjectA = (bodyA as any).gameObject as
       | Phaser.GameObjects.GameObject
@@ -98,13 +152,13 @@ export class PhysicsManager extends BaseManager {
       gameObjectA &&
       typeof (gameObjectA as any)[handlerMethodName] === "function"
     ) {
-      (gameObjectA as any)[handlerMethodName](gameObjectB, pair);
+      (gameObjectA as any)[handlerMethodName](gameObjectB, bodyA, bodyB); // Pass bodies too
     }
     if (
       gameObjectB &&
       typeof (gameObjectB as any)[handlerMethodName] === "function"
     ) {
-      (gameObjectB as any)[handlerMethodName](gameObjectA, pair);
+      (gameObjectB as any)[handlerMethodName](gameObjectA, bodyB, bodyA); // Pass bodies too
     }
   }
 
@@ -173,21 +227,49 @@ export class PhysicsManager extends BaseManager {
   // Since physics is server-authoritative, direct manipulation methods (applyForce, setVelocity)
   // should primarily be driven by server updates, not client input directly.
 
+  // --- Lifecycle Methods ---
+
   public override init(): void {
-    console.log("Physics Manager Initialized");
+    Logger.debug(LOGGER_SOURCE, "Physics Manager Initialized");
+    // Any specific initialization needed
   }
 
-  public override destroy(): void {
-    console.log("Physics Manager Destroyed");
-    // Remove listeners if added directly to the engine
+  /**
+   * Cleans up PhysicsManager resources.
+   * @param isHMRDispose - True if called during HMR dispose.
+   */
+  public override cleanup(isHMRDispose: boolean): void {
+    Logger.info(
+      LOGGER_SOURCE,
+      `Physics Manager cleanup called (HMR: ${isHMRDispose}).`
+    );
+    // Logic moved from original destroy method
     if (this.engine) {
+      Logger.debug(
+        LOGGER_SOURCE,
+        "Removing Matter.Events listeners from engine."
+      );
       Matter.Events.off(this.engine, "collisionStart");
       Matter.Events.off(this.engine, "collisionActive");
       Matter.Events.off(this.engine, "collisionEnd");
     }
+    if (this.world) {
+      Logger.debug(LOGGER_SOURCE, "Removing Phaser world collision listeners.");
+      this.world.off("collisionstart");
+      this.world.off("collisionactive");
+      this.world.off("collisionend");
+    }
     this.scene = null;
     this.world = null;
     this.engine = null;
-    PhysicsManager._instance = null;
+    Logger.debug(LOGGER_SOURCE, "Physics Manager cleanup complete.");
+  }
+
+  /**
+   * Destroys the PhysicsManager.
+   */
+  public override destroy(): void {
+    Logger.info(LOGGER_SOURCE, "Physics Manager Destroyed");
+    this.cleanup(false); // Call full cleanup on destroy
   }
 }

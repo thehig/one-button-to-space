@@ -9,6 +9,7 @@ import { gameEmitter } from "../main"; // Ensure gameEmitter is imported
 // --- Manager Imports ---
 import { EntityManager } from "./EntityManager";
 import { SceneManager } from "./SceneManager";
+import { GameManagerRegistry } from "./GameManagerRegistry"; // Import registry
 
 // Logger Source for this file
 const LOGGER_SOURCE = "🌐";
@@ -75,22 +76,25 @@ export class NetworkManager extends BaseManager {
     }
 
     this.client = new Client(endpoint);
-    // Logger.info removed here, logged within the if/else blocks now
     this.startStatsUpdater();
   }
 
   public static getInstance(): NetworkManager {
     if (!NetworkManager._instance) {
       NetworkManager._instance = new NetworkManager();
+      GameManagerRegistry.getInstance().registerManager(
+        NetworkManager._instance
+      );
     }
     return NetworkManager._instance;
   }
 
   public static async resetInstance(): Promise<void> {
     if (NetworkManager._instance) {
-      await NetworkManager._instance.destroy(); // Call instance destroy
+      Logger.debug(LOGGER_SOURCE, "Resetting NetworkManager instance...");
+      await NetworkManager._instance.cleanup(false);
       NetworkManager._instance = null;
-      Logger.debug(LOGGER_SOURCE, "NetworkManager instance reset.");
+      Logger.debug(LOGGER_SOURCE, "NetworkManager instance reset complete.");
     } else {
       Logger.trace(
         LOGGER_SOURCE,
@@ -380,16 +384,67 @@ export class NetworkManager extends BaseManager {
     return this.room?.sessionId;
   }
 
-  // --- Lifecycle ---
+  // --- Lifecycle Methods ---
 
   public override init(): void {
-    // No specific init logic here, constructor handles setup
+    Logger.debug(LOGGER_SOURCE, "Network Manager Initialized");
+    // Any initialization for NetworkManager itself
   }
 
+  /**
+   * Cleans up NetworkManager resources.
+   * Handles disconnecting from the room unless it's an HMR dispose.
+   * @param isHMRDispose - True if called during HMR dispose.
+   */
+  public override async cleanup(isHMRDispose: boolean): Promise<void> {
+    Logger.info(
+      LOGGER_SOURCE,
+      `Network Manager cleanup called (HMR: ${isHMRDispose}).`
+    );
+    this.stopStatsUpdates(); // Ensure stats updates stop
+
+    if (!isHMRDispose && this.room) {
+      // Only disconnect if it's NOT HMR dispose AND we have a room
+      // HMR dispose is handled externally in main.tsx before cleanupApp
+      const roomId = this.room.roomId;
+      try {
+        Logger.info(LOGGER_SOURCE, `Cleanup: Leaving room: ${roomId}`);
+        await this.room.leave(false);
+        Logger.info(LOGGER_SOURCE, `Cleanup: Left room: ${roomId}`);
+      } catch (e: any) {
+        Logger.error(
+          LOGGER_SOURCE,
+          `Cleanup: Error leaving room ${roomId}:`,
+          e
+        );
+      }
+    } else if (isHMRDispose) {
+      Logger.debug(
+        LOGGER_SOURCE,
+        "Cleanup: Skipping room.leave() during HMR dispose."
+      );
+    } else {
+      Logger.debug(LOGGER_SOURCE, "Cleanup: No room connection to leave.");
+    }
+
+    // Always clear local state regardless of HMR
+    this.room = null;
+    this.connectionOptions = null;
+    // Don't emit roomLeave here if it's HMR, main.tsx handles that context
+    if (!isHMRDispose) {
+      gameEmitter.emit("roomLeave"); // Emit leave event only on full cleanup
+    }
+
+    Logger.debug(LOGGER_SOURCE, "Network Manager cleanup complete.");
+  }
+
+  /**
+   * Destroys the NetworkManager.
+   */
   public override async destroy(): Promise<void> {
-    Logger.info(LOGGER_SOURCE, "Network Manager Destroying");
-    this.stopStatsUpdates(); // Stop stats updates on destroy
-    await this.disconnect(); // Ensure disconnection on destroy
-    NetworkManager._instance = null;
+    Logger.info(LOGGER_SOURCE, "Network Manager Destroyed");
+    await this.cleanup(false); // Perform full cleanup
+    // Any other final destruction tasks for the manager itself
+    // For instance, remove any global listeners setup by the Client if needed
   }
 }

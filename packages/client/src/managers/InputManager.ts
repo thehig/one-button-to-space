@@ -4,6 +4,7 @@ import { Client, Room } from "colyseus.js";
 import { RoomState } from "../schema/State";
 import { Logger } from "@one-button-to-space/shared";
 import { DeviceOrientationManager } from "../utils/DeviceOrientationManager";
+import { GameManagerRegistry } from "./GameManagerRegistry";
 
 // Logger Source for this file
 const LOGGER_SOURCE = "⌨️🖱️";
@@ -16,32 +17,32 @@ interface KeyMap {
  * Handles player input detection. Processing is handled in GameScene.
  */
 export class InputManager extends BaseManager {
-  public static instance: InputManager;
+  protected static override _instance: InputManager | null = null;
   private scene: Phaser.Scene | null = null;
   private registeredKeys: KeyMap = {}; // Stores specific keys requested by scenes
   private deviceOrientationManager: DeviceOrientationManager;
 
-  private constructor() {
+  protected constructor() {
     super();
     this.deviceOrientationManager = new DeviceOrientationManager();
   }
 
   public static getInstance(): InputManager {
-    if (!InputManager.instance) {
-      InputManager.instance = new InputManager();
+    if (!InputManager._instance) {
+      InputManager._instance = new InputManager();
+      GameManagerRegistry.getInstance().registerManager(InputManager._instance);
     }
-    return InputManager.instance;
+    return InputManager._instance;
   }
 
   /**
-   * Resets the singleton instance, ensuring a fresh start.
-   * Should be called during cleanup processes like HMR.
+   * Resets the singleton instance.
    */
   public static resetInstance(): void {
-    if (InputManager.instance) {
+    if (InputManager._instance) {
       Logger.debug(LOGGER_SOURCE, "Resetting InputManager instance.");
-      InputManager.instance.destroy(); // Call the instance's destroy method
-      InputManager.instance = null!; // Explicitly nullify the static instance
+      InputManager._instance.cleanup(false);
+      InputManager._instance = null;
     } else {
       Logger.trace(
         LOGGER_SOURCE,
@@ -153,24 +154,46 @@ export class InputManager extends BaseManager {
   }
 
   public override init(): void {
-    Logger.info(LOGGER_SOURCE, "Input Manager Initialized");
+    Logger.debug(LOGGER_SOURCE, "Input Manager Initialized");
+  }
+
+  /**
+   * Cleans up InputManager resources.
+   * @param isHMRDispose - True if called during HMR dispose.
+   */
+  public override cleanup(isHMRDispose: boolean): void {
+    Logger.info(
+      LOGGER_SOURCE,
+      `Input Manager cleanup called (HMR: ${isHMRDispose}).`
+    );
+    this.deviceOrientationManager.destroy();
+
+    Logger.debug(LOGGER_SOURCE, "Destroying registered Phaser key objects...");
+    Object.values(this.registeredKeys).forEach((key) => {
+      try {
+        if (key && key.scene) {
+          key.destroy();
+        } else if (key) {
+          Logger.warn(
+            LOGGER_SOURCE,
+            `Key object for code ${key.keyCode} exists but has no scene, cannot destroy properly.`
+          );
+        }
+      } catch (error) {
+        Logger.warn(
+          LOGGER_SOURCE,
+          `Error destroying key object: ${key?.keyCode}`,
+          error
+        );
+      }
+    });
+    this.registeredKeys = {};
+    this.scene = null;
+    Logger.debug(LOGGER_SOURCE, "Input Manager cleanup complete.");
   }
 
   public override destroy(): void {
     Logger.info(LOGGER_SOURCE, "Input Manager Destroyed");
-    this.deviceOrientationManager.destroy();
-    // Clean up registered keys
-    Logger.debug(LOGGER_SOURCE, "Destroying registered Phaser key objects...");
-    Object.values(this.registeredKeys).forEach((key) => {
-      try {
-        key.destroy();
-      } catch (error) {
-        // Log error if a key is already destroyed or invalid, but continue
-        Logger.warn(LOGGER_SOURCE, `Error destroying key object:`, error);
-      }
-    });
-    this.registeredKeys = {};
-    this.scene = null; // Clear scene reference
-    Logger.debug(LOGGER_SOURCE, "Input Manager cleanup complete.");
+    this.cleanup(false);
   }
 }

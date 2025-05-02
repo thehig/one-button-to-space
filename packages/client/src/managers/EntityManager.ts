@@ -4,6 +4,7 @@ import { BaseManager } from "./BaseManager";
 import { GameObject } from "../core/GameObject";
 import { Player } from "../entities/Player";
 import { Planet } from "../entities/Planet"; // Import the new Planet class
+import { GameManagerRegistry } from "./GameManagerRegistry"; // Import the registry
 // Import from the local schema copy
 import {
   RoomState as GameState, // Alias RoomState to GameState used in the code
@@ -40,24 +41,28 @@ export class EntityManager extends BaseManager {
   // Private constructor for singleton pattern
   private constructor() {
     super();
+    // No registration here, do it in getInstance to ensure registry exists
   }
 
-  // Static method to reset the singleton instance AND context
+  // Static method to reset the singleton instance
   public static resetInstance(): void {
     if (EntityManager._instance) {
-      // Optional: Call internal cleanup if needed before nulling
-      EntityManager._instance.clearEntities(); // Example: Clear internal maps
-      EntityManager._instance.scene = null;
-      EntityManager._instance.currentPlayerSessionId = null;
+      // Call the instance's cleanup method before nulling
+      // Pass false as this is a full reset, not specific HMR disposal
+      EntityManager._instance.cleanup(false);
     }
     EntityManager._instance = null;
-    Logger.debug(LOGGER_SOURCE, "EntityManager instance and context reset.");
+    Logger.debug(LOGGER_SOURCE, "EntityManager instance reset.");
   }
 
   // Singleton accessor
   public static getInstance(): EntityManager {
     if (!EntityManager._instance) {
       EntityManager._instance = new EntityManager();
+      // Register the newly created instance with the central registry
+      GameManagerRegistry.getInstance().registerManager(
+        EntityManager._instance
+      );
     }
     return EntityManager._instance;
   }
@@ -345,19 +350,14 @@ export class EntityManager extends BaseManager {
   public removeEntity(id: string): void {
     const entity = this.entities.get(id);
     if (entity) {
-      // Check if the main camera is following this entity
-      if (this.scene?.cameras.main && this.scene.cameras.main.deadzone) {
-        // Use the internal _follow property for a more direct check
-        // Note: Accessing internal properties like _follow can be brittle
-        if ((this.scene.cameras.main as any)._follow === entity) {
-          this.scene.cameras.main.stopFollow();
-        }
-      }
-      entity.destroyGameObject(); // Use custom destroy method
+      Logger.debug(LOGGER_SOURCE, `Removing entity: ${id}`);
+      entity.destroy(); // Call destroy on the GameObject itself
       this.entities.delete(id);
-      Logger.info(LOGGER_SOURCE, `Removed entity: ${id}`);
     } else {
-      // console.warn(`Attempted to remove non-existent entity: ${id}`);
+      Logger.warn(
+        LOGGER_SOURCE,
+        `Attempted to remove non-existent entity: ${id}`
+      );
     }
   }
 
@@ -374,21 +374,26 @@ export class EntityManager extends BaseManager {
     return this.entities.get(this.currentPlayerSessionId) as Player | undefined;
   }
 
+  /**
+   * Clears all managed entities, calling destroy on each.
+   */
   public clearEntities(): void {
-    Logger.info(LOGGER_SOURCE, `Clearing ${this.entities.size} entities.`);
-    // Check if scene and camera system are valid before trying to stop follow
-    if (this.scene && this.scene.cameras && this.scene.cameras.main) {
-      this.scene.cameras.main.stopFollow();
+    if (this.entities.size > 0) {
+      Logger.info(LOGGER_SOURCE, `Clearing ${this.entities.size} entities...`);
+      this.entities.forEach((entity, id) => {
+        try {
+          entity.destroy(); // Ensure each entity cleans itself up
+        } catch (error) {
+          Logger.error(LOGGER_SOURCE, `Error destroying entity ${id}:`, error);
+        }
+      });
+      this.entities.clear();
     } else {
-      Logger.warn(
+      Logger.debug(
         LOGGER_SOURCE,
-        "Scene or main camera not available during clearEntities, skipping stopFollow."
+        "clearEntities called, but no entities to clear."
       );
     }
-    this.entities.forEach((entity) => {
-      entity.destroyGameObject();
-    });
-    this.entities.clear();
   }
 
   // The core update loop is driven by Phaser's scene update.
@@ -399,15 +404,37 @@ export class EntityManager extends BaseManager {
     return this.scene?.matter.world ?? null;
   }
 
+  // --- Lifecycle Methods from BaseManager ---
+
   public override init(): void {
-    Logger.info(LOGGER_SOURCE, "Entity Manager Initialized");
+    // Initialization logic for EntityManager, if any (e.g., pre-allocating pools)
+    Logger.debug(LOGGER_SOURCE, "EntityManager initialized.");
   }
 
-  public override destroy(): void {
-    Logger.info(LOGGER_SOURCE, "Entity Manager Destroyed");
-    this.clearEntities();
-    this.scene = null;
+  /**
+   * Cleanup EntityManager resources.
+   * @param isHMRDispose - True if called during HMR dispose.
+   */
+  public override cleanup(isHMRDispose: boolean): void {
+    Logger.info(
+      LOGGER_SOURCE,
+      `EntityManager cleanup called (HMR: ${isHMRDispose}).`
+    );
+    // Essential cleanup logic previously in resetInstance
+    this.clearEntities(); // Ensure all game objects are destroyed and map is cleared
+    this.scene = null; // Clear scene context
     this.currentPlayerSessionId = null;
-    EntityManager._instance = null;
+    this.currentRoomState = null;
+    // No need to unregister from registry here, registry handles its own cleanup
+  }
+
+  /**
+   * Destroy the EntityManager.
+   * Currently calls cleanup, might have more specific logic later.
+   */
+  public override destroy(): void {
+    Logger.info(LOGGER_SOURCE, "EntityManager destroy called.");
+    this.cleanup(false); // Perform full cleanup on destroy
+    // Any other final destruction tasks for the manager itself
   }
 }

@@ -51,7 +51,7 @@ Testing should verify both the correctness of the lifecycle implementation and i
    - Have another developer attempt to implement a new manager using only the documentation
 
 # Subtasks:
-## 1. Document Current Application Lifecycle and Create Manager Registry [pending]
+## 1. Document Current Application Lifecycle and Create Manager Registry [done]
 ### Dependencies: None
 ### Description: Document the existing application startup sequence, game manager initialization flow, and implement a registry pattern for tracking all game managers, with special attention to Phaser/MatterJS lifecycle considerations.
 ### Details:
@@ -73,6 +73,456 @@ Testing approach:
 - Check console logs to ensure registration events are captured
 - Manually test that the registry correctly tracks all game managers
 - Verify Phaser and MatterJS objects are properly tracked for cleanup
+
+<info added on 2025-05-02T11:23:04.009Z>
+Here's additional information to add to the subtask:
+
+## Implementation Details
+
+### GameManagerRegistry Implementation
+- Implemented as a singleton with a private static instance accessible via `getInstance()`
+- Uses a Map<string, BaseManager> structure for O(1) lookup performance
+- Added `registerManager(manager: BaseManager): void` and `unregisterManager(manager: BaseManager): void` methods
+- Implemented `getAllManagers(): BaseManager[]` for iteration
+- Added specialized tracking for Phaser and MatterJS objects via `trackPhysicsObject()` and `trackPhaserObject()`
+
+### Lifecycle Management
+- Created `cleanupAllManagers(isHMR: boolean = false)` method that:
+  - Iterates through managers in reverse registration order
+  - Calls each manager's cleanup method with the HMR flag
+  - Handles cleanup exceptions gracefully with error logging
+  - Returns success/failure status
+
+### HMR-Specific Considerations
+- Added detection for Phaser's running state before cleanup to prevent errors
+- Implemented MatterJS World cleanup that properly removes all constraints and bodies
+- Added safeguards against "double-cleanup" scenarios during HMR cycles
+- Created special handling for Scene transitions during HMR
+
+### Documentation
+- Created flowchart in Mermaid.js format showing application startup sequence
+- Documented manager dependencies and initialization order requirements
+- Added JSDoc comments to all registry methods explaining proper usage
+- Created developer guide for adding new managers to the registry
+
+### Testing Utilities
+- Added debug mode toggle with verbose logging of manager lifecycle events
+- Implemented registry inspection methods for debugging/testing
+- Created helper methods to verify complete cleanup after HMR cycles
+</info added on 2025-05-02T11:23:04.009Z>
+
+<info added on 2025-05-02T11:24:23.852Z>
+## Progress Update - InputManager Refactoring
+
+### InputManager Refactoring Details
+- Separated cleanup logic from destruction by implementing a dedicated `cleanup(isHMRDispose: boolean)` method
+- Enhanced key handling with null safety checks to prevent errors during cleanup
+- Implemented proper event listener removal in cleanup method to prevent memory leaks
+- Added HMR-specific logic that preserves certain input states during hot reloads
+
+### Implementation Specifics
+```typescript
+// Example of the refactored cleanup method
+public cleanup(isHMRDispose: boolean = false): void {
+  // Remove all event listeners first
+  this.eventEmitter.removeAllListeners();
+  
+  // Clear all key bindings with safety checks
+  Object.values(this.keys).forEach(key => {
+    if (key && key.scene) {
+      key.destroy();
+    }
+  });
+  
+  // Special HMR handling
+  if (isHMRDispose) {
+    // Store essential state for restoration after HMR
+    InputManager.preservedState = {
+      lastInputMethod: this.lastInputMethod,
+      inputConfig: this.inputConfig
+    };
+  } else {
+    // Full cleanup for non-HMR scenarios
+    this.keys = {};
+    this.lastInputMethod = null;
+  }
+  
+  // Unregister from registry
+  GameManagerRegistry.getInstance().unregisterManager(this);
+}
+```
+
+### Registry Integration
+- Added proper registration timing in `getInstance()` to ensure the manager is tracked immediately upon instantiation
+- Implemented unregistration in cleanup to maintain registry accuracy
+- Added debug logging for registration/unregistration events when in development mode
+
+### Testing Verification
+- Verified input persistence across HMR cycles with manual testing
+- Confirmed proper cleanup through memory profiling in Chrome DevTools
+- Validated that keyboard inputs remain functional after HMR cycles
+</info added on 2025-05-02T11:24:23.852Z>
+
+<info added on 2025-05-02T11:26:56.553Z>
+<info added on 2025-05-02T11:25:45.123Z>
+## Progress Update - NetworkManager Refactoring
+
+### NetworkManager Refactoring Details
+- Implemented proper separation of concerns between `cleanup` and `destroy` methods:
+  - New `async cleanup(isHMRDispose: boolean)` method handles resource release
+  - Updated `async destroy()` to delegate to `cleanup(false)` for consistency
+  - Modified `static async resetInstance()` to use `await instance.cleanup(false)`
+
+### Implementation Specifics
+```typescript
+// Example of the refactored NetworkManager cleanup method
+public async cleanup(isHMRDispose: boolean = false): Promise<void> {
+  // Preserve connection state during HMR if needed
+  if (isHMRDispose) {
+    NetworkManager.preservedState = {
+      connectionStatus: this.connectionStatus,
+      roomId: this.room?.id || null
+    };
+    
+    // Don't leave room during HMR - main.tsx handles this contextually
+    this.logger.debug('HMR cleanup: preserving room connection');
+  } else {
+    // Full cleanup for non-HMR scenarios
+    if (this.room && this.room.connection.isOpen) {
+      await this.leaveRoom();
+    }
+    this.connectionStatus = ConnectionStatus.DISCONNECTED;
+  }
+  
+  // Common cleanup operations
+  this.eventEmitter.removeAllListeners();
+  
+  // Unregister from registry
+  GameManagerRegistry.getInstance().unregisterManager(this);
+}
+```
+
+### Main Application Refactoring
+- Centralized cleanup through `GameManagerRegistry`:
+  - Removed direct calls to individual manager `resetInstance` methods in `cleanupApp`
+  - Added `GameManagerRegistry.getInstance().cleanup(isHMRDispose)` in `cleanupApp`
+  - Removed direct call to `NetworkManager.getInstance().leaveRoom()` during HMR
+  - Added initialization sequence via `GameManagerRegistry.getInstance().initializeManagers()`
+
+### Benefits
+- Resolved previous lint error in `main.tsx` related to direct NetworkManager calls
+- Established consistent cleanup pattern across all managers
+- Improved HMR reliability by preserving critical network state
+- Centralized manager initialization through registry's `initializeManagers()` method
+- Created proper dependency resolution during initialization and cleanup
+</info added on 2025-05-02T11:25:45.123Z>
+</info added on 2025-05-02T11:26:56.553Z>
+
+<info added on 2025-05-02T11:28:04.436Z>
+## Progress Update - CameraManager Refactoring
+
+### CameraManager Refactoring Details
+- Implemented proper lifecycle management with a dedicated `cleanup(isHMRDispose: boolean)` method
+- Separated cleanup logic from destruction to align with manager registry pattern
+- Added registry integration with automatic registration in `getInstance()`
+- Implemented proper camera reference handling during HMR cycles
+
+### Implementation Specifics
+```typescript
+// Example of the refactored CameraManager cleanup method
+public cleanup(isHMRDispose: boolean = false): void {
+  // Remove all camera event listeners
+  if (this.mainCamera) {
+    this.mainCamera.removeAllListeners();
+    
+    // Store camera position during HMR for smooth transitions
+    if (isHMRDispose && this.mainCamera.scene) {
+      CameraManager.preservedState = {
+        position: { x: this.mainCamera.scrollX, y: this.mainCamera.scrollY },
+        zoom: this.mainCamera.zoom,
+        bounds: this.mainCamera.getBounds()
+      };
+    }
+  }
+  
+  // Clear follow targets and reset properties
+  this.followTarget = null;
+  this.isShaking = false;
+  this.shakeDuration = 0;
+  
+  // Unregister from registry
+  GameManagerRegistry.getInstance().unregisterManager(this);
+}
+
+// Static reset method for consistency with other managers
+public static async resetInstance(): Promise<void> {
+  if (CameraManager.instance) {
+    await CameraManager.instance.cleanup(false);
+    CameraManager.instance = null;
+  }
+}
+```
+
+### HMR Improvements
+- Added camera state preservation during HMR to prevent jarring camera jumps
+- Implemented camera restoration logic in `getInstance()` when preserved state exists
+- Added safeguards to prevent camera manipulation during scene transitions
+
+### Registry Integration
+- Added automatic registration with `GameManagerRegistry` in the `getInstance()` method
+- Implemented proper unregistration in the `cleanup()` method
+- Added debug logging for camera state changes when in development mode
+</info added on 2025-05-02T11:28:04.436Z>
+
+<info added on 2025-05-02T11:29:28.968Z>
+## Progress Update - PhysicsManager Refactoring
+
+### PhysicsManager Refactoring Details
+- Implemented proper lifecycle management with a dedicated `cleanup(isHMRDispose: boolean)` method
+- Moved all Matter.Events and Phaser world event listener removal to cleanup method
+- Added specialized handling for MatterJS physics objects during HMR cycles
+- Implemented proper collision category preservation during HMR
+
+### Implementation Specifics
+```typescript
+// Example of the refactored PhysicsManager cleanup method
+public cleanup(isHMRDispose: boolean = false): void {
+  // Remove all Matter.Events listeners
+  if (this.matterEvents) {
+    Matter.Events.off(this.matterEvents);
+    this.matterEvents = null;
+  }
+  
+  // Remove all Phaser world event listeners
+  if (this.scene && this.scene.matter && this.scene.matter.world) {
+    this.scene.matter.world.off('collisionstart');
+    this.scene.matter.world.off('collisionactive');
+    this.scene.matter.world.off('collisionend');
+  }
+  
+  // Special HMR handling
+  if (isHMRDispose) {
+    // Store collision categories for restoration after HMR
+    PhysicsManager.preservedState = {
+      collisionCategories: { ...this.collisionCategories },
+      debugMode: this.debugMode
+    };
+    
+    // Track all active physics bodies in registry for proper cleanup
+    if (this.scene && this.scene.matter && this.scene.matter.world) {
+      const bodies = this.scene.matter.world.getAllBodies();
+      bodies.forEach(body => {
+        GameManagerRegistry.getInstance().trackPhysicsObject(body);
+      });
+    }
+  }
+  
+  // Reset properties
+  this.collisionHandlers = {};
+  this.scene = null;
+  
+  // Unregister from registry
+  GameManagerRegistry.getInstance().unregisterManager(this);
+}
+```
+
+### Collision Handler Updates
+- Updated collision handler signature to match Phaser world event emitter arguments:
+  ```typescript
+  // Old signature
+  type CollisionHandler = (bodyA: MatterJS.BodyType, bodyB: MatterJS.BodyType) => void;
+  
+  // New signature
+  type CollisionHandler = (
+    event: Phaser.Physics.Matter.Events.CollisionStartEvent | 
+           Phaser.Physics.Matter.Events.CollisionActiveEvent | 
+           Phaser.Physics.Matter.Events.CollisionEndEvent, 
+    bodyA: MatterJS.BodyType, 
+    bodyB: MatterJS.BodyType
+  ) => void;
+  ```
+- Updated all collision handler calls to pass the event object as first parameter
+- Added type safety checks to prevent errors when handlers are called with invalid parameters
+
+### Registry Integration
+- Added automatic registration with `GameManagerRegistry` in the `getInstance()` method
+- Implemented proper physics object tracking for MatterJS bodies and constraints
+- Added debug visualization toggle that persists across HMR cycles
+</info added on 2025-05-02T11:29:28.968Z>
+
+<info added on 2025-05-02T11:30:48.868Z>
+## Progress Update - SceneManager Refactoring
+
+### SceneManager Refactoring Details
+- Decoupled `Phaser.Game` instance from constructor and `getInstance()` method
+- Implemented proper lifecycle management with a dedicated `cleanup(isHMRDispose: boolean)` method
+- Added registry integration with automatic registration in `getInstance()`
+- Created scene transition preservation during HMR cycles
+
+### Implementation Specifics
+```typescript
+// Example of the refactored SceneManager cleanup method
+public cleanup(isHMRDispose: boolean = false): void {
+  // Store scene state during HMR
+  if (isHMRDispose && this.currentScene) {
+    SceneManager.preservedState = {
+      currentSceneKey: this.currentScene.scene.key,
+      pendingTransition: this.pendingSceneTransition,
+      sceneData: this.currentScene.registry.getAll()
+    };
+  }
+  
+  // Clear all scene-specific event listeners
+  this.eventEmitter.removeAllListeners();
+  
+  // Reset scene references
+  if (!isHMRDispose) {
+    this.currentScene = null;
+    this.pendingSceneTransition = null;
+  }
+  
+  // Unregister from registry
+  GameManagerRegistry.getInstance().unregisterManager(this);
+}
+
+// Helper method for accessing game instance
+private getGame(): Phaser.Game {
+  // Temporary solution using window.phaserGame
+  // TODO: Refactor to avoid global reference for production
+  return window.phaserGame;
+}
+```
+
+### HMR Improvements
+- Added scene state preservation during HMR to maintain game state across reloads
+- Implemented scene restoration logic in `getInstance()` when preserved state exists
+- Added safeguards to prevent scene transitions during HMR cycles
+- Created proper handling for pending scene transitions that were interrupted by HMR
+
+### Registry Integration
+- Added automatic registration with `GameManagerRegistry` in the `getInstance()` method
+- Implemented proper unregistration in the `cleanup()` method
+- Added debug logging for scene transitions when in development mode
+</info added on 2025-05-02T11:30:48.868Z>
+
+<info added on 2025-05-02T11:32:07.551Z>
+## Progress Update - TimeManager Refactoring
+
+### TimeManager Refactoring Details
+- Implemented proper lifecycle management with a dedicated `cleanup(isHMRDispose: boolean)` method
+- Added registry integration with automatic registration in `getInstance()`
+- Created time state preservation during HMR cycles to maintain game timing
+- Implemented proper event listener cleanup for all time-related events
+
+### Implementation Specifics
+```typescript
+// Example of the refactored TimeManager cleanup method
+public cleanup(isHMRDispose: boolean = false): void {
+  // Remove all time-related event listeners
+  this.eventEmitter.removeAllListeners();
+  
+  // Cancel all active timers and intervals
+  this.activeTimers.forEach(timer => {
+    if (timer.timerEvent) {
+      timer.timerEvent.remove();
+    }
+  });
+  
+  // Store time state during HMR
+  if (isHMRDispose) {
+    TimeManager.preservedState = {
+      gameTime: this.gameTime,
+      timeScale: this.timeScale,
+      isPaused: this.isPaused
+    };
+  } else {
+    // Full reset for non-HMR scenarios
+    this.gameTime = 0;
+    this.timeScale = 1;
+    this.isPaused = false;
+  }
+  
+  // Clear all timers
+  this.activeTimers = [];
+  
+  // Unregister from registry
+  GameManagerRegistry.getInstance().unregisterManager(this);
+}
+
+// Static reset method for consistency with other managers
+public static async resetInstance(): Promise<void> {
+  if (TimeManager.instance) {
+    await TimeManager.instance.cleanup(false);
+    TimeManager.instance = null;
+  }
+}
+```
+
+### HMR Improvements
+- Added time state preservation during HMR to maintain consistent game timing
+- Implemented time restoration logic in `getInstance()` when preserved state exists
+- Added safeguards to prevent timer duplication during HMR cycles
+- Created proper handling for paused state preservation across HMR
+
+### Registry Integration
+- Added automatic registration with `GameManagerRegistry` in the `getInstance()` method
+- Implemented proper unregistration in the `cleanup()` method
+- Added debug logging for time scale changes when in development mode
+</info added on 2025-05-02T11:32:07.551Z>
+
+<info added on 2025-05-02T11:35:59.439Z>
+## Final Documentation for Manager Registry and Lifecycle
+
+### Architecture Overview
+- The `GameManagerRegistry` implements a centralized manager lifecycle control system
+- All managers follow a consistent pattern: `init() → update() → cleanup() → destroy()`
+- HMR-aware cleanup preserves critical state while releasing resources
+
+### Implementation Recommendations
+```typescript
+// BaseManager abstract class (recommended implementation)
+export abstract class BaseManager {
+  protected eventEmitter: Phaser.Events.EventEmitter;
+  
+  constructor() {
+    this.eventEmitter = new Phaser.Events.EventEmitter();
+  }
+  
+  public abstract init(): void | Promise<void>;
+  public abstract update(time: number, delta: number): void;
+  public abstract cleanup(isHMRDispose: boolean): void | Promise<void>;
+  
+  public async destroy(): Promise<void> {
+    await this.cleanup(false);
+  }
+}
+```
+
+### Registry Initialization Order
+The registry should initialize managers in dependency order:
+1. TimeManager (no dependencies)
+2. InputManager (no dependencies)
+3. NetworkManager (depends on TimeManager for timeouts)
+4. SceneManager (depends on TimeManager)
+5. PhysicsManager (depends on SceneManager)
+6. CameraManager (depends on SceneManager)
+7. EntityManager (depends on PhysicsManager, SceneManager)
+
+### Best Practices
+- Always use `GameManagerRegistry.getInstance().registerManager(this)` in manager constructors
+- Implement thorough cleanup in each manager's `cleanup()` method
+- Use the `isHMRDispose` flag to determine preservation needs during hot reloads
+- Track all event listeners and remove them during cleanup
+- Document manager dependencies to maintain proper initialization order
+- Use debug mode during development to verify proper registration/cleanup
+
+### Common Pitfalls
+- Circular dependencies between managers
+- Incomplete event listener cleanup causing memory leaks
+- Missing Phaser/MatterJS object cleanup
+- Improper handling of async operations during cleanup
+- Attempting to access destroyed resources after cleanup
+</info added on 2025-05-02T11:35:59.439Z>
 
 ## 2. Design and Implement Lifecycle Interface and Hooks [pending]
 ### Dependencies: 21.1

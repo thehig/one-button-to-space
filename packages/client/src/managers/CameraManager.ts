@@ -3,6 +3,7 @@ import { BaseManager } from "./BaseManager";
 import { Logger } from "@one-button-to-space/shared";
 import { InputManager } from "./InputManager"; // Need InputManager if using its key states for zoom
 import { GameObject } from "../core/GameObject"; // Type for the target
+import { GameManagerRegistry } from "./GameManagerRegistry"; // Import registry
 
 const LOGGER_SOURCE = "📷🎥"; // Camera emojis
 
@@ -21,14 +22,14 @@ const DEFAULT_CONFIG: CameraManagerConfig = {
 };
 
 export class CameraManager extends BaseManager {
-  protected static _instance: CameraManager | null = null;
+  protected static override _instance: CameraManager | null = null;
   private config: CameraManagerConfig;
   private target: GameObject | null = null;
   private camera: Phaser.Cameras.Scene2D.Camera | null = null;
   private _currentZoom: number = 1;
   private scene: Phaser.Scene | null = null; // Declare scene property
 
-  private constructor(config: Partial<CameraManagerConfig> = {}) {
+  protected constructor(config: Partial<CameraManagerConfig> = {}) {
     super();
     this.config = { ...DEFAULT_CONFIG, ...config };
     this._currentZoom = 1; // Start at default zoom
@@ -39,8 +40,24 @@ export class CameraManager extends BaseManager {
   public static getInstance(): CameraManager {
     if (!CameraManager._instance) {
       CameraManager._instance = new CameraManager();
+      GameManagerRegistry.getInstance().registerManager(
+        CameraManager._instance
+      );
     }
     return CameraManager._instance;
+  }
+
+  public static resetInstance(): void {
+    if (CameraManager._instance) {
+      Logger.debug(LOGGER_SOURCE, "Resetting CameraManager instance.");
+      CameraManager._instance.cleanup(false); // Pass false for full reset
+      CameraManager._instance = null;
+    } else {
+      Logger.trace(
+        LOGGER_SOURCE,
+        "CameraManager instance already null, skipping reset."
+      );
+    }
   }
 
   public setSceneContext(scene: Phaser.Scene): void {
@@ -190,15 +207,43 @@ export class CameraManager extends BaseManager {
     // Add any other camera effects or updates here
   }
 
-  public override destroy(): void {
-    Logger.info(LOGGER_SOURCE, "Destroying CameraManager...");
-    // Use optional chaining for safety
+  public override init(): void {
+    Logger.debug(LOGGER_SOURCE, "Camera Manager Initialized");
+    // Any specific initialization needed
+  }
+
+  /**
+   * Cleans up CameraManager resources.
+   * @param isHMRDispose - True if called during HMR dispose.
+   */
+  public override cleanup(isHMRDispose: boolean): void {
+    Logger.info(
+      LOGGER_SOURCE,
+      `Camera Manager cleanup called (HMR: ${isHMRDispose}).`
+    );
+    // Logic moved from original destroy method
     if (this.scene?.input) {
       this.scene.input.off("wheel", this.handleZoom, this);
+      Logger.debug(LOGGER_SOURCE, "Removed 'wheel' event listener.");
+    } else {
+      Logger.debug(
+        LOGGER_SOURCE,
+        "Scene or input not available, skipping wheel listener removal."
+      );
     }
     this.target = null;
     this.camera = null;
     this.scene = null; // Clear scene reference
-    super.destroy();
+    Logger.debug(LOGGER_SOURCE, "Camera Manager cleanup complete.");
+  }
+
+  /**
+   * Destroys the CameraManager.
+   */
+  public override destroy(): void {
+    Logger.info(LOGGER_SOURCE, "Destroying CameraManager...");
+    this.cleanup(false); // Call full cleanup on destroy
+    // BaseManager destroy is called implicitly if super.destroy() existed and was called,
+    // but since it's empty in BaseManager, we just ensure our cleanup runs.
   }
 }
