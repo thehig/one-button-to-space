@@ -417,6 +417,7 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
           // Update player state from physics bodies AFTER engine step
           this.updatePlayerStatesFromPhysics();
           this.state.physicsStep++; // Increment physics step counter
+          this.state.physicsTick++; // Increment the physics tick counter
 
           // Broadcast updated physics state using delta compression
           const currentPlayerStates: {

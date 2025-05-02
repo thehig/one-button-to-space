@@ -132,7 +132,8 @@ export class PlayerConfigSchema extends Schema {
 export class RoomState extends Schema {
   @type({ map: PlayerState }) players = new MapSchema<PlayerState>();
   @type({ map: PlanetData }) planets = new MapSchema<PlanetData>();
-  @type("number") physicsStep = 0; // Add physics step counter
+  @type("number") physicsStep = 0; // Add physics step counter - DEPRECATED, use physicsTick
+  @type("number") physicsTick = 0; // Current physics simulation tick
   @type("number") serverTime: number = 0;
   @type(PlayerConfigSchema) playerConfig = new PlayerConfigSchema();
   @type("string") serverControlMode: string = "run"; // Added server control mode state

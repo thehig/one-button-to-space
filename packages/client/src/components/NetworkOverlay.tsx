@@ -64,6 +64,8 @@ const NetworkOverlay: React.FC = () => {
         {networkStats.msgInPerSec.toFixed(0)}/s ⬆️{" "}
         {networkStats.msgOutPerSec.toFixed(0)}/s
       </div>
+      {/* Physics Tick Display */}
+      <div>Tick: {room?.state?.physicsTick ?? "N/A"}</div>
 
       {/* Server Control Buttons (Moved from DebugOverlay) */}
       <div
