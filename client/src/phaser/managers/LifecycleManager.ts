@@ -36,7 +36,11 @@ export default class LifecycleManager {
     // Instantiate managers, injecting scene, eventEmitter, and other managers as needed
     // Order matters based on dependencies for construction or later initialization
     this.physicsManager = new PhysicsManager(this.scene);
-    this.entityManager = new EntityManager(this.scene, this.eventEmitter);
+    this.entityManager = new EntityManager(
+      this.scene,
+      this.eventEmitter,
+      this.physicsManager
+    );
     this.inputManager = new InputManager(this.scene, this.eventEmitter);
     this.networkManager = new NetworkManager(this.scene, this.eventEmitter);
     // CameraManager depends on EntityManager instance

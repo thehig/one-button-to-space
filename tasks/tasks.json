@@ -86,7 +86,7 @@
       "id": 8,
       "title": "Implement PhysicsManager Integration with Shared Module",
       "description": "Connect the client-side PhysicsManager with the shared physics module.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         5,
         7

@@ -5,7 +5,6 @@ export class PhysicsEngine {
   private engine: Matter.Engine;
   private world: Matter.World;
   private runner: Matter.Runner; // Optional: Use Matter.Runner or manual stepping
-  private lastUpdateTime: number = 0;
 
   constructor() {
     console.log("Initializing PhysicsEngine...");
@@ -62,18 +61,13 @@ export class PhysicsEngine {
   // --- Core Simulation Loop ---
 
   /**
-   * Steps the physics simulation forward manually.
-   * Should be called in a fixed timestep loop.
-   * @param time The current time (e.g., performance.now())
+   * Steps the physics simulation forward manually by one fixed step.
+   * Should be called in a fixed timestep loop controlled by the consumer (e.g., PhysicsManager).
+   * @param delta The fixed time step duration (e.g., FIXED_TIMESTEP)
    */
-  public manualStep(time: number): void {
-    const delta = time - this.lastUpdateTime;
-    // Accumulator logic might be needed here for more robust fixed timesteps
-    if (delta >= FIXED_TIMESTEP) {
-      Matter.Engine.update(this.engine, FIXED_TIMESTEP);
-      this.lastUpdateTime = time;
-      // console.log('Physics step executed');
-    }
+  public manualStep(delta: number): void {
+    // Directly update the engine with the provided fixed delta
+    Matter.Engine.update(this.engine, delta);
   }
 
   /**

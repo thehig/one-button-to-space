@@ -1,6 +1,6 @@
 # Task ID: 8
 # Title: Implement PhysicsManager Integration with Shared Module
-# Status: pending
+# Status: done
 # Dependencies: 5, 7
 # Priority: high
 # Description: Connect the client-side PhysicsManager with the shared physics module.
