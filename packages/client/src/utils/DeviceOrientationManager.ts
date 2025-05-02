@@ -218,31 +218,24 @@ export class DeviceOrientationManager {
    * Returns null if orientation data is not available.
    */
   public getTargetRocketAngleRadians(): number | null {
-    // let sourceUsed: InputSource = this.lastInputSource; // Removed
-    const currentBeta = this.beta; // Directly use real values
+    const currentBeta = this.beta;
     const currentGamma = this.gamma;
-    let logMessage = `getTargetAngle - `;
 
-    // Source checking/fallback logic removed
-
-    const betaStr = currentBeta?.toFixed(1) ?? "null";
-    const gammaStr = currentGamma?.toFixed(1) ?? "null";
-    logMessage += `Input: Beta=${betaStr}, Gamma=${gammaStr}. `;
-
-    // Check if necessary data is available
+    // Return null immediately if sensor data is missing, BEFORE logging
     if (currentGamma === null || currentBeta === null) {
-      // Need both Beta and Gamma for the atan2 calculation
-      logMessage += `Result: null (Insufficient Beta or Gamma).`;
-      Logger.trace(LOGGER_SOURCE, logMessage);
+      // Logger.trace(LOGGER_SOURCE, "getTargetAngle - Returning null due to missing sensor data."); // Optional: Keep trace log if needed
       return null;
     }
 
-    let finalAngle: number;
-    // let calculationType: string; // Removed
+    let logMessage = `getTargetAngle - `;
+    const betaStr = currentBeta.toFixed(1);
+    const gammaStr = currentGamma.toFixed(1);
+    logMessage += `Input: Beta=${betaStr}, Gamma=${gammaStr}. `;
 
-    // --- Calculation depends on the source - REMOVED --- Only 'real' calculation remains
-    // calculationType = "Real"; // Removed
-    // --- Calculation for Real Device ---
+    // Check if necessary data is available - Redundant check, handled above
+    // if (currentGamma === null || currentBeta === null) { ... }
+
+    let finalAngle: number;
     const betaRad = Phaser.Math.DegToRad(currentBeta);
     const gammaRad = Phaser.Math.DegToRad(currentGamma);
     // Calculate the angle of the (beta, gamma) vector in the plane defined by the screen's axes.

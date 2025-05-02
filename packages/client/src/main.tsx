@@ -4,7 +4,7 @@ import App from "./App.tsx";
 import "./index.css";
 import Phaser from "phaser";
 import { BootScene } from "./core/scenes/BootScene.ts";
-import { GameScene } from "./core/scenes/GameScene.ts";
+import { GameScene } from "./core/scenes/GameScene/index.ts"; // Corrected path to directory index
 import { MainMenuScene } from "./core/scenes/MainMenuScene.ts"; // Import the new scene
 import { Logger, LogLevel } from "@one-button-to-space/shared"; // Import Logger
 import { EventEmitter } from "./utils/EventEmitter"; // Import the EventEmitter
@@ -22,7 +22,7 @@ const blacklistSources = new Set<string>([
 ]);
 
 // Invoke debugger after 1 second in development mode. Set to 0 to disable.
-const DEBUG_DELAY = 0;
+const DEBUG_DELAY = 1000;
 
 // Set log level to TRACE, but blacklist specific sources
 Logger.setFilters(LogLevel.TRACE, undefined, blacklistSources);

@@ -76,7 +76,7 @@ export class NetworkManager extends BaseManager {
 
     this.client = new Client(endpoint);
     // Logger.info removed here, logged within the if/else blocks now
-    this.startStatsUpdater();
+    this.startStatsUpdates();
   }
 
   public static getInstance(): NetworkManager {
@@ -122,7 +122,7 @@ export class NetworkManager extends BaseManager {
       );
       Logger.trace(LOGGER_SOURCE, "Room joined successfully", this.room);
       this.setupRoomListeners();
-      this.startStatsUpdater(); // Start emitting stats
+      this.startStatsUpdates();
       gameEmitter.emit("roomReady", this.room); // Emit room ready event
       return this.room;
     } catch (e: any) {
@@ -135,7 +135,7 @@ export class NetworkManager extends BaseManager {
   }
 
   public async disconnect(): Promise<void> {
-    this.stopStatsUpdater(); // Stop emitting stats
+    this.stopStatsUpdates(); // Stop emitting stats
     if (this.room) {
       const roomId = this.room.roomId;
       try {
