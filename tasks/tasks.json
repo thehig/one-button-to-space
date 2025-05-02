@@ -74,7 +74,7 @@
       "id": 7,
       "title": "Implement Client-Side Manager Architecture",
       "description": "Create the core manager classes for the client-side game architecture.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         6
       ],
