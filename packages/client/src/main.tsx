@@ -11,6 +11,7 @@ import { EventEmitter } from "./utils/EventEmitter"; // Import the EventEmitter
 import { SceneManager } from "./managers/SceneManager"; // Corrected Import SceneManager
 import { EntityManager } from "./managers/EntityManager"; // Import EntityManager
 import { InputManager } from "./managers/InputManager"; // Import InputManager
+import { NetworkManager } from "./managers/NetworkManager"; // Import NetworkManager
 
 // -- Logging Setup --
 // Create a set of sources to exclude
@@ -135,11 +136,25 @@ function renderApp() {
 }
 
 // Function to handle cleanup
-function cleanupApp() {
+async function cleanupApp() {
   Logger.info(
     LOGGER_SOURCE,
     "cleanupApp: Stopping scenes, destroying Phaser game, and resetting managers."
   );
+
+  // 1. Destroy Network Manager first (disconnects and resets instance)
+  try {
+    const networkManager = NetworkManager.getInstance(); // Get instance
+    if (networkManager) {
+      // Check if instance exists
+      Logger.debug(LOGGER_SOURCE, "Destroying NetworkManager...");
+      await networkManager.destroy(); // Await destruction (includes disconnect)
+    }
+  } catch (e) {
+    Logger.error(LOGGER_SOURCE, "Error destroying NetworkManager:", e);
+  }
+
+  // 2. Destroy Phaser game (stops scenes)
   if (gameInstance) {
     // Stop all active scenes first
     gameInstance.scene.getScenes(true).forEach((scene) => {
@@ -181,11 +196,13 @@ function cleanupApp() {
     gameInstance.destroy(true);
     gameInstance = null;
   }
-  // 4. Reset global singletons *after* game destruction
-  Logger.debug(LOGGER_SOURCE, "Resetting global managers.");
+
+  // 4. Reset other global singletons *after* game destruction & network cleanup
+  Logger.debug(LOGGER_SOURCE, "Resetting other global managers.");
   SceneManager.resetInstance();
   EntityManager.resetInstance();
   InputManager.resetInstance();
+  // NetworkManager is reset via its destroy() method
 
   // React root cleanup: Using custom property on DOM element
   const rootElement = document.getElementById("root");
@@ -202,20 +219,22 @@ function cleanupApp() {
 }
 
 // Function to handle initial setup and HMR re-initialization
-function initializeApp() {
-  cleanupApp(); // Call cleanup at the beginning
+async function initializeApp() {
+  await cleanupApp(); // Await the cleanup process
   initGame();
   renderApp();
 }
 
-// Initial setup
-initializeApp();
+// Initial setup using an IIAFE to handle top-level await
+(async () => {
+  await initializeApp();
+})();
 
 // --- HMR Handling --- //
 if (import.meta.hot) {
   // Use dispose for cleanup before the module is replaced
-  import.meta.hot.dispose(() => {
-    cleanupApp(); // Also call cleanup here for standard HMR flow
+  import.meta.hot.dispose(async () => {
+    await cleanupApp(); // Await the async cleanup here too
   });
 
   // Accept updates for this module
