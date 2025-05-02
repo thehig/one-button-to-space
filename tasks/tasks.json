@@ -764,6 +764,16 @@
       "status": "pending",
       "dependencies": [],
       "priority": "medium"
+    },
+    {
+      "id": 20,
+      "title": "Implement Server Control Features in Debug Overlay",
+      "description": "Add Run/Step/Pause controls to the Debug Overlay to manage the physics simulation, with corresponding UI elements and server-side logic.",
+      "details": "This task involves adding simulation control functionality to the Debug Overlay with the following components:\n\n1. UI Implementation in DebugOverlay.tsx:\n   - Add three control buttons: Run (play), Pause, and Step\n   - Use appropriate icons for each button (play, pause, step-forward)\n   - Implement toggle behavior between Run/Pause\n   - Disable the Step button when simulation is running\n   - Add visual indicators to show the current simulation state\n\n2. Server Logic in GameRoom.ts:\n   - Implement a simulation state manager with three states: RUNNING, PAUSED, STEPPED\n   - Add methods to control the physics simulation:\n     - pauseSimulation(): Pauses the physics loop\n     - resumeSimulation(): Resumes normal physics updates\n     - stepSimulation(): Advances physics by exactly one frame/tick\n   - Ensure the physics time delta calculation accounts for paused states to prevent time jumps\n   - Implement a mechanism to track and manage the last update time correctly during pauses\n\n3. Communication:\n   - Create message handlers for the control commands\n   - Implement state synchronization between client and server\n   - Ensure all connected clients see the current simulation state\n\n4. Time Delta Management:\n   - Modify the physics update loop to handle paused states without accumulating time\n   - When stepping, use a fixed time delta rather than real elapsed time\n   - Store the last active timestamp when pausing and restore it when resuming",
+      "testStrategy": "Testing should verify both UI functionality and server-side simulation control:\n\n1. UI Testing:\n   - Verify all three buttons render correctly in the Debug Overlay\n   - Confirm buttons show appropriate enabled/disabled states based on simulation status\n   - Check that Run/Pause toggle works correctly\n   - Verify visual indicators accurately reflect the current simulation state\n\n2. Functional Testing:\n   - Test Pause: Verify that all physics objects stop moving when paused\n   - Test Resume: Confirm simulation continues normally after being paused\n   - Test Step: Verify objects move exactly one physics tick forward when stepped\n   - Verify multiple consecutive steps work correctly\n\n3. Time Delta Testing:\n   - Create a test with moving objects and pause the simulation\n   - Resume after various durations (1s, 5s, 30s) and verify objects continue from their paused positions without jumps\n   - Use the Debug Overlay to monitor physics time to confirm it doesn't include paused periods\n\n4. Edge Cases:\n   - Test rapid toggling between states\n   - Verify behavior when stepping multiple times quickly\n   - Test with multiple clients connected to ensure state synchronization\n   - Check behavior when simulation is paused for extended periods (minutes)",
+      "status": "in-progress",
+      "dependencies": [],
+      "priority": "medium"
     }
   ],
   "metadata": {
