@@ -30,9 +30,9 @@ export class SceneInputs {
   // Input state tracking
   private playerInputSequence: number = 0;
   private wasThrusting: boolean = false; // Tracks logical thrust state
-  private isTurningLeft: boolean = false; // Track keyboard turning state
-  private isTurningRight: boolean = false; // Track keyboard turning state
-  private lastSentAngle: number | null = null; // Track last SENT angle (from any source)
+  private isKeyboardTurningLeft: boolean = false;
+  private isKeyboardTurningRight: boolean = false;
+  private lastSentAngle: number | null = null; // Track last SENT angle (from device orientation)
   private isPinching: boolean = false; // Local tracking from pinch updates
 
   constructor(
@@ -68,8 +68,8 @@ export class SceneInputs {
     Logger.info(LOGGER_SOURCE, "SceneInputs Destroying");
     this.playerInputSequence = 0;
     this.wasThrusting = false;
-    this.isTurningLeft = false;
-    this.isTurningRight = false;
+    this.isKeyboardTurningLeft = false;
+    this.isKeyboardTurningRight = false;
     this.lastSentAngle = null;
     this.isPinching = false;
   }
@@ -88,18 +88,16 @@ export class SceneInputs {
             this.startThrust();
             break;
           case "turnLeft":
-            this.isTurningLeft = true;
-            Logger.trace(
-              LOGGER_SOURCE,
-              "Set internal state: isTurningLeft = true"
-            );
+            if (!this.isKeyboardTurningLeft) {
+              this.sendTurnStart("left");
+              this.isKeyboardTurningLeft = true;
+            }
             break;
           case "turnRight":
-            this.isTurningRight = true;
-            Logger.trace(
-              LOGGER_SOURCE,
-              "Set internal state: isTurningRight = true"
-            );
+            if (!this.isKeyboardTurningRight) {
+              this.sendTurnStart("right");
+              this.isKeyboardTurningRight = true;
+            }
             break;
           case "menu":
             this.triggerMenu();
@@ -122,18 +120,16 @@ export class SceneInputs {
             this.stopThrust();
             break;
           case "turnLeft":
-            this.isTurningLeft = false;
-            Logger.trace(
-              LOGGER_SOURCE,
-              "Set internal state: isTurningLeft = false"
-            );
+            if (this.isKeyboardTurningLeft) {
+              this.sendTurnStop("left");
+              this.isKeyboardTurningLeft = false;
+            }
             break;
           case "turnRight":
-            this.isTurningRight = false;
-            Logger.trace(
-              LOGGER_SOURCE,
-              "Set internal state: isTurningRight = false"
-            );
+            if (this.isKeyboardTurningRight) {
+              this.sendTurnStop("right");
+              this.isKeyboardTurningRight = false;
+            }
             break;
         }
         return; // Found action
@@ -216,7 +212,7 @@ export class SceneInputs {
         seq: this.playerInputSequence,
         input: "thrust_start",
       };
-      this.networkManager.sendMessage("playerInput", inputMsg);
+      this.networkManager.sendMessage("player_input", inputMsg);
       Logger.trace(LOGGER_SOURCE, "Sent logical input: thrust_start", {
         seq: inputMsg.seq,
       });
@@ -231,7 +227,7 @@ export class SceneInputs {
         seq: this.playerInputSequence,
         input: "thrust_stop",
       };
-      this.networkManager.sendMessage("playerInput", inputMsg);
+      this.networkManager.sendMessage("player_input", inputMsg);
       Logger.trace(LOGGER_SOURCE, "Sent logical input: thrust_stop", {
         seq: inputMsg.seq,
       });
@@ -257,7 +253,7 @@ export class SceneInputs {
         input: "set_angle",
         value: targetAngle,
       };
-      this.networkManager.sendMessage("playerInput", inputMsg);
+      this.networkManager.sendMessage("player_input", inputMsg);
       this.lastSentAngle = targetAngle;
       Logger.trace(
         LOGGER_SOURCE,
@@ -277,43 +273,54 @@ export class SceneInputs {
     // TODO: Implement menu toggling logic
   }
 
-  /** Update method for continuous actions like keyboard rotation */
+  private sendTurnStart(direction: "left" | "right"): void {
+    this.playerInputSequence++;
+    const input: PlayerInputMessage["input"] =
+      direction === "left" ? "turn_left_start" : "turn_right_start";
+    const inputMsg: PlayerInputMessage = {
+      seq: this.playerInputSequence,
+      input: input,
+    };
+    this.networkManager.sendMessage("player_input", inputMsg);
+    Logger.trace(LOGGER_SOURCE, `Sent logical input: ${input}`, {
+      seq: inputMsg.seq,
+    });
+  }
+
+  private sendTurnStop(direction: "left" | "right"): void {
+    this.playerInputSequence++;
+    const input: PlayerInputMessage["input"] =
+      direction === "left" ? "turn_left_stop" : "turn_right_stop";
+    const inputMsg: PlayerInputMessage = {
+      seq: this.playerInputSequence,
+      input: input,
+    };
+    this.networkManager.sendMessage("player_input", inputMsg);
+    Logger.trace(LOGGER_SOURCE, `Sent logical input: ${input}`, {
+      seq: inputMsg.seq,
+    });
+  }
+
+  /** Update method for continuous actions */
   public update(delta: number): void {
     // Ignore if touch is active (desktop only)
     if (this.scene.sys.game.device.input.touch) return;
 
-    // Keyboard Rotation
-    if (this.isTurningLeft || this.isTurningRight) {
-      const rotationSpeed = Math.PI / 2; // Radians per second
-      const rotationDelta = (rotationSpeed * delta) / 1000;
-      let angleChange = 0;
-      if (this.isTurningLeft) angleChange -= rotationDelta;
-      if (this.isTurningRight) angleChange += rotationDelta;
-
-      // Use last SENT angle as base OR current player angle if never sent
-      const player = this.entityManager.getCurrentPlayer() as
-        | Player
-        | undefined;
-      const baseAngle = this.lastSentAngle ?? player?.rotation ?? 0;
-      const targetAngle = Phaser.Math.Angle.Wrap(baseAngle + angleChange);
-
-      // Logger.trace(LOGGER_SOURCE, `Keyboard rotation update: Target=${targetAngle.toFixed(3)}`);
-      this.sendAngleUpdate(targetAngle);
-    }
+    _delta = delta; // Suppress unused warning if nothing else uses it
   }
 
   // --- Getter for debug state --- //
   public getDebugState(): {
     isPinching: boolean;
     isThrusting: boolean;
-    isTurningLeft: boolean;
-    isTurningRight: boolean;
+    isKeyboardTurningLeft: boolean;
+    isKeyboardTurningRight: boolean;
   } {
     return {
       isPinching: this.isPinching,
       isThrusting: this.wasThrusting,
-      isTurningLeft: this.isTurningLeft,
-      isTurningRight: this.isTurningRight,
+      isKeyboardTurningLeft: this.isKeyboardTurningLeft,
+      isKeyboardTurningRight: this.isKeyboardTurningRight,
     };
   }
 }
@@ -323,3 +330,5 @@ export class SceneInputs {
 let _pointer: Phaser.Input.Pointer;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 let _currentDistance: number;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+let _delta: number;

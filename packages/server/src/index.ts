@@ -9,7 +9,7 @@ import { Logger, LogLevel } from "@one-button-to-space/shared";
 import { GameRoom } from "./rooms/GameRoom"; // Uncommented
 
 // Set logger level to INFO
-Logger.setFilters(LogLevel.INFO);
+Logger.setFilters(LogLevel.TRACE);
 
 Logger.info("SERVER", "Server starting up...");
 Logger.setWorldCreationTime(Date.now());

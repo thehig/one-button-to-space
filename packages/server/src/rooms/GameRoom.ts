@@ -25,6 +25,7 @@ const {
   PLAYER_MASS,
   PLAYER_FRICTION_AIR,
   PLAYER_ANGULAR_DAMPING,
+  PLAYER_TURN_ANGULAR_VELOCITY,
   SYNC_THRESHOLD_POSITION,
   SYNC_THRESHOLD_VELOCITY,
   SYNC_THRESHOLD_ANGLE,
@@ -83,6 +84,9 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
   private playerBodies: Map<string, Matter.Body> = new Map();
   // Map to store player thrust state
   private playerThrustState: Map<string, boolean> = new Map();
+  // Map to store player turning state
+  private playerTurningState: Map<string, "left" | "right" | "none"> =
+    new Map();
   // Map to store pending inputs for each player
   private playerInputQueue: Map<string, PlayerInputMessage[]> = new Map();
   // Store the last broadcasted state for delta compression
@@ -254,10 +258,11 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
           break;
         // Add other message handlers as needed
         default:
-          // Only log if we intend to handle it later, otherwise ignore
+          // This is a catch-all; specific handlers below will take precedence
+          // Only log if absolutely necessary for debugging unknown messages
           // Logger.trace(
           //   LOGGER_SOURCE,
-          //   `Received unhandled message type "${type}" from ${client.sessionId}:`,
+          //   `Received unhandled message type "${type}" via catch-all from ${client.sessionId}:`,
           //   message,
           // );
           break;
@@ -347,6 +352,22 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
                   case "thrust_stop":
                     this.playerThrustState.set(sessionId, false);
                     break;
+                  case "turn_left_start":
+                    this.playerTurningState.set(sessionId, "left");
+                    break;
+                  case "turn_left_stop":
+                    if (this.playerTurningState.get(sessionId) === "left") {
+                      this.playerTurningState.set(sessionId, "none");
+                    }
+                    break;
+                  case "turn_right_start":
+                    this.playerTurningState.set(sessionId, "right");
+                    break;
+                  case "turn_right_stop":
+                    if (this.playerTurningState.get(sessionId) === "right") {
+                      this.playerTurningState.set(sessionId, "none");
+                    }
+                    break;
                   case "set_angle":
                     // We already validated value is a number in onMessage
                     Matter.Body.setAngle(playerBody, input.value as number);
@@ -382,23 +403,7 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
             );
             PhysicsLogic.calculateAndApplyAirResistance(playerBody, density);
 
-            // 3. Apply Angular Damping
-            const dampingFactor = 1 - PLAYER_ANGULAR_DAMPING; // Damping factor (e.g., 0.95 for 0.05 damping)
-            // Ensure angular velocity doesn't get infinitesimally small causing NaN issues
-            if (
-              Math.abs(playerBody.angularVelocity) >
-              ANGULAR_VELOCITY_SNAP_THRESHOLD
-            ) {
-              Matter.Body.setAngularVelocity(
-                playerBody,
-                playerBody.angularVelocity * dampingFactor
-              );
-            } else if (playerBody.angularVelocity !== 0) {
-              // Snap to zero if very close
-              Matter.Body.setAngularVelocity(playerBody, 0);
-            }
-
-            // 4. Apply Player Input Forces (e.g., Thrust)
+            // 3. Apply Player Input Forces (e.g., Thrust)
             if (this.playerThrustState.get(sessionId)) {
               const angle = playerBody.angle - Math.PI / 2; // Assuming angle 0 is UP for player visual
               const forceMagnitude = PLAYER_THRUST_FORCE;
@@ -407,6 +412,35 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
                 y: Math.sin(angle) * forceMagnitude,
               };
               Matter.Body.applyForce(playerBody, playerBody.position, force);
+            }
+
+            // Apply Turning Angular Velocity
+            const turningState = this.playerTurningState.get(sessionId);
+            if (turningState === "left") {
+              Matter.Body.setAngularVelocity(
+                playerBody,
+                -PLAYER_TURN_ANGULAR_VELOCITY
+              );
+            } else if (turningState === "right") {
+              Matter.Body.setAngularVelocity(
+                playerBody,
+                PLAYER_TURN_ANGULAR_VELOCITY
+              );
+            } else {
+              // If not actively turning, apply angular damping
+              const dampingFactor = 1 - PLAYER_ANGULAR_DAMPING; // Damping factor
+              if (
+                Math.abs(playerBody.angularVelocity) >
+                ANGULAR_VELOCITY_SNAP_THRESHOLD
+              ) {
+                Matter.Body.setAngularVelocity(
+                  playerBody,
+                  playerBody.angularVelocity * dampingFactor
+                );
+              } else if (playerBody.angularVelocity !== 0) {
+                // Snap to zero if very close
+                Matter.Body.setAngularVelocity(playerBody, 0);
+              }
             }
           });
           // --- End Shared Physics Logic Application ---
@@ -553,14 +587,19 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
       }
     );
 
-    // Register the message handler for player input
+    // --- ADDED: Handler for Player Input (placed AFTER catch-all) ---
     this.onMessage<PlayerInputMessage>("player_input", (client, message) => {
-      Logger.debug(
+      // Add a log here to confirm reception
+      Logger.trace(
         LOGGER_SOURCE,
-        `onMessage: Received 'player_input' from ${client.sessionId}`,
-        message
+        `Received 'player_input' from ${client.sessionId}:`,
+        {
+          input: message.input,
+          seq: message.seq,
+          value: message.value,
+        }
       );
-      // Basic validation: Check if player queue exists
+
       const queue = this.playerInputQueue.get(client.sessionId);
       if (!queue) {
         Logger.warn(
@@ -579,61 +618,15 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
           );
           return; // Discard invalid input
         }
-        // Optional: Add angle range validation? E.g., Math.abs(message.value) < Math.PI * 2
       }
+      // Add validation for other types if necessary
 
       // Add validated input to the queue
       queue.push(message);
-
-      // REMOVED: Direct application of input
-      /*
-      Logger.debug(
-        LOGGER_SOURCE,
-        `Received player_input from ${client.sessionId}:`,
-        message
-      );
-      const playerBody = this.playerBodies.get(client.sessionId);
-      if (!playerBody) {
-        Logger.warn(
-          LOGGER_SOURCE,
-          `Player input received for unknown body: ${client.sessionId}`
-        );
-        return;
-      }
-
-      // Process based on the specific input type
-      switch (message.input) {
-        case "thrust_start":
-          this.playerThrustState.set(client.sessionId, true);
-          // Logger.debug(`Thrust started for ${client.sessionId}`);
-          break;
-        case "thrust_stop":
-          this.playerThrustState.set(client.sessionId, false);
-          // Logger.debug(`Thrust stopped for ${client.sessionId}`);
-          break;
-        case "set_angle":
-          if (typeof message.value === "number") {
-            // Directly set the angle based on client input
-            Matter.Body.setAngle(playerBody, message.value);
-            // Logger.debug(`Set angle to ${message.value} for ${client.sessionId}`);
-          } else {
-            Logger.warn(
-              LOGGER_SOURCE,
-              `Invalid value for set_angle from ${client.sessionId}: ${message.value}`
-            );
-          }
-          break;
-        default:
-          Logger.warn(
-            LOGGER_SOURCE,
-            `Unknown player input type: ${(message as any).input}`
-          );
-          break;
-      }
-      */
     });
+    // --- END Handler for Player Input ---
 
-    // --- ADDED: Handler for Server Control Mode ---
+    // --- Handler for Server Control Mode ---
     this.onMessage<ServerControlMode>(
       "setServerControlMode",
       (client, mode) => {
@@ -791,6 +784,8 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
     this.state.players.set(client.sessionId, player);
     // Initialize thrust state
     this.playerThrustState.set(client.sessionId, false);
+    // Initialize turning state
+    this.playerTurningState.set(client.sessionId, "none");
     // Initialize input queue for the joining player
     this.playerInputQueue.set(client.sessionId, []);
     Logger.info(
@@ -808,6 +803,9 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
     // --- REGISTER MESSAGE HANDLERS FOR THIS CLIENT --- //
 
     // Handler for player input
+    // THIS onMessage HANDLER IS NOW REDUNDANT as input is processed via queue
+    // Keeping it commented for reference but it shouldn't be active
+    /*
     this.onMessage<PlayerInputMessage>("playerInput", (client, message) => {
       // Validate player exists
       const playerBody = this.playerBodies.get(client.sessionId);
@@ -864,6 +862,7 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
       //   `Processed input from ${client.sessionId}: seq=${message.seq}, input=${message.input}, value=${message.value}`
       // );
     });
+    */
 
     // Add handlers for other message types here (e.g., chat, actions)
 
@@ -904,6 +903,8 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
 
     // Remove thrust state for leaving player
     this.playerThrustState.delete(client.sessionId);
+    // Remove turning state for leaving player
+    this.playerTurningState.delete(client.sessionId);
     // Remove input queue for leaving player
     this.playerInputQueue.delete(client.sessionId);
     // Remove last broadcast state for leaving player

@@ -11,14 +11,15 @@ export const DEFAULT_ATMOSPHERE_HEIGHT = 50; // Default planet atmosphere height
 
 // --- Player Physics ---
 export const PLAYER_THRUST_FORCE = 0.0005;
-export const PLAYER_MASS = 10; // Mass of the player rocket
-export const PLAYER_FRICTION = 0.05; // Surface friction (e.g., when landed)
-export const PLAYER_FRICTION_AIR = 0; // Air friction for the rocket (Set to 0 to rely on custom DRAG_COEFFICIENT logic)
+export const PLAYER_MASS = 5; // Mass of the player rocket
+export const PLAYER_FRICTION = 0.1; // Surface friction (e.g., when landed)
+export const PLAYER_FRICTION_AIR = 0.01; // Air friction for the rocket (Set to 0 to rely on custom DRAG_COEFFICIENT logic)
 export const PLAYER_RESTITUTION = 0.3; // Bounciness (0=none, 1=perfectly elastic)
 export const PLAYER_ANGULAR_DAMPING = 0.05; // Damping factor to reduce spin over time (0 = no damping, 1 = immediate stop)
 export const ANGULAR_VELOCITY_SNAP_THRESHOLD = 0.0001; // Threshold below which angular velocity snaps to 0
 export const PLAYER_WIDTH = 40; // Visual/approximate width
 export const PLAYER_HEIGHT = 100; // Visual/approximate height
+export const PLAYER_TURN_ANGULAR_VELOCITY = 0.05; // Radians per physics step
 
 /**
  * Defines the vertices for the rocket's physics collision shape.
