@@ -1,41 +1,40 @@
 import React, { useState, useEffect } from "react";
-import { gameEmitter } from "../main"; // Import the global emitter
-import { NetworkStats } from "../managers/NetworkManager"; // Import the interface
 import { Logger } from "@one-button-to-space/shared"; // Import Logger
+import { useRoom } from "../colyseus"; // Import the custom hook
 
 // Logger Source for this component
 const LOGGER_SOURCE = "⚛️🌐";
 
+// Define the server control modes (moved from DebugOverlay)
+type ServerControlMode = "run" | "step" | "pause";
+
 const NetworkOverlay: React.FC = () => {
-  // Initialize with default values
-  const [networkStats, setNetworkStats] = useState<NetworkStats>({
-    ping: -1,
-    msgInPerSec: 0,
-    msgOutPerSec: 0,
-  });
+  // Get room and network stats from context
+  const { room, networkStats } = useRoom();
 
-  useEffect(() => {
-    // Listener for continuous network stats updates
-    const handleNetworkStatsUpdate = (stats: NetworkStats) => {
-      Logger.debug(
+  // State for server control mode (moved from DebugOverlay)
+  const [serverMode, setServerMode] = useState<ServerControlMode>("run");
+
+  // Handler to send server control messages (moved from DebugOverlay)
+  const handleSetServerMode = (mode: ServerControlMode) => {
+    if (room) {
+      room.send("setServerControlMode", mode);
+      // Update local state optimistically or wait for server confirmation
+      // Only update local state for 'run' and 'pause', 'step' is momentary
+      if (mode === "run" || mode === "pause") {
+        setServerMode(mode);
+      }
+      Logger.debug(LOGGER_SOURCE, `Sent server control mode: ${mode}`);
+    } else {
+      Logger.error(
         LOGGER_SOURCE,
-        "Received networkStatsUpdate",
-        `${stats.ping}ms`,
-        `In/s: ${stats.msgInPerSec.toFixed(0)}`,
-        `Out/s: ${stats.msgOutPerSec.toFixed(0)}`
-      ); // Use Logger.debug
-      setNetworkStats(stats); // Update the state
-    };
-    const unsubscribeNetworkStats = gameEmitter.on(
-      "networkStatsUpdate",
-      handleNetworkStatsUpdate
-    );
+        "Room not available to send server control message."
+      );
+    }
+  };
 
-    // Cleanup listener on component unmount
-    return () => {
-      unsubscribeNetworkStats();
-    };
-  }, []); // Empty dependency array ensures this runs only on mount and unmount
+  // REMOVED: useEffect for listening to gameEmitter for networkStatsUpdate
+  // useEffect(() => { ... });
 
   return (
     <div
@@ -50,17 +49,58 @@ const NetworkOverlay: React.FC = () => {
         fontSize: "14px",
         borderRadius: "3px",
         zIndex: 1000, // Ensure it's above the Phaser canvas
-        pointerEvents: "none", // Allow clicks to pass through
+        pointerEvents: "none", // Allow clicks to pass through NON-INTERACTIVE parts
         minWidth: "150px", // Ensure enough width
       }}
     >
+      {/* Network Stats Display */}
       <div>
         Ping: {networkStats.ping >= 0 ? `${networkStats.ping}ms` : "N/A"} ⬇️{" "}
         {networkStats.msgInPerSec.toFixed(0)}/s ⬆️{" "}
         {networkStats.msgOutPerSec.toFixed(0)}/s
       </div>
+
+      {/* Server Control Buttons (Moved from DebugOverlay) */}
+      <div
+        style={{
+          marginTop: "5px",
+          pointerEvents: "auto", // Enable pointer events specifically for these controls
+        }}
+      >
+        <button
+          onClick={() => handleSetServerMode("run")}
+          disabled={serverMode === "run" || !room} // Also disable if room not connected
+          style={buttonStyle(serverMode === "run")}
+        >
+          Run
+        </button>
+        <button
+          onClick={() => handleSetServerMode("pause")}
+          disabled={serverMode === "pause" || !room} // Also disable if room not connected
+          style={buttonStyle(serverMode === "pause")}
+        >
+          Pause
+        </button>
+        <button
+          onClick={() => handleSetServerMode("step")}
+          disabled={!room} // Disable step if room not connected
+          style={buttonStyle(false)} // Always appear as non-active
+        >
+          Step
+        </button>
+      </div>
     </div>
   );
 };
+
+// Helper function for button styling (Moved from DebugOverlay)
+const buttonStyle = (isActive: boolean): React.CSSProperties => ({
+  marginLeft: "5px",
+  padding: "2px 5px",
+  cursor: "pointer",
+  border: isActive ? "1px solid #00ff00" : "1px solid #555",
+  backgroundColor: isActive ? "#336633" : "#222",
+  color: "#00ff00",
+});
 
 export default NetworkOverlay;

@@ -15,18 +15,21 @@ This task involves adding simulation control functionality to the Debug Overlay 
    - Add visual indicators to show the current simulation state
 
 2. Server Logic in GameRoom.ts:
-   - Implement a simulation state manager with three states: RUNNING, PAUSED, STEPPED
+   - Implement a simulation state manager using serverControlMode state with three states: RUNNING, PAUSED, STEPPED
    - Add methods to control the physics simulation:
      - pauseSimulation(): Pauses the physics loop
      - resumeSimulation(): Resumes normal physics updates
      - stepSimulation(): Advances physics by exactly one frame/tick
    - Ensure the physics time delta calculation accounts for paused states to prevent time jumps
    - Implement a mechanism to track and manage the last update time correctly during pauses
+   - Modify the physics loop to respect the current serverControlMode
 
 3. Communication:
    - Create message handlers for the control commands
    - Implement state synchronization between client and server
    - Ensure all connected clients see the current simulation state
+   - Use the new colyseus.tsx to provide room context to React components
+   - Leverage NetworkManager's roomReady/roomLeave events for proper initialization and cleanup
 
 4. Time Delta Management:
    - Modify the physics update loop to handle paused states without accumulating time
@@ -58,3 +61,9 @@ Testing should verify both UI functionality and server-side simulation control:
    - Verify behavior when stepping multiple times quickly
    - Test with multiple clients connected to ensure state synchronization
    - Check behavior when simulation is paused for extended periods (minutes)
+
+5. Integration Testing:
+   - Verify that the colyseus.tsx context provider correctly passes room state to the Debug Overlay
+   - Confirm that NetworkManager's roomReady event properly initializes the control UI
+   - Test that roomLeave events clean up resources correctly
+   - Ensure the Debug Overlay correctly reflects the serverControlMode state from the server

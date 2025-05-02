@@ -12,6 +12,7 @@ import { SceneManager } from "./managers/SceneManager"; // Corrected Import Scen
 import { EntityManager } from "./managers/EntityManager"; // Import EntityManager
 import { InputManager } from "./managers/InputManager"; // Import InputManager
 import { NetworkManager } from "./managers/NetworkManager"; // Import NetworkManager
+import { RoomProvider } from "./colyseus"; // Import RoomProvider from the new local file
 
 // -- Logging Setup --
 // Create a set of sources to exclude
@@ -126,12 +127,18 @@ function renderApp() {
   // Render the app using the root (if it exists)
   if (reactRoot) {
     Logger.debug(LOGGER_SOURCE, "Calling reactRoot.render()...");
+
+    // Render App within RoomProvider unconditionally
+    // RoomProvider will handle getting the room instance internally
+    Logger.debug(LOGGER_SOURCE, "Rendering App with RoomProvider.");
     reactRoot.render(
       <React.StrictMode>
-        <App />
+        <RoomProvider>
+          <App />
+        </RoomProvider>
       </React.StrictMode>
     );
-    Logger.info(LOGGER_SOURCE, "React App rendered.");
+    Logger.info(LOGGER_SOURCE, "React App rendered with RoomProvider.");
   }
 }
 

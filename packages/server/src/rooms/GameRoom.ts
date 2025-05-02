@@ -56,6 +56,9 @@ interface WorldPlanetDefinition {
   y: number;
 }
 
+// Define the server control modes (mirror client)
+type ServerControlMode = "run" | "step" | "pause";
+
 export class GameRoom extends Room<InstanceType<typeof RoomState>> {
   // Max clients default
   maxClients = MAX_PLAYERS;
@@ -86,6 +89,10 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
   private lastBroadcastState: {
     [sessionId: string]: Partial<InstanceType<typeof PlayerState>>;
   } = {};
+
+  // Add state for server control
+  private serverControlMode: ServerControlMode = "run";
+  private stepRequested: boolean = false;
 
   onCreate(options: any) {
     Logger.debug(LOGGER_SOURCE, `onCreate called for room ${this.roomId}`);
@@ -297,187 +304,209 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
 
       // Perform fixed updates as long as accumulator allows
       while (this.accumulator >= this.physicsTimeStep) {
-        // --- Process Input Queue BEFORE Physics Step ---
-        this.playerBodies.forEach((playerBody, sessionId) => {
-          const queue = this.playerInputQueue.get(sessionId);
-          if (queue && queue.length > 0) {
-            // Process all queued inputs for this step
-            queue.forEach((input) => {
-              switch (input.input) {
-                case "thrust_start":
-                  this.playerThrustState.set(sessionId, true);
-                  break;
-                case "thrust_stop":
-                  this.playerThrustState.set(sessionId, false);
-                  break;
-                case "set_angle":
-                  // We already validated value is a number in onMessage
-                  Matter.Body.setAngle(playerBody, input.value as number);
-                  break;
-              }
-            });
-            // Clear the queue after processing for this step
-            queue.length = 0;
-          }
-        });
-        // --- End Input Processing ---
+        let performUpdate = true; // Flag to control if physics update runs
 
-        // --- Apply Shared Physics Logic (Gravity, Air Resistance) BEFORE Engine Step ---
-        // Prepare gravity sources from current planet state
-        const simpleGravitySources = Array.from(
-          this.state.planets.values()
-        ).map((p) => ({
-          position: { x: p.x, y: p.y },
-          mass: p.mass,
-        }));
-
-        this.playerBodies.forEach((playerBody, sessionId) => {
-          // 1. Apply Environmental Forces using Shared Logic
-          PhysicsLogic.calculateAndApplyGravity(
-            playerBody,
-            simpleGravitySources
-          );
-
-          // Use the shared function, passing the Map's values()
-          const density = PhysicsLogic.calculateDensityAt(
-            playerBody.position,
-            this.state.planets.values()
-          );
-          PhysicsLogic.calculateAndApplyAirResistance(playerBody, density);
-
-          // 3. Apply Angular Damping
-          const dampingFactor = 1 - PLAYER_ANGULAR_DAMPING; // Damping factor (e.g., 0.95 for 0.05 damping)
-          // Ensure angular velocity doesn't get infinitesimally small causing NaN issues
-          if (
-            Math.abs(playerBody.angularVelocity) >
-            ANGULAR_VELOCITY_SNAP_THRESHOLD
-          ) {
-            Matter.Body.setAngularVelocity(
-              playerBody,
-              playerBody.angularVelocity * dampingFactor
-            );
-          } else if (playerBody.angularVelocity !== 0) {
-            // Snap to zero if very close
-            Matter.Body.setAngularVelocity(playerBody, 0);
-          }
-
-          // 4. Apply Player Input Forces (e.g., Thrust)
-          if (this.playerThrustState.get(sessionId)) {
-            const angle = playerBody.angle - Math.PI / 2; // Assuming angle 0 is UP for player visual
-            const forceMagnitude = PLAYER_THRUST_FORCE;
-            const force = {
-              x: Math.cos(angle) * forceMagnitude,
-              y: Math.sin(angle) * forceMagnitude,
-            };
-            Matter.Body.applyForce(playerBody, playerBody.position, force);
-          }
-        });
-        // --- End Shared Physics Logic Application ---
-
-        // Update physics engine AFTER applying custom forces
-        this.physicsManager.update(this.physicsTimeStep);
-
-        // Update player state from physics bodies AFTER engine step
-        this.updatePlayerStatesFromPhysics();
-        this.state.physicsStep++; // Increment physics step counter
-        this.accumulator -= this.physicsTimeStep;
-
-        // Broadcast updated physics state using delta compression
-        const currentPlayerStates: {
-          [sessionId: string]: Partial<InstanceType<typeof PlayerState>>;
-        } = {};
-        this.state.players.forEach((player, sessionId) => {
-          currentPlayerStates[sessionId] = {
-            x: player.x,
-            y: player.y,
-            angle: player.angle,
-            vx: player.vx,
-            vy: player.vy,
-            angularVelocity: player.angularVelocity, // Consider thresholding this too?
-            isSleeping: player.isSleeping,
-            isThrusting: this.playerThrustState.get(sessionId) ?? false,
-          };
-        });
-
-        // Calculate delta state
-        const deltaState: {
-          [sessionId: string]: Partial<InstanceType<typeof PlayerState>>;
-        } = {};
-        for (const sessionId in currentPlayerStates) {
-          const currentState = currentPlayerStates[sessionId];
-          const lastState = this.lastBroadcastState[sessionId];
-          const playerDelta: Partial<InstanceType<typeof PlayerState>> = {};
-          let hasChanges = false;
-
-          if (!lastState) {
-            // New player or first broadcast, send everything
-            Object.assign(playerDelta, currentState);
-            hasChanges = true;
+        // --- Server Control Logic ---
+        if (this.serverControlMode === "pause") {
+          if (this.stepRequested) {
+            // If stepping, allow one update and reset the flag
+            this.stepRequested = false;
+            Logger.trace(LOGGER_SOURCE, "Performing single step.");
+            // performUpdate remains true
           } else {
-            // Compare properties
-            if (
-              Math.abs((currentState?.x ?? 0) - (lastState?.x ?? 0)) >
-                SYNC_THRESHOLD_POSITION ||
-              Math.abs((currentState?.y ?? 0) - (lastState?.y ?? 0)) >
-                SYNC_THRESHOLD_POSITION
-            ) {
-              playerDelta.x = currentState?.x;
-              playerDelta.y = currentState?.y;
-              hasChanges = true;
-            }
-            if (
-              Math.abs((currentState?.vx ?? 0) - (lastState?.vx ?? 0)) >
-                SYNC_THRESHOLD_VELOCITY ||
-              Math.abs((currentState?.vy ?? 0) - (lastState?.vy ?? 0)) >
-                SYNC_THRESHOLD_VELOCITY
-            ) {
-              playerDelta.vx = currentState?.vx;
-              playerDelta.vy = currentState?.vy;
-              hasChanges = true;
-            }
-            if (
-              Math.abs((currentState?.angle ?? 0) - (lastState?.angle ?? 0)) >
-              SYNC_THRESHOLD_ANGLE
-            ) {
-              playerDelta.angle = currentState?.angle;
-              hasChanges = true;
-            }
-            // Add threshold for angularVelocity?
-            // if (Math.abs((currentState?.angularVelocity ?? 0) - (lastState?.angularVelocity ?? 0)) > SYNC_THRESHOLD_ANGULAR_VELOCITY) {
-            //   playerDelta.angularVelocity = currentState?.angularVelocity;
-            //   hasChanges = true;
-            // }
-            if (currentState?.isSleeping !== lastState?.isSleeping) {
-              playerDelta.isSleeping = currentState?.isSleeping;
-              hasChanges = true;
-            }
-            if (currentState?.isThrusting !== lastState?.isThrusting) {
-              playerDelta.isThrusting = currentState?.isThrusting;
-              hasChanges = true;
-            }
-          }
-
-          if (hasChanges) {
-            deltaState[sessionId] = playerDelta;
+            // If paused and not stepping, skip the update
+            performUpdate = false;
+            // Logger.trace(LOGGER_SOURCE, "Physics paused, skipping update."); // Optional: Log pause skipping
           }
         }
+        // --- End Server Control Logic ---
 
-        if (Object.keys(deltaState).length > 0) {
-          this.broadcast("physics_update", deltaState);
-          // Update last broadcast state *only* for players included in the delta
-          for (const sessionId in deltaState) {
-            this.lastBroadcastState[sessionId] = {
-              ...(this.lastBroadcastState[sessionId] ?? {}),
-              ...deltaState[sessionId],
+        if (performUpdate) {
+          // --- Process Input Queue BEFORE Physics Step ---
+          this.playerBodies.forEach((playerBody, sessionId) => {
+            const queue = this.playerInputQueue.get(sessionId);
+            if (queue && queue.length > 0) {
+              // Process all queued inputs for this step
+              queue.forEach((input) => {
+                switch (input.input) {
+                  case "thrust_start":
+                    this.playerThrustState.set(sessionId, true);
+                    break;
+                  case "thrust_stop":
+                    this.playerThrustState.set(sessionId, false);
+                    break;
+                  case "set_angle":
+                    // We already validated value is a number in onMessage
+                    Matter.Body.setAngle(playerBody, input.value as number);
+                    break;
+                }
+              });
+              // Clear the queue after processing for this step
+              queue.length = 0;
+            }
+          });
+          // --- End Input Processing ---
+
+          // --- Apply Shared Physics Logic (Gravity, Air Resistance) BEFORE Engine Step ---
+          // Prepare gravity sources from current planet state
+          const simpleGravitySources = Array.from(
+            this.state.planets.values()
+          ).map((p) => ({
+            position: { x: p.x, y: p.y },
+            mass: p.mass,
+          }));
+
+          this.playerBodies.forEach((playerBody, sessionId) => {
+            // 1. Apply Environmental Forces using Shared Logic
+            PhysicsLogic.calculateAndApplyGravity(
+              playerBody,
+              simpleGravitySources
+            );
+
+            // Use the shared function, passing the Map's values()
+            const density = PhysicsLogic.calculateDensityAt(
+              playerBody.position,
+              this.state.planets.values()
+            );
+            PhysicsLogic.calculateAndApplyAirResistance(playerBody, density);
+
+            // 3. Apply Angular Damping
+            const dampingFactor = 1 - PLAYER_ANGULAR_DAMPING; // Damping factor (e.g., 0.95 for 0.05 damping)
+            // Ensure angular velocity doesn't get infinitesimally small causing NaN issues
+            if (
+              Math.abs(playerBody.angularVelocity) >
+              ANGULAR_VELOCITY_SNAP_THRESHOLD
+            ) {
+              Matter.Body.setAngularVelocity(
+                playerBody,
+                playerBody.angularVelocity * dampingFactor
+              );
+            } else if (playerBody.angularVelocity !== 0) {
+              // Snap to zero if very close
+              Matter.Body.setAngularVelocity(playerBody, 0);
+            }
+
+            // 4. Apply Player Input Forces (e.g., Thrust)
+            if (this.playerThrustState.get(sessionId)) {
+              const angle = playerBody.angle - Math.PI / 2; // Assuming angle 0 is UP for player visual
+              const forceMagnitude = PLAYER_THRUST_FORCE;
+              const force = {
+                x: Math.cos(angle) * forceMagnitude,
+                y: Math.sin(angle) * forceMagnitude,
+              };
+              Matter.Body.applyForce(playerBody, playerBody.position, force);
+            }
+          });
+          // --- End Shared Physics Logic Application ---
+
+          // Update physics engine AFTER applying custom forces
+          this.physicsManager.update(this.physicsTimeStep);
+
+          // Update player state from physics bodies AFTER engine step
+          this.updatePlayerStatesFromPhysics();
+          this.state.physicsStep++; // Increment physics step counter
+
+          // Broadcast updated physics state using delta compression
+          const currentPlayerStates: {
+            [sessionId: string]: Partial<InstanceType<typeof PlayerState>>;
+          } = {};
+          this.state.players.forEach((player, sessionId) => {
+            currentPlayerStates[sessionId] = {
+              x: player.x,
+              y: player.y,
+              angle: player.angle,
+              vx: player.vx,
+              vy: player.vy,
+              angularVelocity: player.angularVelocity, // Consider thresholding this too?
+              isSleeping: player.isSleeping,
+              isThrusting: this.playerThrustState.get(sessionId) ?? false,
             };
-          }
-          // Clean up lastBroadcastState for players who might have left
-          for (const sessionId in this.lastBroadcastState) {
-            if (!this.state.players.has(sessionId)) {
-              delete this.lastBroadcastState[sessionId];
+          });
+
+          // Calculate delta state
+          const deltaState: {
+            [sessionId: string]: Partial<InstanceType<typeof PlayerState>>;
+          } = {};
+          for (const sessionId in currentPlayerStates) {
+            const currentState = currentPlayerStates[sessionId];
+            const lastState = this.lastBroadcastState[sessionId];
+            const playerDelta: Partial<InstanceType<typeof PlayerState>> = {};
+            let hasChanges = false;
+
+            if (!lastState) {
+              // New player or first broadcast, send everything
+              Object.assign(playerDelta, currentState);
+              hasChanges = true;
+            } else {
+              // Compare properties
+              if (
+                Math.abs((currentState?.x ?? 0) - (lastState?.x ?? 0)) >
+                  SYNC_THRESHOLD_POSITION ||
+                Math.abs((currentState?.y ?? 0) - (lastState?.y ?? 0)) >
+                  SYNC_THRESHOLD_POSITION
+              ) {
+                playerDelta.x = currentState?.x;
+                playerDelta.y = currentState?.y;
+                hasChanges = true;
+              }
+              if (
+                Math.abs((currentState?.vx ?? 0) - (lastState?.vx ?? 0)) >
+                  SYNC_THRESHOLD_VELOCITY ||
+                Math.abs((currentState?.vy ?? 0) - (lastState?.vy ?? 0)) >
+                  SYNC_THRESHOLD_VELOCITY
+              ) {
+                playerDelta.vx = currentState?.vx;
+                playerDelta.vy = currentState?.vy;
+                hasChanges = true;
+              }
+              if (
+                Math.abs((currentState?.angle ?? 0) - (lastState?.angle ?? 0)) >
+                SYNC_THRESHOLD_ANGLE
+              ) {
+                playerDelta.angle = currentState?.angle;
+                hasChanges = true;
+              }
+              // Add threshold for angularVelocity?
+              // if (Math.abs((currentState?.angularVelocity ?? 0) - (lastState?.angularVelocity ?? 0)) > SYNC_THRESHOLD_ANGULAR_VELOCITY) {
+              //   playerDelta.angularVelocity = currentState?.angularVelocity;
+              //   hasChanges = true;
+              // }
+              if (currentState?.isSleeping !== lastState?.isSleeping) {
+                playerDelta.isSleeping = currentState?.isSleeping;
+                hasChanges = true;
+              }
+              if (currentState?.isThrusting !== lastState?.isThrusting) {
+                playerDelta.isThrusting = currentState?.isThrusting;
+                hasChanges = true;
+              }
+            }
+
+            if (hasChanges) {
+              deltaState[sessionId] = playerDelta;
             }
           }
-        }
+
+          if (Object.keys(deltaState).length > 0) {
+            this.broadcast("physics_update", deltaState);
+            // Update last broadcast state *only* for players included in the delta
+            for (const sessionId in deltaState) {
+              this.lastBroadcastState[sessionId] = {
+                ...(this.lastBroadcastState[sessionId] ?? {}),
+                ...deltaState[sessionId],
+              };
+            }
+            // Clean up lastBroadcastState for players who might have left
+            for (const sessionId in this.lastBroadcastState) {
+              if (!this.state.players.has(sessionId)) {
+                delete this.lastBroadcastState[sessionId];
+              }
+            }
+          }
+          // --- End Broadcast --- //
+        } // End if(performUpdate)
+
+        // Always consume time from the accumulator for this potential step
+        this.accumulator -= this.physicsTimeStep;
       }
     }, this.physicsTimeStep); // Interval still runs at target rate
     Logger.info(
@@ -590,6 +619,52 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
       }
       */
     });
+
+    // --- ADDED: Handler for Server Control Mode ---
+    this.onMessage<ServerControlMode>(
+      "setServerControlMode",
+      (client, mode) => {
+        Logger.debug(
+          LOGGER_SOURCE,
+          `Received setServerControlMode from ${client.sessionId}: ${mode}`
+        );
+
+        if (mode === "run" || mode === "pause" || mode === "step") {
+          // Check if switching back to 'run' from a paused state
+          if (mode === "run" && this.serverControlMode !== "run") {
+            Logger.info(
+              LOGGER_SOURCE,
+              "Resuming physics loop, resetting time."
+            );
+            this.lastPhysicsUpdateTime = Date.now(); // Reset time to prevent jump
+            this.accumulator = 0; // Reset accumulator
+          }
+
+          if (mode === "step") {
+            if (this.serverControlMode === "pause") {
+              Logger.debug(LOGGER_SOURCE, "Requesting single physics step.");
+              this.stepRequested = true;
+              // Don't change serverControlMode, stays paused until next step or run
+            } else {
+              Logger.warn(
+                LOGGER_SOURCE,
+                "Step requested but server is not paused. Ignoring."
+              );
+            }
+          } else {
+            // For 'run' or 'pause', just set the mode
+            this.serverControlMode = mode;
+            Logger.debug(LOGGER_SOURCE, `Server control mode set to: ${mode}`);
+          }
+        } else {
+          Logger.warn(
+            LOGGER_SOURCE,
+            `Invalid server control mode received: ${mode}`
+          );
+        }
+      }
+    );
+    // --- END Handler for Server Control Mode ---
 
     // --- ADDED: Ping/Pong Handler ---
     this.onMessage<number>("ping", (client, message) => {

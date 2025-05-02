@@ -108,11 +108,13 @@ export class NetworkManager extends BaseManager {
       Logger.trace(LOGGER_SOURCE, "Room joined successfully", this.room);
       this.setupRoomListeners();
       this.startStatsUpdates(); // Start emitting stats
+      gameEmitter.emit("roomReady", this.room); // Emit room ready event
       return this.room;
     } catch (e: any) {
       Logger.error(LOGGER_SOURCE, "Failed to join room:", e);
       this.room = null;
       this.connectionOptions = null;
+      gameEmitter.emit("roomLeave"); // Emit leave event on connection failure
       throw e; // Re-throw
     }
   }
@@ -131,6 +133,7 @@ export class NetworkManager extends BaseManager {
       } finally {
         this.room = null;
         this.connectionOptions = null;
+        gameEmitter.emit("roomLeave"); // Emit leave event after disconnecting
       }
     } else {
       Logger.info(LOGGER_SOURCE, "Not connected, cannot disconnect.");
@@ -253,20 +256,15 @@ export class NetworkManager extends BaseManager {
     });
 
     this.room.onLeave((code) => {
-      Logger.info(LOGGER_SOURCE, `Disconnected from room (code: ${code})`);
-      const graceful = code === 1000;
-      const wasConnected = !!this.room; // Check if we were actually connected
-      this.stopStatsUpdates(); // Ensure stats stop on leave
-      this.room = null;
+      Logger.info(
+        LOGGER_SOURCE,
+        `Left room via onLeave callback (code: ${code})`
+      );
+      this.room = null; // Ensure room reference is cleared
       this.connectionOptions = null;
-      if (wasConnected) {
-        SceneManager.getInstance().startScene("MainMenuScene", {
-          error: graceful
-            ? undefined
-            : `Disconnected unexpectedly (code: ${code})`,
-          message: graceful ? "Disconnected from server" : undefined,
-        });
-      }
+      this.stopStatsUpdates();
+      gameEmitter.emit("roomLeave"); // Emit leave event
+      // TODO: Potentially trigger UI update or scene change
     });
     Logger.debug(LOGGER_SOURCE, "Finished setting up room listeners."); // Added log
   }

@@ -56,7 +56,7 @@ const DebugOverlay: React.FC = () => {
         fontSize: "14px",
         borderRadius: "3px",
         zIndex: 1000, // Ensure it's above the Phaser canvas
-        pointerEvents: "none", // Allow clicks to pass through
+        pointerEvents: "none", // Allow clicks to pass through by default
       }}
     >
       {phaserVersion && <div>Phaser: {phaserVersion}</div>}
