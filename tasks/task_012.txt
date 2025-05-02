@@ -1,0 +1,11 @@
+# Task ID: 12
+# Title: Implement Advanced Physics Simulation
+# Status: pending
+# Dependencies: 5
+# Priority: medium
+# Description: Enhance the shared physics module with gravity, atmospheric effects, and collision handling.
+# Details:
+Extend the physics engine to support variable gravity based on proximity to celestial bodies. Implement atmospheric density and drag effects. Add collision detection and handling, including special logic for landing detection based on velocity and angle. Implement collision categories and groups for different types of objects (rockets, debris, planets, etc.).
+
+# Test Strategy:
+Create test scenarios for each physics feature (gravity, atmosphere, collisions). Verify behavior matches expected physics. Test edge cases like high-velocity impacts and extreme distances from gravity sources.

@@ -1,0 +1,11 @@
+# Task ID: 15
+# Title: Implement Cargo System
+# Status: pending
+# Dependencies: 12, 14
+# Priority: medium
+# Description: Create mechanics for picking up, attaching, and delivering cargo items.
+# Details:
+Define cargo item physics properties in the shared package. Implement collision detection for cargo pickup. Create attachment mechanics that affect the physics of the carrying ship. Implement cargo delivery detection based on location and velocity. Add visual feedback for cargo attachment and delivery.
+
+# Test Strategy:
+Test cargo pickup with different approach vectors and speeds. Verify physics changes when cargo is attached. Test cargo delivery under various conditions. Check that multiplayer cargo handling works correctly.

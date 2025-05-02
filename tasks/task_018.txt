@@ -1,0 +1,11 @@
+# Task ID: 18
+# Title: Implement Visual Effects and Environment
+# Status: pending
+# Dependencies: 6
+# Priority: low
+# Description: Create visual effects for thrusters, explosions, and the space environment.
+# Details:
+Implement animated thruster effects tied to input state. Create explosion animations for collisions. Implement a procedural star field background using a deterministic seeded approach. Add visual indicators for gravity wells and atmospheric boundaries. Implement particle effects for atmospheric entry.
+
+# Test Strategy:
+Verify visual effects trigger at appropriate times. Check that animations play correctly and clean up properly. Test procedural generation consistency across different clients.

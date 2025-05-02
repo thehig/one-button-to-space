@@ -1,0 +1,11 @@
+# Task ID: 9
+# Title: Implement Basic Colyseus Room on Server
+# Status: pending
+# Dependencies: 4, 5
+# Priority: high
+# Description: Create the server-side GameRoom using Colyseus for multiplayer functionality.
+# Details:
+In the server package, create a GameRoom class extending Colyseus.Room. Implement onCreate, onJoin, onLeave, and onDispose lifecycle methods. Integrate the shared physics module for server-side simulation. Define the initial state schema using @colyseus/schema for state synchronization. Implement basic player management (adding/removing players). Set up a fixed update loop for physics simulation on the server.
+
+# Test Strategy:
+Test room creation, joining, and leaving with mock clients. Verify the physics simulation runs correctly on the server. Check that the state schema is properly defined and synchronized.

@@ -1,0 +1,11 @@
+# Task ID: 5
+# Title: Implement Shared Physics Module with Matter.js
+# Status: pending
+# Dependencies: 2
+# Priority: high
+# Description: Create the core physics simulation module in the shared package using Matter.js.
+# Details:
+In the shared package, install Matter.js and its TypeScript definitions. Create a PhysicsEngine class that encapsulates Matter.js functionality. Implement methods for creating and configuring the physics world, adding/removing bodies, and stepping the simulation with a fixed timestep. Define physics constants (gravity, collision categories, etc.) in a separate constants file. Ensure the implementation is deterministic and can be used identically on both client and server.
+
+# Test Strategy:
+Create unit tests for the physics module to verify deterministic behavior. Run the same simulation with identical inputs on different platforms and compare the results to ensure consistency.

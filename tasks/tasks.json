@@ -1,0 +1,256 @@
+{
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Initialize pnpm Monorepo Structure",
+      "description": "Set up the initial monorepo structure with client, server, and shared packages using pnpm workspaces.",
+      "status": "pending",
+      "dependencies": [],
+      "priority": "high",
+      "details": "Create a new directory for the project. Initialize pnpm workspace by creating a pnpm-workspace.yaml file in the root with packages defined as ['client', 'server', 'shared']. Set up package.json in the root with workspace configuration. Create subdirectories for each package with their own package.json files. Configure root-level scripts for building and running all packages.",
+      "testStrategy": "Verify that pnpm workspaces are correctly configured by running 'pnpm install' and confirming dependencies are hoisted appropriately. Ensure packages can reference each other using the workspace protocol."
+    },
+    {
+      "id": 2,
+      "title": "Configure TypeScript for All Packages",
+      "description": "Set up TypeScript configuration for client, server, and shared packages with strict type checking.",
+      "status": "pending",
+      "dependencies": [
+        1
+      ],
+      "priority": "high",
+      "details": "Create a base tsconfig.json in the root directory with strict type checking enabled. Create extended tsconfig.json files in each package directory that reference the base config and add package-specific settings. For client, configure for React/Vite. For server, configure for Node.js. For shared, configure for cross-environment compatibility. Install TypeScript and related type definitions as dev dependencies.",
+      "testStrategy": "Run 'tsc --noEmit' in each package to verify TypeScript configuration is valid. Create simple test files in each package to ensure compilation works correctly."
+    },
+    {
+      "id": 3,
+      "title": "Set Up Client Package with Vite and React",
+      "description": "Initialize the client package with Vite, React, and TypeScript support.",
+      "status": "pending",
+      "dependencies": [
+        2
+      ],
+      "priority": "high",
+      "details": "In the client directory, initialize a new Vite project with React and TypeScript template using 'pnpm create vite . --template react-ts'. Configure vite.config.ts for development and production builds. Set up basic React component structure. Install necessary dependencies including React, React DOM, and Vite. Create a simple App component and entry point to verify setup.",
+      "testStrategy": "Run 'pnpm dev' in the client package to verify the Vite development server starts correctly. Confirm the React application renders in the browser without errors."
+    },
+    {
+      "id": 4,
+      "title": "Set Up Server Package with Node.js, Express, and Colyseus",
+      "description": "Initialize the server package with Node.js, Express, and Colyseus for WebSocket communication.",
+      "status": "pending",
+      "dependencies": [
+        2
+      ],
+      "priority": "high",
+      "details": "In the server directory, initialize a new Node.js project. Install Express, Colyseus, and related dependencies. Create a basic server.ts file that sets up an Express application and integrates Colyseus for WebSocket handling. Configure scripts for development (with nodemon) and production builds. Set up a basic HTTP endpoint for health checks.",
+      "testStrategy": "Run the server and verify it starts without errors. Test the health check endpoint with a simple HTTP request. Verify Colyseus is properly initialized by checking server logs."
+    },
+    {
+      "id": 5,
+      "title": "Implement Shared Physics Module with Matter.js",
+      "description": "Create the core physics simulation module in the shared package using Matter.js.",
+      "status": "pending",
+      "dependencies": [
+        2
+      ],
+      "priority": "high",
+      "details": "In the shared package, install Matter.js and its TypeScript definitions. Create a PhysicsEngine class that encapsulates Matter.js functionality. Implement methods for creating and configuring the physics world, adding/removing bodies, and stepping the simulation with a fixed timestep. Define physics constants (gravity, collision categories, etc.) in a separate constants file. Ensure the implementation is deterministic and can be used identically on both client and server.",
+      "testStrategy": "Create unit tests for the physics module to verify deterministic behavior. Run the same simulation with identical inputs on different platforms and compare the results to ensure consistency."
+    },
+    {
+      "id": 6,
+      "title": "Integrate Phaser with React in Client",
+      "description": "Set up Phaser within the React application and create the basic scene structure.",
+      "status": "pending",
+      "dependencies": [
+        3
+      ],
+      "priority": "high",
+      "details": "Install Phaser in the client package. Create a PhaserGame component in React that initializes and manages the Phaser game instance. Set up basic scene classes (BootScene, MainMenuScene, GameScene) following Phaser's lifecycle methods. Create a container div in the React component to mount the Phaser canvas. Implement proper cleanup in the React component's useEffect hook to prevent memory leaks during component unmounting.",
+      "testStrategy": "Verify Phaser initializes correctly within the React application. Check that scenes load properly and the game canvas renders. Test component mounting/unmounting to ensure proper cleanup."
+    },
+    {
+      "id": 7,
+      "title": "Implement Client-Side Manager Architecture",
+      "description": "Create the core manager classes for the client-side game architecture.",
+      "status": "pending",
+      "dependencies": [
+        6
+      ],
+      "priority": "high",
+      "details": "Implement the manager classes as specified in the PRD: PhysicsManager (integrating with shared physics), InputManager, NetworkManager, EntityManager, CameraManager, UIManager, and AudioManager. Each manager should have clear lifecycle methods (init, create/start, update, shutdown/destroy). Set up dependency injection between managers. Implement an event bus system using Phaser's event emitters for communication between managers. Ensure proper cleanup in shutdown/destroy methods.",
+      "testStrategy": "Create test scenarios that exercise each manager's functionality. Verify managers initialize, update, and clean up correctly. Test event communication between managers. Verify Hot Module Replacement works without memory leaks."
+    },
+    {
+      "id": 8,
+      "title": "Implement PhysicsManager Integration with Shared Module",
+      "description": "Connect the client-side PhysicsManager with the shared physics module.",
+      "status": "pending",
+      "dependencies": [
+        5,
+        7
+      ],
+      "priority": "high",
+      "details": "In the PhysicsManager, import and instantiate the physics engine from the shared package. Implement methods to create, update, and render physics bodies. Create a bridge between Phaser's update loop and the fixed timestep physics simulation. Add debug rendering capabilities for physics bodies. Ensure proper synchronization between physics bodies and their visual representations.",
+      "testStrategy": "Test physics simulation with various scenarios (gravity, collisions, etc.). Verify visual representations match physics body positions and rotations. Check that the fixed timestep implementation maintains consistent simulation regardless of frame rate."
+    },
+    {
+      "id": 9,
+      "title": "Implement Basic Colyseus Room on Server",
+      "description": "Create the server-side GameRoom using Colyseus for multiplayer functionality.",
+      "status": "pending",
+      "dependencies": [
+        4,
+        5
+      ],
+      "priority": "high",
+      "details": "In the server package, create a GameRoom class extending Colyseus.Room. Implement onCreate, onJoin, onLeave, and onDispose lifecycle methods. Integrate the shared physics module for server-side simulation. Define the initial state schema using @colyseus/schema for state synchronization. Implement basic player management (adding/removing players). Set up a fixed update loop for physics simulation on the server.",
+      "testStrategy": "Test room creation, joining, and leaving with mock clients. Verify the physics simulation runs correctly on the server. Check that the state schema is properly defined and synchronized."
+    },
+    {
+      "id": 10,
+      "title": "Implement Client-Server Network Communication",
+      "description": "Set up communication between client NetworkManager and server GameRoom.",
+      "status": "pending",
+      "dependencies": [
+        7,
+        9
+      ],
+      "priority": "high",
+      "details": "In the NetworkManager, implement Colyseus client connection and room joining. Create message types in the shared package for client-server communication. Implement sending player inputs from client to server. Set up receiving and processing state updates from server to client. Add connection status handling and reconnection logic.",
+      "testStrategy": "Test client-server connection establishment. Verify input messages are correctly sent from client to server. Check that state updates are received and processed by the client. Test reconnection scenarios."
+    },
+    {
+      "id": 11,
+      "title": "Implement Rocket Physics and Control",
+      "description": "Create the core rocket physics and player control mechanics.",
+      "status": "pending",
+      "dependencies": [
+        8
+      ],
+      "priority": "medium",
+      "details": "In the shared package, define rocket physics properties (mass, thrust force, etc.). Implement rocket body creation in the physics engine. In the client, create a PlayerRocketController that translates input events to physics forces. Implement thrust and orientation control based on input (touch/click for thrust, device tilt or keyboard for orientation). Add visual feedback for thrust activation.",
+      "testStrategy": "Test rocket movement with different input combinations. Verify physics behavior matches expected rocket dynamics. Check that visual feedback correctly reflects the physics state."
+    },
+    {
+      "id": 12,
+      "title": "Implement Advanced Physics Simulation",
+      "description": "Enhance the shared physics module with gravity, atmospheric effects, and collision handling.",
+      "status": "pending",
+      "dependencies": [
+        5
+      ],
+      "priority": "medium",
+      "details": "Extend the physics engine to support variable gravity based on proximity to celestial bodies. Implement atmospheric density and drag effects. Add collision detection and handling, including special logic for landing detection based on velocity and angle. Implement collision categories and groups for different types of objects (rockets, debris, planets, etc.).",
+      "testStrategy": "Create test scenarios for each physics feature (gravity, atmosphere, collisions). Verify behavior matches expected physics. Test edge cases like high-velocity impacts and extreme distances from gravity sources."
+    },
+    {
+      "id": 13,
+      "title": "Implement Client-Side Prediction and Reconciliation",
+      "description": "Add client-side prediction and server reconciliation for smooth multiplayer experience.",
+      "status": "pending",
+      "dependencies": [
+        10,
+        11
+      ],
+      "priority": "medium",
+      "details": "In the NetworkManager, implement input sequence numbering and buffering. Add client-side prediction by applying inputs locally before server confirmation. Implement server reconciliation by comparing server state with predicted state and correcting discrepancies. Add interpolation for remote player entities to smooth movement between state updates. Implement a replay system for re-applying inputs after reconciliation.",
+      "testStrategy": "Test with artificial network latency to verify prediction and reconciliation. Check visual smoothness of local and remote player movement. Verify recovery from prediction errors."
+    },
+    {
+      "id": 14,
+      "title": "Implement Ship Types and Properties",
+      "description": "Create different ship types with varying physics properties and constraints.",
+      "status": "pending",
+      "dependencies": [
+        11
+      ],
+      "priority": "medium",
+      "details": "In the shared package, define data structures for different ship types (Tourist, Cargo). Implement varying physics properties (mass, engine force, rotation speed) for each type. Create factory methods for instantiating different ship types in the physics simulation. Add visual representations for each ship type in the client.",
+      "testStrategy": "Test each ship type with identical inputs to verify different handling characteristics. Check that physics properties correctly affect movement and control. Verify visual representations match the ship type."
+    },
+    {
+      "id": 15,
+      "title": "Implement Cargo System",
+      "description": "Create mechanics for picking up, attaching, and delivering cargo items.",
+      "status": "pending",
+      "dependencies": [
+        12,
+        14
+      ],
+      "priority": "medium",
+      "details": "Define cargo item physics properties in the shared package. Implement collision detection for cargo pickup. Create attachment mechanics that affect the physics of the carrying ship. Implement cargo delivery detection based on location and velocity. Add visual feedback for cargo attachment and delivery.",
+      "testStrategy": "Test cargo pickup with different approach vectors and speeds. Verify physics changes when cargo is attached. Test cargo delivery under various conditions. Check that multiplayer cargo handling works correctly."
+    },
+    {
+      "id": 16,
+      "title": "Implement Multiplayer Collision and Debris System",
+      "description": "Create the system for player-vs-player collisions and persistent debris generation.",
+      "status": "pending",
+      "dependencies": [
+        9,
+        12
+      ],
+      "priority": "medium",
+      "details": "In the server GameRoom, implement collision detection between player rockets. On collision, destroy both rockets and generate debris physics bodies. Add debris to the state schema for synchronization. In the client, implement visual effects for explosions and debris rendering. Ensure debris persists in the simulation and affects other players.",
+      "testStrategy": "Test player-vs-player collisions with different velocities and angles. Verify debris generation and persistence. Check that debris correctly affects other players through collisions. Test with multiple simultaneous collisions."
+    },
+    {
+      "id": 17,
+      "title": "Implement Basic Mission System",
+      "description": "Create a framework for defining and tracking mission objectives.",
+      "status": "pending",
+      "dependencies": [
+        15
+      ],
+      "priority": "low",
+      "details": "Define a mission system architecture with objectives, triggers, and success/fail conditions. Implement initial mission types: Tourism (point A to B with comfort constraints) and Cargo (delivery with time/fuel limits). Create mission tracking and status updating. Add mission selection and assignment in the game flow.",
+      "testStrategy": "Test mission assignment and tracking. Verify success and failure conditions trigger correctly. Test mission-specific constraints like G-force limits and time restrictions."
+    },
+    {
+      "id": 18,
+      "title": "Implement Visual Effects and Environment",
+      "description": "Create visual effects for thrusters, explosions, and the space environment.",
+      "status": "pending",
+      "dependencies": [
+        6
+      ],
+      "priority": "low",
+      "details": "Implement animated thruster effects tied to input state. Create explosion animations for collisions. Implement a procedural star field background using a deterministic seeded approach. Add visual indicators for gravity wells and atmospheric boundaries. Implement particle effects for atmospheric entry.",
+      "testStrategy": "Verify visual effects trigger at appropriate times. Check that animations play correctly and clean up properly. Test procedural generation consistency across different clients."
+    },
+    {
+      "id": 19,
+      "title": "Implement React UI Components and HUD",
+      "description": "Create user interface components for game information and controls.",
+      "status": "pending",
+      "dependencies": [
+        3,
+        7
+      ],
+      "priority": "low",
+      "details": "Design and implement React components for velocity, altitude, fuel, and mission info display. Create a main menu component with options for map/mode selection and multiplayer connection. Implement a debug overlay with physics controls and information. Set up communication between React components and Phaser game state via the event bus.",
+      "testStrategy": "Test UI component rendering and updates with different game states. Verify user interactions with UI elements work correctly. Check that UI components receive and display accurate game information."
+    },
+    {
+      "id": 20,
+      "title": "Implement Camera Controls and Game Polish",
+      "description": "Finalize camera behavior and add polish to the game experience.",
+      "status": "pending",
+      "dependencies": [
+        7,
+        18
+      ],
+      "priority": "low",
+      "details": "Implement camera following and zooming behavior in the CameraManager. Add smooth transitions between different camera states. Implement depth sorting for game objects to ensure correct rendering order. Add visual and audio feedback for important game events. Optimize performance for different device capabilities.",
+      "testStrategy": "Test camera behavior with different game scenarios. Verify smooth transitions and appropriate zoom levels. Check rendering order in complex scenes with many objects. Test performance on various devices."
+    }
+  ],
+  "metadata": {
+    "projectName": "One Button to Space Implementation",
+    "totalTasks": 20,
+    "sourceFile": "PRD_Implementation_Focused.md",
+    "generatedAt": "2023-07-10"
+  }
+}

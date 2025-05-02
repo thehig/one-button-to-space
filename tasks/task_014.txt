@@ -1,0 +1,11 @@
+# Task ID: 14
+# Title: Implement Ship Types and Properties
+# Status: pending
+# Dependencies: 11
+# Priority: medium
+# Description: Create different ship types with varying physics properties and constraints.
+# Details:
+In the shared package, define data structures for different ship types (Tourist, Cargo). Implement varying physics properties (mass, engine force, rotation speed) for each type. Create factory methods for instantiating different ship types in the physics simulation. Add visual representations for each ship type in the client.
+
+# Test Strategy:
+Test each ship type with identical inputs to verify different handling characteristics. Check that physics properties correctly affect movement and control. Verify visual representations match the ship type.

@@ -1,0 +1,11 @@
+# Task ID: 10
+# Title: Implement Client-Server Network Communication
+# Status: pending
+# Dependencies: 7, 9
+# Priority: high
+# Description: Set up communication between client NetworkManager and server GameRoom.
+# Details:
+In the NetworkManager, implement Colyseus client connection and room joining. Create message types in the shared package for client-server communication. Implement sending player inputs from client to server. Set up receiving and processing state updates from server to client. Add connection status handling and reconnection logic.
+
+# Test Strategy:
+Test client-server connection establishment. Verify input messages are correctly sent from client to server. Check that state updates are received and processed by the client. Test reconnection scenarios.
