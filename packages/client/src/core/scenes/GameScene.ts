@@ -7,7 +7,7 @@ import { TimeManager } from "../../managers/TimeManager";
 import { SceneManager } from "../../managers/SceneManager";
 import { Logger } from "@one-button-to-space/shared";
 import { CameraManager } from "../../managers/CameraManager";
-import { SceneInputManager } from "../../managers/SceneInputManager"; // Import SceneInputManager
+import { GameSceneInputManager } from "../../managers/GameSceneInputManager";
 import { gameEmitter } from "../../main"; // Import the global emitter
 // Import effects
 import { Starfield } from "../effects/Starfield";
@@ -61,7 +61,7 @@ export class GameScene extends Phaser.Scene {
   private networkManager!: NetworkManager;
   private entityManager!: EntityManager;
   private inputManager!: InputManager; // Global input handler (keys, orientation)
-  private sceneInputManager!: SceneInputManager; // Scene-specific input processing
+  private sceneInputManager!: GameSceneInputManager; // CHANGE TYPE
   private physicsManager!: PhysicsManager;
   private timeManager!: TimeManager;
   private sceneManager!: SceneManager;
@@ -143,7 +143,7 @@ export class GameScene extends Phaser.Scene {
         // InputManager context already set in init
 
         // --- Create and Initialize SceneInputManager NOW ---
-        this.sceneInputManager = new SceneInputManager(
+        this.sceneInputManager = new GameSceneInputManager(
           this,
           this.networkManager,
           this.inputManager, // Pass global InputManager

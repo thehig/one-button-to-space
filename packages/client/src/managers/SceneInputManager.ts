@@ -7,6 +7,10 @@ import type { PlayerInputMessage } from "@one-button-to-space/shared";
 import type { GameScene } from "../core/scenes/GameScene"; // Use type import for scene reference
 import { EntityManager } from "./EntityManager"; // Import EntityManager
 import { Player } from "../entities/Player"; // Import Player type
+import {
+  BaseSceneInputManager,
+  SceneInputManagerDebugState,
+} from "./BaseSceneInputManager"; // Import base class and debug state type
 
 // Logger Source for this file
 const LOGGER_SOURCE = "🕹️👆"; // Gamepad + finger for scene-specific input
@@ -20,12 +24,8 @@ const ANGLE_DELTA_THRESHOLD = 0.005; // Radians - only send if change exceeds th
  * Reads input states from the global InputManager and sends
  * relevant commands via the NetworkManager.
  */
-export class SceneInputManager {
-  private scene: GameScene;
-  private networkManager: NetworkManager;
-  private inputManager: InputManager;
-  private cameraManager: CameraManager;
-  private entityManager: EntityManager; // Add EntityManager property
+export class GameSceneInputManager extends BaseSceneInputManager {
+  // No need to redeclare scene, networkManager, inputManager, cameraManager, entityManager - they are in the base class
 
   // Input state tracking moved from GameScene
   private playerInputSequence: number = 0;
@@ -39,24 +39,17 @@ export class SceneInputManager {
   private isPinching: boolean = false;
   private currentPinchDistance: number = 0; // Added to store current distance for debug
 
-  constructor(
-    scene: GameScene,
-    networkManager: NetworkManager,
-    inputManager: InputManager,
-    cameraManager: CameraManager,
-    entityManager: EntityManager // Add EntityManager to constructor
-  ) {
-    this.scene = scene;
-    this.networkManager = networkManager;
-    this.inputManager = inputManager;
-    this.cameraManager = cameraManager;
-    this.entityManager = entityManager; // Store EntityManager
-  }
+  // Override constructor IS NOT needed if the base constructor signature matches.
+  // The 'super()' call is implicitly made.
 
-  public initialize(): void {
-    Logger.info(LOGGER_SOURCE, "Scene Input Manager Initializing");
+  // Override abstract methods
+  public override initialize(): void {
+    Logger.info(LOGGER_SOURCE, "GameScene Input Manager Initializing");
+    // Assert scene type to access specific properties if needed later
+    const gameScene = this.scene as GameScene;
+
     // Check for touch support and setup listeners
-    if (this.scene.sys.game.device.input.touch) {
+    if (gameScene.sys.game.device.input.touch) {
       this.touchActive = true;
       Logger.info(
         LOGGER_SOURCE,
@@ -64,23 +57,23 @@ export class SceneInputManager {
       );
       // Explicitly enable listening for a second pointer if not already done by default system
       // Check if pointer2 exists, if not, add one. Relying on pointer1 existence for input system check.
-      if (this.scene.input.pointer1 && !this.scene.input.pointer2) {
-        this.scene.input.addPointer(1);
+      if (gameScene.input.pointer1 && !gameScene.input.pointer2) {
+        gameScene.input.addPointer(1);
       }
 
       // Add tap listeners
-      this.scene.input.on(
+      gameScene.input.on(
         Phaser.Input.Events.POINTER_DOWN,
         this.handleTapStart,
         this
       );
-      this.scene.input.on(
+      gameScene.input.on(
         Phaser.Input.Events.POINTER_UP,
         this.handleTapEnd,
         this
       );
       // Add pinch listeners (using pointer move)
-      this.scene.input.on(
+      gameScene.input.on(
         Phaser.Input.Events.POINTER_MOVE,
         this.handlePointerMove,
         this
@@ -97,21 +90,23 @@ export class SceneInputManager {
     }
   }
 
-  public destroy(): void {
-    Logger.info(LOGGER_SOURCE, "Scene Input Manager Destroying");
+  public override destroy(): void {
+    Logger.info(LOGGER_SOURCE, "GameScene Input Manager Destroying");
+    const gameScene = this.scene as GameScene;
+
     // Remove listeners if they were added
     if (this.touchActive) {
-      this.scene.input.off(
+      gameScene.input.off(
         Phaser.Input.Events.POINTER_DOWN,
         this.handleTapStart,
         this
       );
-      this.scene.input.off(
+      gameScene.input.off(
         Phaser.Input.Events.POINTER_UP,
         this.handleTapEnd,
         this
       );
-      this.scene.input.off(
+      gameScene.input.off(
         Phaser.Input.Events.POINTER_MOVE,
         this.handlePointerMove,
         this
@@ -127,13 +122,14 @@ export class SceneInputManager {
     this.currentPinchDistance = 0;
   }
 
-  // --- Moved from GameScene ---
-  public processInput(delta: number): void {
+  public override processInput(delta: number): void {
     // Check if network is connected (InputManager existence checked by constructor indirectly)
     const isConnected = this.networkManager.isConnected();
     if (!isConnected) {
       return;
     }
+
+    const gameScene = this.scene as GameScene;
 
     // --- Thrust Input (Keyboard - only if touch is NOT active) --- //
     if (!this.touchActive) {
@@ -268,22 +264,24 @@ export class SceneInputManager {
     // Remains commented out
   }
 
-  // --- Moved from GameScene ---
+  // --- Helper methods specific to GameScene input logic --- //
+
   private handleTapStart(pointer: Phaser.Input.Pointer): void {
     Logger.debug(
       LOGGER_SOURCE,
       `handleTapStart triggered by pointer ID: ${pointer.id}`
     );
+    const gameScene = this.scene as GameScene;
     // Only handle primary touch for thrust to avoid multi-touch issues
     if (
       !this.touchActive ||
       !pointer.isDown ||
-      this.scene.input.pointer1 !== pointer
+      gameScene.input.pointer1 !== pointer
     )
       return;
 
     // Ignore if pinching
-    if (this.isPinching || this.scene.input.pointer2?.isDown) {
+    if (this.isPinching || gameScene.input.pointer2?.isDown) {
       // Check pointer2 safely
       Logger.debug(
         LOGGER_SOURCE,
@@ -307,14 +305,14 @@ export class SceneInputManager {
     }
   }
 
-  // --- Moved from GameScene ---
   private handleTapEnd(pointer: Phaser.Input.Pointer): void {
     Logger.debug(
       LOGGER_SOURCE,
       `handleTapEnd triggered by pointer ID: ${pointer.id}`
     );
+    const gameScene = this.scene as GameScene;
     // Only handle primary touch for thrust
-    if (!this.touchActive || this.scene.input.pointer1 !== pointer) return;
+    if (!this.touchActive || gameScene.input.pointer1 !== pointer) return;
 
     // Reset pinch state if primary pointer goes up
     if (this.isPinching) {
@@ -337,13 +335,13 @@ export class SceneInputManager {
     }
   }
 
-  // --- Moved from GameScene ---
   private handlePointerMove(pointer: Phaser.Input.Pointer): void {
     // Logger.debug(LOGGER_SOURCE, `handlePointerMove triggered by pointer ID: ${pointer.id}`); // Can be very spammy
     if (!this.touchActive) return;
 
-    const p1 = this.scene.input.pointer1;
-    const p2 = this.scene.input.pointer2;
+    const gameScene = this.scene as GameScene;
+    const p1 = gameScene.input.pointer1;
+    const p2 = gameScene.input.pointer2;
 
     // Check if starting a pinch (both pointers down, not already pinching)
     // Safely check p2 existence
@@ -366,11 +364,11 @@ export class SceneInputManager {
     }
   }
 
-  // --- Moved from GameScene ---
   private updatePinchZoom(): number {
     // Logger.debug(LOGGER_SOURCE, `updatePinchZoom called. isPinching: ${this.isPinching}`); // Potentially spammy
-    const p1 = this.scene.input.pointer1;
-    const p2 = this.scene.input.pointer2;
+    const gameScene = this.scene as GameScene;
+    const p1 = gameScene.input.pointer1;
+    const p2 = gameScene.input.pointer2;
     let currentDistance = 0;
 
     if (this.isPinching) {
@@ -419,18 +417,14 @@ export class SceneInputManager {
     return currentDistance; // Return current distance
   }
 
-  // --- Getter for debug state ---
-  public getDebugState(): {
-    isPinching: boolean;
-    pinchDistance: number;
-    isThrusting: boolean;
-    touchActive: boolean;
-  } {
+  // Override abstract method
+  public override getDebugState(): SceneInputManagerDebugState {
     return {
       isPinching: this.isPinching,
       pinchDistance: this.currentPinchDistance, // Use stored value
       isThrusting: this.wasThrusting,
       touchActive: this.touchActive,
+      lastSentAngle: this.lastSentAngle?.toFixed(3) ?? "null",
     };
   }
 }
