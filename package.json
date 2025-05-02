@@ -19,5 +19,10 @@
     "game"
   ],
   "author": "Gemini",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^20.11.20",
+    "@types/react": "^18.2.56",
+    "@types/react-dom": "^18.2.19"
+  }
 }

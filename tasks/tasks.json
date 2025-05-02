@@ -14,7 +14,7 @@
       "id": 2,
       "title": "Configure TypeScript for All Packages",
       "description": "Set up TypeScript configuration for client, server, and shared packages with strict type checking.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         1
       ],
