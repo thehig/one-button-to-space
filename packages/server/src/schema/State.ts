@@ -62,6 +62,7 @@ export class PlanetData extends Schema {
   @type("string") seed = "default";
   @type(PlanetColors) colors = new PlanetColors();
   @type(PlanetNoiseParams) noiseParams = new PlanetNoiseParams();
+  @type("string") texture: string = "planet_default"; // Added texture field
 }
 
 // --- Player Configuration Schema ---

@@ -17,6 +17,7 @@ import {
 } from "@one-button-to-space/shared";
 // import { EventEmitter } from "../../utils/EventEmitter"; // Correct path if it's local
 import { gameEmitter } from "../main"; // Correct path to main.tsx from managers dir
+import { EngineManager } from "./EngineManager"; // Added EngineManager import
 
 // Logger Source for this file
 const LOGGER_SOURCE = "👥🧩";
@@ -31,38 +32,47 @@ type PlanetMapSchema = Map<string, PlanetData>; // Changed from EntityMapSchema
  */
 // @ts-ignore - This might resolve the static side inheritance issue if explicit typing doesn't
 export class EntityManager extends BaseManager {
-  private static _instance: EntityManager | null = null;
+  // Removed Singleton pattern
+  // private static _instance: EntityManager | null = null;
   private scene: Phaser.Scene | null = null;
   private entities: Map<string, GameObject> = new Map(); // Map session ID (or entity ID) to GameObject
   private currentPlayerSessionId: string | null = null; // Track the client's own player
   private currentRoomState: GameState | null = null; // Store the latest known full state
+  private engineManager: EngineManager; // Added EngineManager instance variable
 
-  // Private constructor for singleton pattern
-  private constructor() {
+  // Modified constructor to accept EngineManager
+  constructor(engineManager: EngineManager) {
     super();
+    this.engineManager = engineManager;
   }
 
-  // Static method to reset the singleton instance AND context
-  public static resetInstance(): void {
-    if (EntityManager._instance) {
-      // Optional: Call internal cleanup if needed before nulling
-      EntityManager._instance.clearEntities(); // Example: Clear internal maps
-      EntityManager._instance.scene = null;
-      EntityManager._instance.currentPlayerSessionId = null;
-    }
-    EntityManager._instance = null;
-    Logger.debug(LOGGER_SOURCE, "EntityManager instance and context reset.");
+  // Removed Singleton resetInstance
+  // public static resetInstance(): void { ... }
+
+  // Removed Singleton getInstance
+  // public static getInstance(): EntityManager { ... }
+
+  // --- Lifecycle Methods ---
+
+  public async setup(): Promise<void> {
+    // Setup might involve waiting for GameManager to provide scene context
+    Logger.info(LOGGER_SOURCE, "EntityManager setup initialized.");
+    // We might need to wait for the scene to be ready here, potentially via an event
+    // or by ensuring GameManager.setup() completes first in EngineManager.
+    // For now, setup is minimal, actual initialization happens with setSceneContext.
   }
 
-  // Singleton accessor
-  public static getInstance(): EntityManager {
-    if (!EntityManager._instance) {
-      EntityManager._instance = new EntityManager();
-    }
-    return EntityManager._instance;
+  public teardown(): void {
+    Logger.info(LOGGER_SOURCE, "Tearing down EntityManager...");
+    this.clearEntities();
+    this.scene = null;
+    this.currentPlayerSessionId = null;
+    this.currentRoomState = null;
+    Logger.info(LOGGER_SOURCE, "EntityManager teardown complete.");
   }
 
   // Set the scene context, crucial for creating Matter bodies and adding sprites
+  // This will likely be called by GameManager after Phaser is initialized
   public setSceneContext(scene: Phaser.Scene, playerSessionId: string): void {
     this.scene = scene;
     this.currentPlayerSessionId = playerSessionId;
@@ -70,6 +80,14 @@ export class EntityManager extends BaseManager {
       LOGGER_SOURCE,
       `EntityManager context set for scene: ${scene.scene.key}, player: ${playerSessionId}`
     );
+    // Potentially sync state immediately if state arrived before scene was ready
+    if (this.currentRoomState) {
+      Logger.info(
+        LOGGER_SOURCE,
+        "Scene context set, re-syncing with stored initial state."
+      );
+      this.syncInitialState(this.currentRoomState);
+    }
   }
 
   /**
@@ -77,16 +95,17 @@ export class EntityManager extends BaseManager {
    * Creates all initial entities.
    */
   public syncInitialState(state: GameState): void {
+    this.currentRoomState = state; // Store/update state regardless of scene readiness
+
     if (!this.scene) {
-      Logger.error(
+      Logger.warn(
         LOGGER_SOURCE,
-        "Scene context not set before syncing initial state."
+        "Scene context not yet set. Storing initial state for later synchronization."
       );
-      return;
+      return; // Wait for setSceneContext to be called
     }
     Logger.info(LOGGER_SOURCE, "Syncing initial state...");
-    this.clearEntities(); // Ensure clean slate
-    this.currentRoomState = state; // Store initial state
+    this.clearEntities(); // Ensure clean slate only when scene is ready
 
     // Check if players exist before iterating
     if (state.players) {
@@ -116,12 +135,12 @@ export class EntityManager extends BaseManager {
    * Handles entity creation, updates, and removal based on schema changes.
    */
   public updateFromState(state: GameState): void {
-    if (!this.scene) {
-      // console.warn("EntityManager scene context not set during state update.");
-      return;
-    }
-
     this.currentRoomState = state; // Update stored state
+
+    if (!this.scene) {
+      // Logger.warn("EntityManager scene context not set during state update.");
+      return; // Don't process updates if scene isn't ready
+    }
 
     // Use Colyseus schema callbacks attached in NetworkManager for efficiency
     // This method can act as a fallback or be used if manual iteration is preferred.
@@ -194,25 +213,26 @@ export class EntityManager extends BaseManager {
     physicsData: PhysicsStateUpdate
   ): void {
     const entity = this.entities.get(entityId);
-    if (entity) {
-      // Check if the entity has the specific physics update method
-      if (typeof entity.updatePhysicsFromServer === "function") {
-        entity.updatePhysicsFromServer(physicsData);
-      } else {
-        // Fallback or warn if the specific method doesn't exist
-        Logger.warn(
-          LOGGER_SOURCE,
-          `Entity ${entityId} received physics update but lacks updatePhysicsFromServer method.`
-        );
-      }
-
-      // --- REVERTED: Remove velocity setting logic ---
-      // const body = (entity as any).body as Matter.Body | undefined;
-      // if (body) { ... Matter.Body.setVelocity ... }
-    } else {
+    if (!entity) {
       // This might happen briefly if state sync is slightly delayed
       // Logger.trace(LOGGER_SOURCE, `Received physics update for unknown entity: ${entityId}`);
+      return;
     }
+
+    // Check if the entity has the specific physics update method
+    if (typeof entity.updatePhysicsFromServer === "function") {
+      entity.updatePhysicsFromServer(physicsData);
+    } else {
+      // Fallback or warn if the specific method doesn't exist
+      Logger.warn(
+        LOGGER_SOURCE,
+        `Entity ${entityId} received physics update but lacks updatePhysicsFromServer method.`
+      );
+    }
+
+    // --- REVERTED: Remove velocity setting logic ---
+    // const body = (entity as any).body as Matter.Body | undefined;
+    // if (body) { ... Matter.Body.setVelocity ... }
   }
 
   // Explicit types for parameters
@@ -221,6 +241,14 @@ export class EntityManager extends BaseManager {
       Logger.error(
         LOGGER_SOURCE,
         "Cannot create player, scene context (or matter world) not available. State update likely arrived during HMR transition."
+      );
+      return;
+    }
+
+    if (!(this.scene as any).isSceneReady) {
+      Logger.warn(
+        LOGGER_SOURCE,
+        `Cannot create player ${sessionId}, scene is not ready yet.`
       );
       return;
     }
@@ -242,52 +270,56 @@ export class EntityManager extends BaseManager {
     if (!player) {
       const isCurrentPlayer = sessionId === this.currentPlayerSessionId;
 
+      // --- Create a plain copy of the config --- //
+      const configCopy = {
+        mass: playerConfig.mass,
+        friction: playerConfig.friction,
+        frictionAir: playerConfig.frictionAir,
+        restitution: playerConfig.restitution,
+        collisionCategory: playerConfig.collisionCategory,
+        collisionMask: playerConfig.collisionMask,
+        // Explicitly map vertices to plain objects
+        vertices: Array.from(playerConfig.vertices).map((v) => ({
+          x: v.x,
+          y: v.y,
+        })),
+      };
+      // ----------------------------------------- //
+
       // Create new player instance, passing options correctly
       try {
         player = new Player(
           this.scene.matter.world, // Pass the matter world
           state.x, // Initial x from state
           state.y, // Initial y from state
-          sessionId, // Pass the session ID
-          isCurrentPlayer, // Pass the flag
-          playerConfig // Pass the PlayerConfig
+          sessionId,
+          isCurrentPlayer, // Pass isCurrentPlayer flag
+          configCopy // ---> Pass the plain copy
         );
-
         this.addEntity(sessionId, player);
-        Logger.info(
-          LOGGER_SOURCE,
-          `Created player ${sessionId}${isCurrentPlayer ? " (local)" : ""}`
-        );
-
-        // Emit event *after* creating and adding the local player
-        if (isCurrentPlayer && player) {
-          Logger.debug(
-            LOGGER_SOURCE,
-            `Emitting localPlayerReady for ${sessionId}`
-          );
-          gameEmitter.emit("localPlayerReady", player);
+        // Emit only when a *new* player is created
+        gameEmitter.emit("playerCreated", player); // Emit event
+        if (isCurrentPlayer) {
+          gameEmitter.emit("currentPlayerCreated", player);
         }
-      } catch (error: any) {
+        Logger.info(LOGGER_SOURCE, `Player ${sessionId} created.`);
+      } catch (error) {
         Logger.error(
           LOGGER_SOURCE,
-          `Failed to create Player ${sessionId}:`,
-          error
+          `Failed to create player ${sessionId}:`,
+          error,
+          state
         );
-        // Optionally remove from entities if partially added?
-        if (this.entities.has(sessionId)) {
-          this.removeEntity(sessionId);
-        }
-        player = undefined; // Ensure player is undefined on error
+        return; // Don't proceed if creation fails
       }
-    }
-
-    if (player) {
-      // Update existing or newly created player (initial state)
-      player.updateFromServer(state);
+    } else {
+      // Logger.trace(`Player ${sessionId} already exists, updating.`);
+      // Player update logic is handled in updateFromState/schema callbacks
+      // Potentially call player.updateFromServer(state) if needed here
     }
   }
 
-  // Renamed function and updated parameter type
+  // Explicit types for parameters
   private createOrUpdatePlanet(planetId: string, state: PlanetData): void {
     if (!this.scene || !this.scene.matter || !this.scene.matter.world) {
       Logger.error(
@@ -297,117 +329,133 @@ export class EntityManager extends BaseManager {
       return;
     }
 
-    let entity = this.entities.get(planetId) as Planet | undefined; // Cast to Planet
-
-    if (!entity) {
-      // Create the new Planet GameObject instance
-      try {
-        const newPlanet = new Planet(
-          this.scene.matter.world,
-          state // Pass the full PlanetData
-        );
-
-        // Add the new entity to the manager
-        this.addEntity(planetId, newPlanet);
-        Logger.info(LOGGER_SOURCE, `Created Planet entity ${planetId}`);
-        entity = newPlanet; // Assign for potential later use
-      } catch (e) {
-        Logger.error(LOGGER_SOURCE, `Failed to create Planet ${planetId}:`, e);
-      }
-    } else {
-      // Update existing planet entity
-      // Ensure updateFromServer exists before calling
-      if (typeof entity.updateFromServer === "function") {
-        entity.updateFromServer(state);
-      } else {
-        Logger.warn(
-          LOGGER_SOURCE,
-          `Planet entity ${planetId} exists but has no updateFromServer method.`
-        );
-      }
-    }
-  }
-
-  private addEntity(id: string, entity: GameObject): void {
-    if (!this.entities.has(id)) {
-      this.entities.set(id, entity);
-      // Optionally add to scene groups (e.g., this.scene.add.group)
-    } else {
+    if (!(this.scene as any).isSceneReady) {
       Logger.warn(
         LOGGER_SOURCE,
-        `Entity with ID ${id} already exists. Update should handle this.`
+        `Cannot create planet ${planetId}, scene is not ready yet.`
       );
-      // Decide how to handle this - replace or ignore?
-      // For now, let updateFromState handle updates.
+      return;
+    }
+
+    let planet = this.entities.get(planetId) as Planet | undefined;
+
+    if (!planet) {
+      // --- ADDED: Texture existence check ---
+      // Use global texture manager via game system
+      if (!this.scene.sys.game.textures.exists(state.texture)) {
+        Logger.error(
+          LOGGER_SOURCE,
+          `Cannot create planet ${planetId}, texture '${state.texture}' not found in scene texture manager.`
+        );
+        return;
+      }
+      // --- END: Texture existence check ---
+
+      try {
+        planet = new Planet(
+          this.scene.matter.world,
+          state.x,
+          state.y,
+          planetId,
+          {
+            radius: state.radius,
+            texture: state.texture,
+            gravity: state.gravity, // Make sure gravity is passed
+          },
+          this.scene.sys.game.textures
+        );
+        this.addEntity(planetId, planet);
+        Logger.info(LOGGER_SOURCE, `Planet ${planetId} created.`);
+      } catch (error) {
+        Logger.error(
+          LOGGER_SOURCE,
+          `Failed to create planet ${planetId}:`,
+          error,
+          state
+        );
+        return;
+      }
+    } else {
+      // Update existing planet if necessary (e.g., if properties change)
+      // Note: updateFromServer should handle this based on state sync
+      // Logger.trace(LOGGER_SOURCE, `Planet ${planetId} already exists, updating.`);
     }
   }
 
+  // Add entity to map and potentially the scene
+  private addEntity(id: string, entity: GameObject): void {
+    if (!this.scene) {
+      Logger.error(LOGGER_SOURCE, "Cannot add entity, scene context not set.");
+      return;
+    }
+    if (this.entities.has(id)) {
+      Logger.warn(LOGGER_SOURCE, `Entity ${id} already exists. Overwriting.`);
+      this.removeEntity(id); // Clean up the old one first
+    }
+    this.entities.set(id, entity);
+    // Assuming GameObjects add themselves to the scene if needed
+    // Logger.debug(LOGGER_SOURCE, `Entity added: ${id}`);
+  }
+
+  // Remove entity from map and scene
   public removeEntity(id: string): void {
     const entity = this.entities.get(id);
     if (entity) {
-      // Check if the main camera is following this entity
-      if (this.scene?.cameras.main && this.scene.cameras.main.deadzone) {
-        // Use the internal _follow property for a more direct check
-        // Note: Accessing internal properties like _follow can be brittle
-        if ((this.scene.cameras.main as any)._follow === entity) {
-          this.scene.cameras.main.stopFollow();
-        }
-      }
-      entity.destroyGameObject(); // Use custom destroy method
+      entity.destroy(); // Call GameObject's destroy method for cleanup
       this.entities.delete(id);
-      Logger.info(LOGGER_SOURCE, `Removed entity: ${id}`);
+      Logger.info(LOGGER_SOURCE, `Entity removed: ${id}`);
     } else {
-      // console.warn(`Attempted to remove non-existent entity: ${id}`);
+      Logger.warn(
+        LOGGER_SOURCE,
+        `Attempted to remove non-existent entity: ${id}`
+      );
     }
   }
 
+  // Get a specific entity by ID
   public getEntity(id: string): GameObject | undefined {
     return this.entities.get(id);
   }
 
+  // Get all entities
   public getAllEntities(): Map<string, GameObject> {
     return this.entities;
   }
 
+  // Get the current player entity
   public getCurrentPlayer(): Player | undefined {
     if (!this.currentPlayerSessionId) return undefined;
     return this.entities.get(this.currentPlayerSessionId) as Player | undefined;
   }
 
+  // Clear all entities - useful for scene changes or full resets
   public clearEntities(): void {
-    Logger.info(LOGGER_SOURCE, `Clearing ${this.entities.size} entities.`);
-    // Check if scene and camera system are valid before trying to stop follow
-    if (this.scene && this.scene.cameras && this.scene.cameras.main) {
-      this.scene.cameras.main.stopFollow();
+    if (this.entities.size > 0) {
+      Logger.info(LOGGER_SOURCE, `Clearing ${this.entities.size} entities...`);
+      this.entities.forEach((entity) => {
+        // Ensure destroy exists before calling
+        if (typeof entity.destroy === "function") {
+          entity.destroy();
+        } else {
+          Logger.warn(
+            LOGGER_SOURCE,
+            `Entity missing destroy method during clear: ${entity.id}`
+          );
+        }
+      });
+      this.entities.clear();
+      Logger.info(LOGGER_SOURCE, "All entities cleared.");
     } else {
-      Logger.warn(
-        LOGGER_SOURCE,
-        "Scene or main camera not available during clearEntities, skipping stopFollow."
-      );
+      Logger.trace(LOGGER_SOURCE, "No entities to clear.");
     }
-    this.entities.forEach((entity) => {
-      entity.destroyGameObject();
-    });
-    this.entities.clear();
   }
 
-  // The core update loop is driven by Phaser's scene update.
-  // EntityManager primarily reacts to state changes from the NetworkManager.
-  // Individual entities handle their own interpolation/prediction in their update methods.
-
+  // Getter for the Matter world (read-only access)
   get world(): Phaser.Physics.Matter.World | null {
     return this.scene?.matter.world ?? null;
   }
 
-  public override init(): void {
-    Logger.info(LOGGER_SOURCE, "Entity Manager Initialized");
-  }
-
-  public override destroy(): void {
-    Logger.info(LOGGER_SOURCE, "Entity Manager Destroyed");
-    this.clearEntities();
-    this.scene = null;
-    this.currentPlayerSessionId = null;
-    EntityManager._instance = null;
-  }
+  // Removed BaseManager overrides for init/destroy as they are now setup/teardown
+  // public override init(): void { ... }
+  // public override destroy(): void { ... }
 }

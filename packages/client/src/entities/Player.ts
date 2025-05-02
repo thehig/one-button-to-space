@@ -26,7 +26,26 @@ export class Player extends GameObject {
     config: PlayerConfigSchema // Add config parameter
   ) {
     // Call the GameObject (Phaser.Physics.Matter.Sprite) constructor
-    super(world, x, y, "rocket", undefined);
+    super(world, x, y, "rocket", undefined, { ...config }); // Ensure config is passed if needed by super
+
+    // --- Log Config --- //
+    Logger.debug(
+      LOGGER_SOURCE,
+      `Player constructor received config for ${sessionId}:`,
+      JSON.stringify(config)
+    );
+    if (config && config.vertices) {
+      Logger.debug(
+        LOGGER_SOURCE,
+        `... config.vertices length: ${config.vertices.length}`
+      );
+    } else {
+      Logger.warn(
+        LOGGER_SOURCE,
+        `... config.vertices is missing or undefined!`
+      );
+    }
+    // --- End Log Config ---
 
     // Store original texture dimensions
     const originalWidth = this.width;

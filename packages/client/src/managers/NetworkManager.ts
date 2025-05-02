@@ -5,10 +5,11 @@ import { BaseManager } from "./BaseManager";
 import { Logger, PhysicsStateUpdate } from "@one-button-to-space/shared";
 import { RoomState as GameState } from "../schema/State"; // Import local GameState alias
 import { gameEmitter } from "../main"; // Ensure gameEmitter is imported
+import { EngineManager } from "./EngineManager"; // Added EngineManager import
 
 // --- Manager Imports ---
-import { EntityManager } from "./EntityManager";
-import { SceneManager } from "./SceneManager";
+// Removed EntityManager import, will access via EngineManager
+// import { SceneManager } from "./SceneManager"; // SceneManager also seems unused directly
 
 // Logger Source for this file
 const LOGGER_SOURCE = "🌐";
@@ -28,27 +29,42 @@ export interface NetworkStats {
 }
 
 export class NetworkManager extends BaseManager {
-  protected static _instance: NetworkManager | null = null;
+  // Removed Singleton pattern
+  // protected static _instance: NetworkManager | null = null;
   private client: Client;
   private room: Room<GameState> | null = null; // Strongly typed room state
   private connectionOptions: ConnectionOptions | null = null;
   private availableRooms: RoomAvailable<GameState>[] = [];
   private pingInterval: NodeJS.Timeout | null = null;
   private pingStartTime: number = 0;
-  private lastPingTime: number = 0; // Store the last measured ping
+  private pingValue: number = 0; // Renamed lastPingTime to pingValue for clarity
   private messageStats = {
     incoming: 0,
     outgoing: 0,
     lastResetTime: Date.now(),
   };
   private statsUpdateInterval: NodeJS.Timeout | null = null;
+  private engineManager: EngineManager; // Added EngineManager instance variable
 
-  private constructor() {
+  // Modified constructor to accept EngineManager
+  constructor(engineManager: EngineManager) {
     super();
+    this.engineManager = engineManager; // Store EngineManager
+
+    // Setup logic moved to setup() method
+  }
+
+  // Removed Singleton getInstance
+  // public static getInstance(): NetworkManager { ... }
+
+  // Removed Singleton resetInstance
+  // public static async resetInstance(): Promise<void> { ... }
+
+  // --- Lifecycle Methods (Adapted from constructor and destroy) ---
+
+  public async setup(): Promise<void> {
+    Logger.info(LOGGER_SOURCE, "Setting up NetworkManager...");
     // Determine server endpoint
-    // 1. Prioritize VITE_SERVER_URL environment variable
-    // 2. Fallback to localhost for development
-    // 3. Fallback to placeholder for production
     const envServerUrl = import.meta.env.VITE_SERVER_URL;
     let endpoint: string;
 
@@ -75,29 +91,24 @@ export class NetworkManager extends BaseManager {
     }
 
     this.client = new Client(endpoint);
-    // Logger.info removed here, logged within the if/else blocks now
-    this.startStatsUpdates();
+    // Initial stats update start moved here from constructor
+    // Note: Consider if stats should only start *after* connection
+    // this.startStatsUpdates();
+    Logger.info(LOGGER_SOURCE, "NetworkManager setup complete.");
   }
 
-  public static getInstance(): NetworkManager {
-    if (!NetworkManager._instance) {
-      NetworkManager._instance = new NetworkManager();
+  public async teardown(): Promise<void> {
+    // Adapted from destroy
+    Logger.info(LOGGER_SOURCE, "Tearing down NetworkManager...");
+    this.stopStatsUpdates(); // Stop emitting stats and ping
+    if (this.room) {
+      await this.disconnect(); // Ensure disconnect is called
     }
-    return NetworkManager._instance;
+    // No need to explicitly nullify instance variables if the manager instance itself is discarded
+    Logger.info(LOGGER_SOURCE, "NetworkManager teardown complete.");
   }
 
-  public static async resetInstance(): Promise<void> {
-    if (NetworkManager._instance) {
-      await NetworkManager._instance.destroy(); // Call instance destroy
-      NetworkManager._instance = null;
-      Logger.debug(LOGGER_SOURCE, "NetworkManager instance reset.");
-    } else {
-      Logger.trace(
-        LOGGER_SOURCE,
-        "NetworkManager instance already null, skipping reset."
-      );
-    }
-  }
+  // --- Connection Management ---
 
   public async connect(
     roomName: string,
@@ -122,13 +133,14 @@ export class NetworkManager extends BaseManager {
       );
       Logger.trace(LOGGER_SOURCE, "Room joined successfully", this.room);
       this.setupRoomListeners();
-      this.startStatsUpdates();
+      this.startStatsUpdates(); // Start stats *after* successful connection
       gameEmitter.emit("roomReady", this.room); // Emit room ready event
       return this.room;
     } catch (e: any) {
       Logger.error(LOGGER_SOURCE, "Failed to join room:", e);
       this.room = null;
       this.connectionOptions = null;
+      this.stopStatsUpdates(); // Stop stats if connection failed
       gameEmitter.emit("roomLeave"); // Emit leave event on connection failure
       throw e; // Re-throw
     }
@@ -155,6 +167,8 @@ export class NetworkManager extends BaseManager {
     }
   }
 
+  // --- Room Listeners ---
+
   private setupRoomListeners(): void {
     // Added more logging inside this method
     if (!this.room) return;
@@ -165,13 +179,15 @@ export class NetworkManager extends BaseManager {
     this.room.onStateChange.once((initialState: GameState) => {
       Logger.debug(LOGGER_SOURCE, "Initial state received.", initialState);
       this.messageStats.incoming++; // Count initial state as one message
-      EntityManager.getInstance().syncInitialState(initialState);
+      // Access EntityManager via EngineManager
+      this.engineManager.getEntityManager().syncInitialState(initialState);
     });
 
     this.room.onStateChange((state: GameState) => {
       this.messageStats.incoming++; // Count incremental state change
       Logger.trace(LOGGER_SOURCE, "Incremental state received.", state); // Too noisy
-      EntityManager.getInstance().updateFromState(state);
+      // Access EntityManager via EngineManager
+      this.engineManager.getEntityManager().updateFromState(state);
     });
 
     // --- Custom Messages ---
@@ -222,7 +238,8 @@ export class NetworkManager extends BaseManager {
               Object.keys(message)
             );
             Object.entries(message).forEach(([entityId, physicsData]) => {
-              EntityManager.getInstance().updateEntityPhysics(
+              // Access EntityManager via EngineManager
+              this.engineManager.getEntityManager().updateEntityPhysics(
                 entityId,
                 physicsData as PhysicsStateUpdate // Cast to expected type
               );
@@ -237,139 +254,159 @@ export class NetworkManager extends BaseManager {
           break;
 
         case "chat":
-          // TODO: Route to UI Manager
+          // TODO: Route to UI Manager via EngineManager
+          this.engineManager.getUIManager().handleChatMessage(message); // Example call
           Logger.info(
             LOGGER_SOURCE,
-            "Chat message received (not handled):",
+            "Chat message received (routed to UIManager):",
             message
           );
           break;
         case "serverNotification":
-          // TODO: Route to UI Manager
+          // TODO: Route to UI Manager via EngineManager
+          this.engineManager.getUIManager().handleServerNotification(message); // Example call
           Logger.info(
             LOGGER_SOURCE,
-            "Server notification received (not handled):",
+            "Server notification received (routed to UIManager):",
             message
           );
           break;
+        // --- Game-Specific Messages ---
+        case "player_joined":
+          // TODO: Add entity via EntityManager
+          Logger.info(
+            LOGGER_SOURCE,
+            "Player joined event received (not fully handled):",
+            message
+          );
+          break;
+        case "player_left":
+          // TODO: Remove entity via EntityManager
+          Logger.info(
+            LOGGER_SOURCE,
+            "Player left event received (not fully handled):",
+            message
+          );
+          break;
+
         default:
           Logger.warn(
             LOGGER_SOURCE,
-            `Unhandled message type "${type}"`,
+            `Unhandled message type received: "${type}"`,
             message
           );
+          break;
       }
     });
 
-    // --- Room Lifecycle Events ---
+    // --- Room Events ---
     this.room.onError((code, message) => {
-      Logger.error(LOGGER_SOURCE, `Room error (code: ${code}): ${message}`);
-      this.disconnect(); // Attempt cleanup
-      SceneManager.getInstance().startScene("MainMenuScene", {
-        error: `Connection error: ${message || "Unknown room error"}`,
-      });
+      Logger.error(LOGGER_SOURCE, `Room error (Code: ${code}):`, message);
+      // Optionally trigger disconnect or UI update
+      gameEmitter.emit("networkError", { code, message });
     });
 
-    this.room.onLeave((code) => {
-      Logger.info(
-        LOGGER_SOURCE,
-        `Left room via onLeave callback (code: ${code})`
-      );
-      this.room = null; // Ensure room reference is cleared
+    this.room.onLeave(async (code) => {
+      Logger.info(LOGGER_SOURCE, `Left room (Code: ${code})`);
+      this.room = null; // Clear room reference
       this.connectionOptions = null;
-      this.stopStatsUpdates();
-      gameEmitter.emit("roomLeave"); // Emit leave event
-      // TODO: Potentially trigger UI update or scene change
+      this.stopStatsUpdates(); // Stop stats updates on leave
+      gameEmitter.emit("roomLeave", code); // Emit leave event with code
+      // Handle different leave codes if necessary (e.g., 1000 = normal closure)
+      if (code !== 1000) {
+        Logger.warn(LOGGER_SOURCE, `Unexpected room leave code: ${code}`);
+        // Attempt reconnect? Show error?
+        // await this.reconnect(); // Example: Simple reconnect attempt
+      }
     });
-    Logger.debug(LOGGER_SOURCE, "Finished setting up room listeners."); // Added log
   }
 
-  /**
-   * Send a message (input or action) to the server room.
-   * @param type Message type identifier (string or number).
-   * @param payload Optional data payload for the message.
-   */
+  // --- Sending Messages ---
+
   public sendMessage(type: string | number, payload?: any): void {
-    if (this.isConnected()) {
-      this.outgoingMessages++; // Count outgoing message
-      this.room!.send(type, payload);
-      // Logger.trace(LOGGER_SOURCE, `Sent message type "${type}"`, payload); // Can be noisy
+    if (this.room && this.isConnected()) {
+      try {
+        this.room.send(type, payload);
+        this.messageStats.outgoing++; // Count outgoing messages
+        Logger.trace(LOGGER_SOURCE, `Sent message type "${type}"`, payload); // Can be noisy
+      } catch (e: any) {
+        Logger.error(LOGGER_SOURCE, `Failed to send message "${type}":`, e);
+      }
     } else {
-      Logger.warn(LOGGER_SOURCE, "Cannot send message, not connected.");
+      Logger.warn(
+        LOGGER_SOURCE,
+        `Cannot send message "${type}", not connected.`
+      );
     }
   }
 
-  // --- Stats Methods ---
+  // --- Network Stats ---
 
   private sendPing(): void {
-    if (this.isConnected() && this.pingStartTime === 0) {
+    if (this.room && this.isConnected() && this.pingStartTime === 0) {
       this.pingStartTime = Date.now();
-      this.sendMessage("ping", this.pingStartTime); // Send current time
-      Logger.trace(LOGGER_SOURCE, "Sent ping"); // Changed log level
+      this.sendMessage("ping", this.pingStartTime); // Send current time as payload
+      Logger.trace(LOGGER_SOURCE, "Sent ping message"); // Added log
     }
   }
 
   private updateAndEmitStats(): void {
-    Logger.trace(LOGGER_SOURCE, "updateAndEmitStats called"); // Added log
-    const now = Date.now();
-    const deltaTime = (now - this.lastStatsUpdateTime) / 1000; // Delta in seconds
+    if (!this.room) return;
 
-    if (deltaTime > 0) {
-      const msgInPerSec = this.incomingMessages / deltaTime;
-      const msgOutPerSec = this.outgoingMessages / deltaTime;
+    const now = Date.now();
+    const elapsedSeconds = (now - this.messageStats.lastResetTime) / 1000;
+
+    if (elapsedSeconds >= 1) {
+      const msgInPerSec = this.messageStats.incoming / elapsedSeconds;
+      const msgOutPerSec = this.messageStats.outgoing / elapsedSeconds;
 
       const stats: NetworkStats = {
-        ping: this.pingValue,
-        msgInPerSec: msgInPerSec,
-        msgOutPerSec: msgOutPerSec,
+        ping: this.pingValue, // Use the measured ping value
+        msgInPerSec: parseFloat(msgInPerSec.toFixed(1)), // Format to 1 decimal place
+        msgOutPerSec: parseFloat(msgOutPerSec.toFixed(1)),
       };
 
-      Logger.trace(LOGGER_SOURCE, "Emitting networkStatsUpdate", stats); // Added log
-      gameEmitter.emit("networkStatsUpdate", stats);
-      // Logger.trace(LOGGER_SOURCE, "Network stats emitted", stats); // Can be noisy
+      gameEmitter.emit("networkStats", stats); // Emit stats update
 
-      // Reset counters for the next interval
-      this.incomingMessages = 0;
-      this.outgoingMessages = 0;
-      this.lastStatsUpdateTime = now;
-
-      // Initiate next ping measurement
-      this.sendPing();
+      // Reset counters and timer
+      this.messageStats.incoming = 0;
+      this.messageStats.outgoing = 0;
+      this.messageStats.lastResetTime = now;
     }
   }
 
   private startStatsUpdates(): void {
-    this.stopStatsUpdates(); // Clear any existing interval
-    Logger.info(
-      LOGGER_SOURCE,
-      `Starting network stats updates every ${this.STATS_UPDATE_INTERVAL}ms`
-    ); // Keep info level
-    this.lastStatsUpdateTime = Date.now();
-    this.incomingMessages = 0;
-    this.outgoingMessages = 0;
-    this.pingValue = -1;
-    this.statsInterval = setInterval(
-      () => this.updateAndEmitStats(),
-      this.STATS_UPDATE_INTERVAL
-    );
-    this.sendPing(); // Initial ping
+    if (this.statsUpdateInterval) return; // Already running
+    Logger.debug(LOGGER_SOURCE, "Starting network stats updates...");
+
+    // Reset stats immediately before starting interval
+    this.messageStats = { incoming: 0, outgoing: 0, lastResetTime: Date.now() };
+    this.pingValue = 0; // Reset ping
+
+    this.statsUpdateInterval = setInterval(() => {
+      this.sendPing(); // Send ping periodically
+      this.updateAndEmitStats(); // Update and emit stats
+    }, 1000); // Update every second
   }
 
   private stopStatsUpdates(): void {
-    if (this.statsInterval) {
-      Logger.info(LOGGER_SOURCE, "Stopping network stats updates");
-      clearInterval(this.statsInterval);
-      this.statsInterval = null;
-      this.pingValue = -1; // Reset ping on disconnect
-      this.pingStartTime = 0;
+    if (this.statsUpdateInterval) {
+      clearInterval(this.statsUpdateInterval);
+      this.statsUpdateInterval = null;
+      Logger.debug(LOGGER_SOURCE, "Stopped network stats updates.");
+    }
+    if (this.pingInterval) {
+      // Also clear the old ping interval if it exists
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+      Logger.debug(LOGGER_SOURCE, "Stopped ping interval.");
     }
   }
 
-  // --- Getters ---
+  // --- Status & Accessors ---
 
   public isConnected(): boolean {
-    // Check if room exists and the underlying connection is open
-    return !!this.room && this.room.connection.isOpen;
+    return !!this.room && !!this.room.connection && this.room.connection.isOpen;
   }
 
   public get currentRoom(): Room<GameState> | null {
@@ -380,16 +417,10 @@ export class NetworkManager extends BaseManager {
     return this.room?.sessionId;
   }
 
-  // --- Lifecycle ---
-
-  public override init(): void {
-    // No specific init logic here, constructor handles setup
-  }
-
-  public override async destroy(): Promise<void> {
-    Logger.info(LOGGER_SOURCE, "Network Manager Destroying");
-    this.stopStatsUpdates(); // Stop stats updates on destroy
-    await this.disconnect(); // Ensure disconnection on destroy
-    NetworkManager._instance = null;
-  }
+  // Removed BaseManager overrides for init/destroy as they are now setup/teardown
+  // public override init(): void { ... }
+  // public override async destroy(): Promise<void> { ... }
 }
+
+// Removed Singleton export
+// export default NetworkManager.getInstance();

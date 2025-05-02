@@ -1,6 +1,8 @@
 import Phaser from "phaser";
 import { Logger } from "@one-button-to-space/shared";
-import { SceneManager } from "../../managers/SceneManager";
+// SceneManager is now accessed via EngineManager from the registry
+// import { SceneManager } from "../../managers/SceneManager";
+import { EngineManager } from "../../managers/EngineManager"; // Import EngineManager type
 
 // Logger Source for this file
 const LOGGER_SOURCE = "👢⚙️";
@@ -9,7 +11,8 @@ const LOGGER_SOURCE = "👢⚙️";
  * The initial scene that loads essential assets and transitions to the main game or menu.
  */
 export class BootScene extends Phaser.Scene {
-  private sceneManager!: SceneManager;
+  // private sceneManager!: SceneManager; // No longer needed directly
+  private engineManager!: EngineManager; // Store EngineManager reference
 
   constructor() {
     super("BootScene");
@@ -17,7 +20,14 @@ export class BootScene extends Phaser.Scene {
 
   init(/*data?: object*/): void {
     Logger.info(LOGGER_SOURCE, "BootScene Init");
-    this.sceneManager = SceneManager.getInstance(this.game);
+    // Get EngineManager from the game registry
+    this.engineManager = this.registry.get("engine");
+    if (!this.engineManager) {
+      throw new Error(
+        "EngineManager instance not found in registry. Ensure it was set in main.tsx."
+      );
+    }
+    // this.sceneManager = SceneManager.getInstance(this.game); // Old Singleton access removed
   }
 
   preload(): void {
@@ -36,6 +46,11 @@ export class BootScene extends Phaser.Scene {
     this.load.image("thruster_001", "images/thruster_001.png"); // Corrected path
     this.load.image("thruster_002", "images/thruster_002.png"); // Corrected path
     // --- End Load Rocket Assets ---
+
+    // --- Load Planet Assets ---
+    // Load a default texture for planets if specific one isn't defined in state
+    this.load.image("planet_default", "images/planets/default.png");
+    // --- End Load Planet Assets ---
 
     // this.load.image("player_texture", "placeholders/player.png"); // Example placeholder
     // Add other essential assets (e.g., map tileset, common sounds)
@@ -70,15 +85,14 @@ export class BootScene extends Phaser.Scene {
     // Global game settings can be configured here
     // e.g., this.physics.world.setBounds(...);
 
-    // Transition to the next scene
-    // Usually, you'd go to a MainMenuScene first, but we'll jump to GameScene for now
+    // Transition to the next scene using the SceneManager obtained via EngineManager
     Logger.info(LOGGER_SOURCE, "Starting GameScene...");
-    this.sceneManager.startScene("GameScene");
+    this.engineManager.getSceneManager().startScene("GameScene");
 
     // If you had a loading screen (more typical in a PreloadScene):
     // ... (loading bar logic as before) ...
     // this.load.on('complete', () => {
-    //     SceneManager.getInstance(this.game).startScene('MainMenuScene');
+    //     this.engineManager.getSceneManager().startScene('MainMenuScene');
     // });
     // // Start loading all game assets here
     // this.loadAssetsForGame(); // Call a method to load everything

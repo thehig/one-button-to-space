@@ -196,6 +196,7 @@ export class GameRoom extends Room<InstanceType<typeof RoomState>> {
               basePlanetData.atmosphereHeight ?? DEFAULT_ATMOSPHERE_HEIGHT,
             surfaceDensity: basePlanetData.surfaceDensity,
             seed: worldPlanet.name, // Use name as seed for consistency
+            texture: basePlanetData.texture, // Added texture assignment
           });
 
           // Assign colors and noiseParams properties to the *existing* nested schema instances

@@ -1,68 +1,71 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Phaser from "phaser";
 import { BaseManager } from "./BaseManager";
+import { EngineManager } from "./EngineManager";
 
 export class SceneManager extends BaseManager {
-  protected static _instance: SceneManager | null = null;
-  private game: Phaser.Game;
+  private game: Phaser.Game | null = null;
+  private engineManager: EngineManager;
 
-  private constructor(game: Phaser.Game) {
+  constructor(engineManager: EngineManager) {
     super();
-    this.game = game;
+    this.engineManager = engineManager;
   }
 
-  public static getInstance(game?: Phaser.Game): SceneManager {
-    if (!SceneManager._instance) {
-      if (!game) {
-        throw new Error(
-          "SceneManager requires a Phaser.Game instance on first call."
-        );
-      }
-      SceneManager._instance = new SceneManager(game);
+  public async setup(): Promise<void> {
+    console.log("SceneManager setup initialized. Waiting for game instance...");
+  }
+
+  public teardown(): void {
+    console.log("Tearing down SceneManager...");
+    this.game = null;
+    console.log("SceneManager teardown complete.");
+  }
+
+  public setGameInstance(gameInstance: Phaser.Game): void {
+    if (this.game) {
+      console.warn("SceneManager: Game instance is already set. Overwriting.");
     }
-    return SceneManager._instance;
-  }
-
-  public static resetInstance(): void {
-    SceneManager._instance = null;
+    this.game = gameInstance;
+    console.log("SceneManager: Phaser Game instance received.");
   }
 
   public startScene(key: string, data?: object): void {
-    if (this.game.scene.isActive(key)) {
-      console.warn(`Scene ${key} is already active.`);
+    if (!this.game) {
+      console.error(
+        "Cannot start scene, Phaser Game not available in SceneManager."
+      );
       return;
     }
-    // Stop other scenes if needed, or manage parallel scenes
-    // Example: Stop all other scenes before starting the new one
-    // this.game.scene.getScenes(true).forEach(scene => {
-    //     if (scene.scene.key !== key) {
-    //         this.game.scene.stop(scene.scene.key);
-    //     }
-    // });
+    if (this.game.scene.isActive(key)) {
+      console.warn(`Scene ${key} is already active. Restarting.`);
+      this.game.scene.stop(key);
+    }
+
+    console.log(`Starting scene: ${key}`, data ?? "");
     this.game.scene.start(key, data);
   }
 
   public stopScene(key: string): void {
+    if (!this.game) {
+      console.error(
+        "Cannot stop scene, Phaser Game not available in SceneManager."
+      );
+      return;
+    }
     if (this.game.scene.isActive(key)) {
+      console.log(`Stopping scene: ${key}`);
       this.game.scene.stop(key);
     }
   }
 
   public getCurrentScene(): Phaser.Scene | null {
+    if (!this.game) return null;
     const activeScenes = this.game.scene.getScenes(true);
-    return activeScenes[0] ?? null;
+    return activeScenes.length > 0 ? activeScenes[0] : null;
   }
 
-  // Add other scene management methods as needed (e.g., transition effects)
-
-  public override init(): void {
-    console.log("Scene Manager Initialized");
-    // Initialization logic, maybe set up scene event listeners
-  }
-
-  public override destroy(): void {
-    console.log("Scene Manager Destroyed");
-    SceneManager._instance = null;
-    // Cleanup logic
+  public getGameInstance(): Phaser.Game | null {
+    return this.game;
   }
 }

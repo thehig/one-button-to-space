@@ -35,12 +35,21 @@ export class Planet extends GameObject {
   private planetData: PlanetData; // Store planet data for texture gen
   private atmosphereVisual: Phaser.GameObjects.Graphics | null = null; // Added for atmosphere
 
-  constructor(world: Phaser.Physics.Matter.World, planetData: PlanetData) {
+  constructor(
+    world: Phaser.Physics.Matter.World,
+    planetData: PlanetData,
+    textureManager: Phaser.Textures.TextureManager // Pass global texture manager
+  ) {
     // --- Generate Texture Key FIRST (before super call) ---
     // Note: This assumes PlanetData includes 'seed' and 'noiseParams.scale'
     // We need to generate the key here, but the full texture generation
     // happens *after* super() when `this.world` is available.
     const textureKey = Planet.getTextureKey(planetData); // Use static method
+
+    // --- Ensure Texture Exists or is Generated --- //
+    if (!textureManager.exists(textureKey)) {
+      Planet.generateTexture(textureKey, planetData, textureManager); // Use static method
+    }
 
     // --- Physics Body Configuration ---
     const bodyOptions: Phaser.Types.Physics.Matter.MatterBodyConfig = {
@@ -72,26 +81,9 @@ export class Planet extends GameObject {
     this.planetData = planetData;
     this.planetId = planetData.id;
 
-    // --- Generate Full Texture NOW (after super) ---
-    this.ensureTextureGenerated();
-
-    // --- Create Atmosphere Visual ---
-    this.createAtmosphereVisual();
-
     // --- Visual Setup ---
     this.setDisplaySize(planetData.radius * 2, planetData.radius * 2);
-    // Remove old setTint logic, texture is now procedural
-    // try {
-    //   const color = Phaser.Display.Color.ValueToColor(planetData.colors.base);
-    //   this.setTint(color.color);
-    // } catch (e) {
-    //   Logger.warn(
-    //     LOGGER_SOURCE,
-    //     `Invalid base color for planet ${planetData.id}: ${planetData.colors.base}`,
-    //     e
-    //   );
-    //   this.setTint(0xffffff);
-    // }
+    // Texture should be set correctly now via ensureTextureGenerated
 
     this.setIgnoreGravity(true);
     // Assign the GameObject instance to the Matter body for back-reference
@@ -106,7 +98,7 @@ export class Planet extends GameObject {
   }
 
   // Static method to calculate texture key without needing `this`
-  private static getTextureKey(planetData: PlanetData): string {
+  public static getTextureKey(planetData: PlanetData): string {
     const { id, seed, radius, colors, noiseParams } = planetData;
     const safeSeed = seed ?? `planet_${id}`;
     const safeNoiseScale = noiseParams?.scale ?? 0.05;
@@ -117,35 +109,28 @@ export class Planet extends GameObject {
     }-${colors.accent1 ?? ""}`;
   }
 
-  // Ensures the texture is generated if it doesn't exist
-  private ensureTextureGenerated(): void {
-    const textureKey = Planet.getTextureKey(this.planetData);
-    if (!this.world.scene.textures.exists(textureKey)) {
-      this.generateTexture(textureKey); // Pass the key
-    }
-    // Set the texture on the sprite, in case the initial key was a placeholder
-    // or if texture generation failed initially and we fell back.
-    if (
-      this.texture.key !== textureKey &&
-      this.world.scene.textures.exists(textureKey)
-    ) {
-      this.setTexture(textureKey);
-    }
-  }
-
   /**
-   * Generates a procedural texture for the planet based on its config.
-   * Adds the texture to the scene's texture manager.
+   * Static method to generate a procedural texture for the planet based on its config.
+   * Adds the texture to the global texture manager.
    * @param textureKey The unique key for the texture.
+   * @param planetData The data defining the planet's appearance.
+   * @param textureManager The global Phaser Texture Manager.
    */
-  private generateTexture(textureKey: string): void {
-    // Now uses this.planetData directly
-    const { id, seed, radius, colors, noiseParams } = this.planetData;
+  private static generateTexture(
+    textureKey: string,
+    planetData: PlanetData,
+    textureManager: Phaser.Textures.TextureManager
+  ): void {
+    // Check existence again just in case (e.g., race condition, though unlikely here)
+    if (textureManager.exists(textureKey)) {
+      Logger.trace(LOGGER_SOURCE, `Texture ${textureKey} already exists.`);
+      return;
+    }
+
+    const { id, seed, radius, colors, noiseParams } = planetData;
     const safeSeed = seed ?? `planet_${id}`;
     const safeNoiseScale = noiseParams?.scale ?? 0.05;
     const safeRadius = radius > 0 ? radius : 10;
-
-    // Texture existence check moved to ensureTextureGenerated
 
     Logger.debug(
       LOGGER_SOURCE,
@@ -153,8 +138,8 @@ export class Planet extends GameObject {
     );
 
     const diameter = Math.ceil(safeRadius * 2);
-    // Create a canvas texture using the scene from the world object
-    const canvasTexture = this.world.scene.textures.createCanvas(
+    // Create a canvas texture using the global texture manager
+    const canvasTexture = textureManager.createCanvas(
       textureKey,
       diameter,
       diameter

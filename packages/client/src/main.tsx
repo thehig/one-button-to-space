@@ -3,22 +3,29 @@ import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import Phaser from "phaser";
-import { BootScene } from "./core/scenes/BootScene.ts";
-import { GameScene } from "./core/scenes/GameScene/index.ts"; // Corrected path to directory index
-import { MainMenuScene } from "./core/scenes/MainMenuScene.ts"; // Import the new scene
+// Import scenes that will be part of the initial game config
+import { BootScene } from "./core/scenes/BootScene";
+import { GameScene } from "./core/scenes/GameScene"; // Use index if available
+import { MainMenuScene } from "./core/scenes/MainMenuScene";
 import { Logger, LogLevel } from "@one-button-to-space/shared"; // Import Logger
 import { EventEmitter } from "./utils/EventEmitter"; // Import the EventEmitter
-import { SceneManager } from "./managers/SceneManager"; // Corrected Import SceneManager
-import { EntityManager } from "./managers/EntityManager"; // Import EntityManager
-import { InputManager } from "./managers/InputManager"; // Import InputManager
-import { NetworkManager } from "./managers/NetworkManager"; // Import NetworkManager
 import { RoomProvider } from "./colyseus"; // Import RoomProvider from the new local file
+
+// --- Manager Imports ---
+import { EngineManager } from "./managers/EngineManager";
+import { SceneManager } from "./managers/SceneManager";
+import { EntityManager } from "./managers/EntityManager";
+import { InputManager } from "./managers/InputManager";
+import { NetworkManager } from "./managers/NetworkManager";
+import { PhysicsManager } from "./managers/PhysicsManager";
+import { TimeManager } from "./managers/TimeManager";
+import { CameraManager } from "./managers/CameraManager";
 
 // -- Logging Setup --
 // Create a set of sources to exclude
 const blacklistSources = new Set<string>([
   // "🧑‍🚀✨", // Player.ts
-  "🌐", // NetworkManager.ts
+  // "🌐", // NetworkManager.ts - Re-enable if needed
 ]);
 
 // Invoke debugger after 1 second in development mode. Set to 0 to disable.
@@ -33,12 +40,17 @@ const LOGGER_SOURCE = "🚀🎬";
 // --- Create Global Event Emitter --- //
 export const gameEmitter = new EventEmitter();
 
-// Store the game instance and React root references
-let gameInstance: Phaser.Game | null = null;
+// Store the engine manager and React root references
+let engineManagerInstance: EngineManager | null = null;
+let phaserGameInstance: Phaser.Game | null = null; // Renamed from gameInstance
 let reactRoot: ReactDOM.Root | null = null; // Store the React root
 
-// Game configuration
-const config: Phaser.Types.Core.GameConfig = {
+// Removed Game configuration as it's likely handled within SceneManager/Game class
+
+// Removed initGame() function
+
+// --- Phaser Game Configuration --- //
+const phaserConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   width: window.innerWidth,
   height: window.innerHeight,
@@ -46,42 +58,18 @@ const config: Phaser.Types.Core.GameConfig = {
   physics: {
     default: "matter",
     matter: {
-      debug: import.meta.env.DEV, // Enable debug drawing in development
+      debug: import.meta.env.DEV,
       gravity: { x: 0, y: 0 },
       enableSleeping: true,
     },
   },
-  scene: [BootScene, MainMenuScene, GameScene], // Added MainMenuScene
+  scene: [BootScene, MainMenuScene, GameScene], // Add scenes here
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   backgroundColor: "#1a1a1a",
 };
-
-// Function to initialize or re-initialize the game
-function initGame() {
-  // Destroy existing game instance if it exists (for HMR)
-  if (gameInstance) {
-    Logger.info(
-      LOGGER_SOURCE,
-      "Destroying existing Phaser game instance for HMR."
-    );
-    gameInstance.destroy(true); // true to remove canvas from DOM
-    gameInstance = null;
-  }
-  gameInstance = new Phaser.Game(config);
-  Logger.info(LOGGER_SOURCE, "Phaser Game instance created.");
-
-  // Optional: Make game instance globally accessible for debugging
-  if (import.meta.env.DEV) {
-    (window as any).phaserGame = gameInstance;
-    Logger.debug(
-      LOGGER_SOURCE,
-      "Phaser game instance attached to window for debugging."
-    );
-  }
-}
 
 // Function to initialize or update the React app
 function renderApp() {
@@ -128,12 +116,24 @@ function renderApp() {
   if (reactRoot) {
     Logger.debug(LOGGER_SOURCE, "Calling reactRoot.render()...");
 
+    // Ensure engineManagerInstance exists before rendering RoomProvider
+    // RoomProvider might need access to managers via context or props
+    if (!engineManagerInstance) {
+      Logger.error(
+        LOGGER_SOURCE,
+        "EngineManager not initialized before rendering React app."
+      );
+      return;
+    }
+
     // Render App within RoomProvider unconditionally
-    // RoomProvider will handle getting the room instance internally
+    // Pass engineManagerInstance to RoomProvider if needed (e.g., via props or context)
     Logger.debug(LOGGER_SOURCE, "Rendering App with RoomProvider.");
     reactRoot.render(
       <React.StrictMode>
-        <RoomProvider>
+        <RoomProvider engineManager={engineManagerInstance}>
+          {" "}
+          {/* Example: Pass via prop */}
           <App />
         </RoomProvider>
       </React.StrictMode>
@@ -143,93 +143,51 @@ function renderApp() {
 }
 
 /**
- * Cleans up application resources, optionally skipping network disconnect for HMR.
+ * Cleans up application resources using the EngineManager.
  * @param isHMRDispose - True if called during HMR dispose, false otherwise.
  */
 function cleanupApp(isHMRDispose: boolean) {
   Logger.info(
     LOGGER_SOURCE,
-    `cleanupApp: Stopping scenes, destroying Phaser game, resetting managers. (HMR Dispose: ${isHMRDispose})`
+    `cleanupApp: Tearing down managers via EngineManager. (HMR Dispose: ${isHMRDispose})`
   );
 
-  // 1. Handle NetworkManager differently based on HMR
-  if (isHMRDispose) {
-    // During HMR, we want to explicitly leave the Colyseus room
-    // so the server knows the old client is gone immediately.
-    // We *don't* reset the NetworkManager instance itself, as a new one
-    // will be created by the re-executed module code.
+  // Handle NetworkManager HMR disconnect BEFORE general teardown
+  if (isHMRDispose && engineManagerInstance) {
     try {
-      NetworkManager.getInstance().leaveRoom(); // Explicitly leave
-      Logger.debug(
-        LOGGER_SOURCE,
-        "Called NetworkManager.leaveRoom() during HMR dispose."
-      );
+      // Attempt to leave the room gracefully if connected
+      const networkManager = engineManagerInstance.getNetworkManager();
+      if (networkManager.isConnected()) {
+        networkManager.disconnect(); // Use disconnect which includes logging
+        Logger.debug(
+          LOGGER_SOURCE,
+          "Called NetworkManager.disconnect() during HMR dispose."
+        );
+      }
     } catch (error) {
       Logger.warn(
         LOGGER_SOURCE,
-        "Error calling leaveRoom during HMR dispose (maybe instance was already gone?)",
+        "Error during NetworkManager disconnect in HMR dispose (maybe instance/connection gone?)",
         error
       );
     }
-    // Skip resetting the NetworkManager instance during HMR dispose
-    Logger.warn(
-      LOGGER_SOURCE,
-      "Skipping NetworkManager reset during HMR dispose."
-    );
-  } else {
-    // For normal page unload, reset the singleton
-    NetworkManager.resetInstance();
+    // We don't call teardown on NetworkManager itself here, EngineManager handles it.
   }
 
-  // 2. Destroy Phaser game (stops scenes)
-  if (gameInstance) {
-    // Stop all active scenes first
-    gameInstance.scene.getScenes(true).forEach((scene) => {
-      Logger.debug(
-        LOGGER_SOURCE,
-        `Preparing to stop scene: ${scene.scene.key}`
-      );
-      try {
-        // 1. Clear entities while scene context is potentially still needed for entity cleanup
-        Logger.debug(
-          LOGGER_SOURCE,
-          `Clearing entities for scene: ${scene.scene.key}`
-        );
-        EntityManager.getInstance().clearEntities();
-
-        // 2. Stop the scene - this will trigger the scene's own shutdown() method
-        Logger.debug(
-          LOGGER_SOURCE,
-          `Stopping scene systems: ${scene.scene.key}`
-        );
-        if (scene && scene.sys && scene.sys.isActive()) {
-          scene.sys.game.scene.stop(scene.scene.key);
-        } else {
-          Logger.warn(
-            LOGGER_SOURCE,
-            `Scene ${scene.scene.key} or its systems not available for stopping.`
-          );
-        }
-      } catch (e) {
-        Logger.error(
-          LOGGER_SOURCE,
-          `Error during scene stop/cleanup for ${scene.scene.key}:`,
-          e
-        );
-      }
-    });
-
-    // 3. Now destroy the game instance itself
-    gameInstance.destroy(true);
-    gameInstance = null;
+  // Teardown all managers via EngineManager
+  if (engineManagerInstance) {
+    engineManagerInstance.teardown();
+    engineManagerInstance = null; // Nullify the instance after teardown
   }
 
-  // 4. Reset other global singletons *after* game destruction & network cleanup
-  Logger.debug(LOGGER_SOURCE, "Resetting other global managers.");
-  SceneManager.resetInstance();
-  EntityManager.resetInstance();
-  InputManager.resetInstance();
-  // NetworkManager is reset via its static resetInstance() method above
+  // Destroy Phaser Game Instance (AFTER managers are torn down)
+  // SceneManager.teardown() should have cleaned its internal reference,
+  // but the actual destruction happens here.
+  if (phaserGameInstance) {
+    Logger.debug(LOGGER_SOURCE, "Destroying Phaser Game instance...");
+    phaserGameInstance.destroy(true); // true removes canvas
+    phaserGameInstance = null;
+  }
 
   // React root cleanup: Using custom property on DOM element
   const rootElement = document.getElementById("root");
@@ -238,50 +196,116 @@ function cleanupApp(isHMRDispose: boolean) {
     const existingRoot = (rootElement as any)[
       customRootProperty
     ] as ReactDOM.Root;
-    existingRoot.unmount();
-    delete (rootElement as any)[customRootProperty];
+    // Ensure unmount is only called if the root wasn't already handled elsewhere
+    // try { existingRoot.unmount(); } catch (e) { console.warn("Error unmounting React root:", e); }
+    existingRoot.unmount(); // Assume we always want to unmount here
+    delete (rootElement as any)[customRootProperty]; // Remove property
+    Logger.debug(
+      LOGGER_SOURCE,
+      "Unmounted React root and removed DOM property."
+    );
   }
   // Always nullify the module variable as well
   reactRoot = null;
+
+  Logger.info(LOGGER_SOURCE, "cleanupApp finished.");
 }
 
 // Function to handle initial setup and HMR re-initialization
 async function initializeApp() {
-  await cleanupApp(false); // Await the cleanup process
-  initGame();
-  renderApp();
-}
+  // Cleanup previous instances if any (important for HMR)
+  // Pass false because this isn't an HMR dispose call itself
+  cleanupApp(false);
 
-// Initial setup using an IIAFE to handle top-level await
-(async () => {
-  await initializeApp();
-})();
+  Logger.info(LOGGER_SOURCE, "Initializing application...");
+
+  // 1. Create Engine Manager
+  engineManagerInstance = new EngineManager();
+  Logger.debug(LOGGER_SOURCE, "EngineManager created.");
+
+  // 2. Create Phaser Game Instance
+  phaserGameInstance = new Phaser.Game(phaserConfig);
+  Logger.debug(LOGGER_SOURCE, "Phaser Game instance created.");
+  if (import.meta.env.DEV) {
+    (window as any).phaserGame = phaserGameInstance;
+  }
+
+  // 3. Create other managers, passing the engine manager
+  const sceneManager = new SceneManager(engineManagerInstance);
+  const entityManager = new EntityManager(engineManagerInstance);
+  const inputManager = new InputManager(engineManagerInstance);
+  const networkManager = new NetworkManager(engineManagerInstance);
+  const physicsManager = new PhysicsManager(engineManagerInstance);
+  const timeManager = new TimeManager(engineManagerInstance);
+  const cameraManager = new CameraManager(engineManagerInstance);
+  Logger.debug(LOGGER_SOURCE, "All individual managers created.");
+
+  // 4. Pass Game Instance to SceneManager
+  sceneManager.setGameInstance(phaserGameInstance);
+
+  // 5. Register Managers with EngineManager
+  engineManagerInstance.registerSceneManager(sceneManager);
+  engineManagerInstance.registerEntityManager(entityManager);
+  engineManagerInstance.registerInputManager(inputManager);
+  engineManagerInstance.registerNetworkManager(networkManager);
+  engineManagerInstance.registerPhysicsManager(physicsManager);
+  engineManagerInstance.registerTimeManager(timeManager);
+  engineManagerInstance.registerCameraManager(cameraManager);
+  Logger.debug(LOGGER_SOURCE, "Managers registered with EngineManager.");
+
+  // 6. Register EngineManager with Phaser Game Registry for Scene access
+  if (phaserGameInstance) {
+    phaserGameInstance.registry.set("engine", engineManagerInstance);
+    Logger.debug(
+      LOGGER_SOURCE,
+      "EngineManager instance registered with Phaser Game registry."
+    );
+  }
+
+  // 7. Run EngineManager Setup (which calls setup on all registered managers)
+  try {
+    await engineManagerInstance.setup();
+    Logger.info(LOGGER_SOURCE, "EngineManager setup complete.");
+
+    // 8. Render React App (only after engine setup is successful)
+    renderApp();
+  } catch (error) {
+    Logger.error(LOGGER_SOURCE, "Error during EngineManager setup:", error);
+    // Handle setup error gracefully
+  }
+
+  // Optional: Debugger launch
+  if (import.meta.env.DEV && DEBUG_DELAY > 0) {
+    setTimeout(() => {
+      debugger;
+    }, DEBUG_DELAY);
+  }
+
+  Logger.info(LOGGER_SOURCE, "Application initialization complete.");
+}
 
 // --- HMR Handling --- //
 if (import.meta.hot) {
-  // Use dispose for cleanup before the module is replaced
+  Logger.info(LOGGER_SOURCE, "HMR enabled. Setting up dispose handler.");
   import.meta.hot.dispose(() => {
-    cleanupApp(true); // Pass true for HMR dispose
+    Logger.info(LOGGER_SOURCE, "Vite HMR dispose triggered.");
+    // Pass true to indicate this is an HMR dispose call
+    cleanupApp(true);
   });
 
-  // Accept updates for this module
-  import.meta.hot.accept(() => {
-    Logger.info(
-      LOGGER_SOURCE,
-      "HMR accept: Module reloaded. Application should re-initialize via top-level script execution."
-    );
-  });
+  // Optional: Re-initialize on accept if needed, though full reload might be simpler
+  // import.meta.hot.accept(() => {
+  //   console.log("Vite HMR accept triggered. Re-initializing app...");
+  //   initializeApp();
+  // });
 }
 
-// --- Debug Timer ---
-if (import.meta.env.DEV && DEBUG_DELAY > 0) {
-  Logger.info(
+// --- Initial App Load --- //
+initializeApp().catch((error) => {
+  Logger.error(
     LOGGER_SOURCE,
-    `Setting up debugger to trigger in ${DEBUG_DELAY / 1000} seconds.`
+    "Unhandled error during initial app load:",
+    error
   );
-  setTimeout(() => {
-    Logger.warn(LOGGER_SOURCE, "Triggering debugger!");
-    // eslint-disable-next-line no-debugger
-    debugger;
-  }, DEBUG_DELAY);
-}
+  // Display error to user? Fallback UI?
+});
