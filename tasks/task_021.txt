@@ -1,0 +1,195 @@
+# Task ID: 21
+# Title: Optimize Client Application Lifecycle with HMR-Compatible Game Manager Reset
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Refactor the client application startup/lifecycle to implement best practices for Hot Module Replacement (HMR), ensuring game managers reset appropriately during development and maintaining lifecycle integrity for future changes.
+# Details:
+This task involves a comprehensive review and optimization of the client application's startup and lifecycle processes, with a focus on making it work seamlessly with Hot Module Replacement during development. The developer should:
+
+1. Document the current application startup sequence and game manager initialization flow
+2. Identify all game managers and state containers that need proper resetting during HMR
+3. Implement a centralized lifecycle management system that:
+   - Properly disposes resources when HMR triggers
+   - Reinitializes game managers with appropriate state
+   - Prevents memory leaks during repeated HMR cycles
+4. Create clear separation between initialization, runtime, and cleanup phases
+5. Add lifecycle hooks that future components can implement to participate in the lifecycle
+6. Implement a registry pattern for game managers to ensure they're properly tracked
+7. Add safeguards to prevent multiple initializations or partial state during HMR
+8. Create developer-friendly console logging for lifecycle events during development
+9. Document the new lifecycle flow with sequence diagrams for future developers
+10. Update existing game managers to implement the new lifecycle hooks
+
+The implementation should be backward compatible with existing code while providing a clear path for future components to follow the lifecycle pattern.
+
+# Test Strategy:
+Testing should verify both the correctness of the lifecycle implementation and its resilience to HMR cycles:
+
+1. Unit Tests:
+   - Create tests for each lifecycle phase (init, reset, dispose)
+   - Verify game managers properly implement lifecycle hooks
+   - Test edge cases like rapid HMR cycles or partial initialization
+
+2. Integration Tests:
+   - Simulate complete application startup and verify all managers initialize correctly
+   - Trigger mock HMR events and verify proper cleanup and reinitialization
+   - Verify no memory leaks occur after multiple HMR cycles using memory profiling
+
+3. Manual Testing:
+   - Perform actual development with HMR enabled, making code changes to trigger reloads
+   - Verify game state is appropriately maintained or reset as expected
+   - Test with various game states (menu, gameplay, etc.) when HMR triggers
+   - Verify console logs show proper lifecycle execution
+
+4. Regression Testing:
+   - Ensure existing functionality works without changes after implementation
+   - Verify application startup performance isn't negatively impacted
+
+5. Documentation Verification:
+   - Review lifecycle documentation for completeness
+   - Have another developer attempt to implement a new manager using only the documentation
+
+# Subtasks:
+## 1. Document Current Application Lifecycle and Create Manager Registry [pending]
+### Dependencies: None
+### Description: Document the existing application startup sequence, game manager initialization flow, and implement a registry pattern for tracking all game managers, with special attention to Phaser/MatterJS lifecycle considerations.
+### Details:
+Implementation steps:
+1. Create a detailed flowchart of the current application startup sequence
+2. Document all existing game managers and their initialization methods
+3. Document Phaser/MatterJS specific lifecycle events and cleanup requirements
+4. Implement a `GameManagerRegistry` class that will:
+   - Maintain a collection of all game managers
+   - Provide registration/deregistration methods
+   - Include a method to iterate through all registered managers
+   - Track Phaser-specific and MatterJS-specific objects for proper cleanup
+5. Modify existing game managers to register themselves with the registry
+6. Add console logging to track registration events during development
+7. Document best practices for Phaser/MatterJS cleanup during HMR cycles
+
+Testing approach:
+- Verify all existing game managers are properly registered
+- Check console logs to ensure registration events are captured
+- Manually test that the registry correctly tracks all game managers
+- Verify Phaser and MatterJS objects are properly tracked for cleanup
+
+## 2. Design and Implement Lifecycle Interface and Hooks [pending]
+### Dependencies: 21.1
+### Description: Create a standardized lifecycle interface with hooks for initialization, runtime, and cleanup phases that all game managers will implement, with rigorous cleanup procedures for Phaser/MatterJS objects.
+### Details:
+Implementation steps:
+1. Define a `LifecycleAware` interface with methods:
+   - `initialize()`: Setup resources and state
+   - `onActive()`: Called when component becomes active
+   - `onInactive()`: Called when component becomes inactive
+   - `dispose()`: Cleanup resources to prevent memory leaks
+2. Add Phaser/MatterJS specific cleanup methods to the interface:
+   - `cleanupPhaserObjects()`: Remove sprites, game objects, input handlers
+   - `cleanupMatterObjects()`: Remove bodies, constraints, collision listeners
+   - `cleanupEventListeners()`: Remove all event listeners (Phaser, Matter, custom)
+   - `cleanupTimers()`: Cancel all active timers and scheduled callbacks
+3. Create a `LifecycleManager` class that orchestrates lifecycle events
+4. Integrate the lifecycle manager with the game manager registry
+5. Implement developer-friendly console logging for lifecycle events
+6. Add safeguards to prevent multiple initializations
+7. Ensure MatterJS world simulation is properly paused/resumed with lifecycle events
+
+Testing approach:
+- Create test components implementing the lifecycle interface
+- Verify all lifecycle hooks are called in the correct order
+- Test edge cases like multiple initialization attempts
+- Check console output for clear lifecycle event logging
+- Verify Phaser and MatterJS objects are properly cleaned up during disposal
+
+## 3. Implement HMR Detection and Cleanup Logic [pending]
+### Dependencies: 21.2
+### Description: Add logic to detect Hot Module Replacement events and properly dispose resources before the application reloads, with special focus on Phaser/MatterJS cleanup and multiplayer state resynchronization.
+### Details:
+Implementation steps:
+1. Research and implement HMR event detection for the current framework
+2. Create an `HmrHandler` class that listens for HMR events
+3. Connect the HMR handler to the lifecycle manager to trigger cleanup
+4. Implement a complete disposal sequence that:
+   - Calls `dispose()` on all registered game managers
+   - Ensures all Phaser objects are properly destroyed
+   - Removes all MatterJS bodies and constraints from the physics world
+   - Clears any global state or event listeners
+   - Pauses MatterJS world simulation
+   - Logs cleanup operations to console during development
+5. Add error handling to ensure partial cleanups don't break the application
+6. Implement server state resynchronization after HMR rather than client-side state preservation
+7. Add hooks for multiplayer reconnection/state refresh after HMR completion
+
+Testing approach:
+- Test in development environment with HMR enabled
+- Verify resources are properly cleaned up during HMR (check memory usage)
+- Ensure no console errors appear during multiple HMR cycles
+- Validate that global event listeners aren't duplicated after HMR
+- Verify MatterJS physics objects are completely removed during cleanup
+- Test multiplayer state resynchronization after HMR completes
+
+## 4. Refactor Existing Game Managers to Support Lifecycle [pending]
+### Dependencies: 21.2, 21.3
+### Description: Update all existing game managers to implement the lifecycle interface and properly handle initialization and cleanup, with rigorous Phaser/MatterJS resource management.
+### Details:
+Implementation steps:
+1. Identify all game managers that need refactoring
+2. For each game manager:
+   - Implement the `LifecycleAware` interface
+   - Move initialization code to the `initialize()` method
+   - Add proper resource cleanup in the `dispose()` method
+   - Implement Phaser-specific cleanup methods
+   - Implement MatterJS-specific cleanup methods
+   - Ensure all event listeners are properly removed
+   - Ensure all timers are cancelled
+   - Ensure state is correctly preserved or reset as needed
+3. Update manager constructors to avoid heavy initialization work
+4. Add state tracking to prevent duplicate initialization
+5. Implement proper error handling in lifecycle methods
+6. For multiplayer components, add server state resynchronization after HMR
+
+Testing approach:
+- Test each refactored game manager individually
+- Verify initialization and cleanup work correctly
+- Test managers through multiple HMR cycles
+- Check for memory leaks using browser developer tools
+- Verify Phaser objects are properly destroyed
+- Verify MatterJS bodies and constraints are removed from the world
+- Ensure game functionality remains intact after refactoring
+- Test multiplayer state consistency after HMR cycles
+
+## 5. Implement Centralized Application Lifecycle Management [pending]
+### Dependencies: 21.1, 21.2, 21.3, 21.4
+### Description: Create a centralized system to manage the entire application lifecycle, integrating HMR support and documenting the new flow, with comprehensive Phaser/MatterJS cleanup procedures and multiplayer state resynchronization.
+### Details:
+Implementation steps:
+1. Create an `ApplicationLifecycle` class that:
+   - Controls the overall application startup sequence
+   - Manages the transition between application states
+   - Integrates with the HMR handler and lifecycle manager
+   - Provides hooks for future components
+   - Orchestrates Phaser/MatterJS cleanup during shutdown
+   - Handles multiplayer state resynchronization after HMR
+2. Refactor the main application entry point to use the new lifecycle system
+3. Implement server state resynchronization between HMR reloads for multiplayer consistency
+4. Create comprehensive sequence diagrams documenting the new lifecycle flow
+5. Add detailed developer documentation explaining:
+   - How to integrate new components with the lifecycle
+   - Best practices for initialization and cleanup
+   - Specific guidelines for Phaser object cleanup
+   - Specific guidelines for MatterJS physics cleanup
+   - How to handle event listeners properly
+   - How HMR works with the application
+   - Multiplayer state handling during HMR
+   - Troubleshooting common issues
+
+Testing approach:
+- End-to-end testing of the complete application lifecycle
+- Verify application correctly initializes on first load
+- Test multiple HMR cycles to ensure stability
+- Validate that all game managers properly participate in the lifecycle
+- Verify Phaser and MatterJS resources are properly cleaned up
+- Test multiplayer functionality through HMR cycles
+- Review documentation for clarity and completeness
+
