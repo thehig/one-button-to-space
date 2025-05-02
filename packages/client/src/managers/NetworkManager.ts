@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Client, Room } from "colyseus.js";
+import { Client, Room, RoomAvailable } from "colyseus.js";
 import { BaseManager } from "./BaseManager";
 // --- Type Imports ---
 import { Logger, PhysicsStateUpdate } from "@one-button-to-space/shared";
@@ -32,15 +32,16 @@ export class NetworkManager extends BaseManager {
   private client: Client;
   private room: Room<GameState> | null = null; // Strongly typed room state
   private connectionOptions: ConnectionOptions | null = null;
-
-  // Network Stats Tracking
-  private incomingMessages = 0;
-  private outgoingMessages = 0;
-  private lastStatsUpdateTime = 0;
-  private pingValue = -1; // ms, -1 indicates not measured yet
-  private pingStartTime = 0;
-  private statsInterval: ReturnType<typeof setInterval> | null = null;
-  private readonly STATS_UPDATE_INTERVAL = 1000; // ms - Ensure this is defined
+  private availableRooms: RoomAvailable<GameState>[] = [];
+  private pingInterval: NodeJS.Timeout | null = null;
+  private pingStartTime: number = 0;
+  private lastPingTime: number = 0; // Store the last measured ping
+  private messageStats = {
+    incoming: 0,
+    outgoing: 0,
+    lastResetTime: Date.now(),
+  };
+  private statsUpdateInterval: NodeJS.Timeout | null = null;
 
   private constructor() {
     super();
@@ -75,6 +76,7 @@ export class NetworkManager extends BaseManager {
 
     this.client = new Client(endpoint);
     // Logger.info removed here, logged within the if/else blocks now
+    this.startStatsUpdater();
   }
 
   public static getInstance(): NetworkManager {
@@ -82,6 +84,19 @@ export class NetworkManager extends BaseManager {
       NetworkManager._instance = new NetworkManager();
     }
     return NetworkManager._instance;
+  }
+
+  public static async resetInstance(): Promise<void> {
+    if (NetworkManager._instance) {
+      await NetworkManager._instance.destroy(); // Call instance destroy
+      NetworkManager._instance = null;
+      Logger.debug(LOGGER_SOURCE, "NetworkManager instance reset.");
+    } else {
+      Logger.trace(
+        LOGGER_SOURCE,
+        "NetworkManager instance already null, skipping reset."
+      );
+    }
   }
 
   public async connect(
@@ -107,7 +122,7 @@ export class NetworkManager extends BaseManager {
       );
       Logger.trace(LOGGER_SOURCE, "Room joined successfully", this.room);
       this.setupRoomListeners();
-      this.startStatsUpdates(); // Start emitting stats
+      this.startStatsUpdater(); // Start emitting stats
       gameEmitter.emit("roomReady", this.room); // Emit room ready event
       return this.room;
     } catch (e: any) {
@@ -120,7 +135,7 @@ export class NetworkManager extends BaseManager {
   }
 
   public async disconnect(): Promise<void> {
-    this.stopStatsUpdates(); // Stop emitting stats
+    this.stopStatsUpdater(); // Stop emitting stats
     if (this.room) {
       const roomId = this.room.roomId;
       try {
@@ -149,19 +164,19 @@ export class NetworkManager extends BaseManager {
     // --- State Synchronization ---
     this.room.onStateChange.once((initialState: GameState) => {
       Logger.debug(LOGGER_SOURCE, "Initial state received.", initialState);
-      this.incomingMessages++; // Count initial state as one message
+      this.messageStats.incoming++; // Count initial state as one message
       EntityManager.getInstance().syncInitialState(initialState);
     });
 
     this.room.onStateChange((state: GameState) => {
-      this.incomingMessages++; // Count incremental state change
+      this.messageStats.incoming++; // Count incremental state change
       Logger.trace(LOGGER_SOURCE, "Incremental state received.", state); // Too noisy
       EntityManager.getInstance().updateFromState(state);
     });
 
     // --- Custom Messages ---
     this.room.onMessage("*", (type, message) => {
-      this.incomingMessages++; // Count every message
+      this.messageStats.incoming++; // Count every message
       // Logger.trace(LOGGER_SOURCE, `Received message type "${type}"`, message); // Can be noisy
       switch (type) {
         case "pong": // Handle pong for ping measurement

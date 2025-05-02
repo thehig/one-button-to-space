@@ -142,23 +142,43 @@ function renderApp() {
   }
 }
 
-// Function to handle cleanup
-async function cleanupApp() {
+/**
+ * Cleans up application resources, optionally skipping network disconnect for HMR.
+ * @param isHMRDispose - True if called during HMR dispose, false otherwise.
+ */
+function cleanupApp(isHMRDispose: boolean) {
   Logger.info(
     LOGGER_SOURCE,
-    "cleanupApp: Stopping scenes, destroying Phaser game, and resetting managers."
+    `cleanupApp: Stopping scenes, destroying Phaser game, resetting managers. (HMR Dispose: ${isHMRDispose})`
   );
 
-  // 1. Destroy Network Manager first (disconnects and resets instance)
-  try {
-    const networkManager = NetworkManager.getInstance(); // Get instance
-    if (networkManager) {
-      // Check if instance exists
-      Logger.debug(LOGGER_SOURCE, "Destroying NetworkManager...");
-      await networkManager.destroy(); // Await destruction (includes disconnect)
+  // 1. Handle NetworkManager differently based on HMR
+  if (isHMRDispose) {
+    // During HMR, we want to explicitly leave the Colyseus room
+    // so the server knows the old client is gone immediately.
+    // We *don't* reset the NetworkManager instance itself, as a new one
+    // will be created by the re-executed module code.
+    try {
+      NetworkManager.getInstance().leaveRoom(); // Explicitly leave
+      Logger.debug(
+        LOGGER_SOURCE,
+        "Called NetworkManager.leaveRoom() during HMR dispose."
+      );
+    } catch (error) {
+      Logger.warn(
+        LOGGER_SOURCE,
+        "Error calling leaveRoom during HMR dispose (maybe instance was already gone?)",
+        error
+      );
     }
-  } catch (e) {
-    Logger.error(LOGGER_SOURCE, "Error destroying NetworkManager:", e);
+    // Skip resetting the NetworkManager instance during HMR dispose
+    Logger.warn(
+      LOGGER_SOURCE,
+      "Skipping NetworkManager reset during HMR dispose."
+    );
+  } else {
+    // For normal page unload, reset the singleton
+    NetworkManager.resetInstance();
   }
 
   // 2. Destroy Phaser game (stops scenes)
@@ -209,7 +229,7 @@ async function cleanupApp() {
   SceneManager.resetInstance();
   EntityManager.resetInstance();
   InputManager.resetInstance();
-  // NetworkManager is reset via its destroy() method
+  // NetworkManager is reset via its static resetInstance() method above
 
   // React root cleanup: Using custom property on DOM element
   const rootElement = document.getElementById("root");
@@ -227,7 +247,7 @@ async function cleanupApp() {
 
 // Function to handle initial setup and HMR re-initialization
 async function initializeApp() {
-  await cleanupApp(); // Await the cleanup process
+  await cleanupApp(false); // Await the cleanup process
   initGame();
   renderApp();
 }
@@ -240,8 +260,8 @@ async function initializeApp() {
 // --- HMR Handling --- //
 if (import.meta.hot) {
   // Use dispose for cleanup before the module is replaced
-  import.meta.hot.dispose(async () => {
-    await cleanupApp(); // Await the async cleanup here too
+  import.meta.hot.dispose(() => {
+    cleanupApp(true); // Pass true for HMR dispose
   });
 
   // Accept updates for this module

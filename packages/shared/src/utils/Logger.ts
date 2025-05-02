@@ -80,16 +80,20 @@ export class Logger {
    */
   public static setWorldCreationTime(timestamp: number): void {
     if (Logger.worldCreationTime === null) {
-      Logger.worldCreationTime = timestamp;
-      // Log confirmation using a placeholder or a specific message
-      Logger.info(LOGGER_SOURCE, `World creation time set to: ${timestamp}`);
-    } else {
-      // Optionally warn if attempting to set it again
-      Logger.warn(
+      Logger.info(
         LOGGER_SOURCE,
-        `Attempted to set world creation time again. Current: ${Logger.worldCreationTime}, New: ${timestamp}`
+        `World creation time initialized to: ${timestamp}`
       );
+    } else if (Logger.worldCreationTime !== timestamp) {
+      Logger.info(
+        LOGGER_SOURCE,
+        `World creation time updated from ${Logger.worldCreationTime} to: ${timestamp}`
+      );
+    } else {
+      // No need to log if the time hasn't actually changed
+      return;
     }
+    Logger.worldCreationTime = timestamp;
   }
 
   public static getWorldCreationTime(): number | null {

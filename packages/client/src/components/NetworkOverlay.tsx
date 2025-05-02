@@ -66,6 +66,8 @@ const NetworkOverlay: React.FC = () => {
       </div>
       {/* Physics Tick Display */}
       <div>Tick: {room?.state?.physicsTick ?? "N/A"}</div>
+      {/* Server Time Display - Now shows Logger's current formatted time */}
+      <div>Time: {Logger.getCurrentTimestampString()}</div>
 
       {/* Server Control Buttons (Moved from DebugOverlay) */}
       <div
