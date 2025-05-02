@@ -3,4 +3,8 @@ console.log("Shared package loaded");
 
 export const sharedValue = 42;
 
-export {}; // Make it a module if no exports yet
+// Export physics components
+export * from "./physics/PhysicsEngine";
+export * from "./physics/constants";
+
+// export {}; // No longer needed as we have exports

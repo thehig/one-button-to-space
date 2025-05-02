@@ -50,7 +50,7 @@
       "id": 5,
       "title": "Implement Shared Physics Module with Matter.js",
       "description": "Create the core physics simulation module in the shared package using Matter.js.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         2
       ],

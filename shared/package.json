@@ -6,10 +6,15 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc -w"
+    "dev": "tsc -w",
+    "test": "vitest run"
   },
-  "dependencies": {},
+  "dependencies": {
+    "matter-js": "^0.20.0"
+  },
   "devDependencies": {
-    "typescript": "catalog:"
+    "@types/matter-js": "^0.19.8",
+    "typescript": "catalog:",
+    "vitest": "^3.1.2"
   }
 }

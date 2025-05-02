@@ -1,6 +1,6 @@
 # Task ID: 5
 # Title: Implement Shared Physics Module with Matter.js
-# Status: pending
+# Status: done
 # Dependencies: 2
 # Priority: high
 # Description: Create the core physics simulation module in the shared package using Matter.js.
