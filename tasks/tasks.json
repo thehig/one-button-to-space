@@ -26,7 +26,7 @@
       "id": 3,
       "title": "Set Up Client Package with Vite and React",
       "description": "Initialize the client package with Vite, React, and TypeScript support.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         2
       ],

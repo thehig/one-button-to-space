@@ -1,6 +1,6 @@
 # Task ID: 3
 # Title: Set Up Client Package with Vite and React
-# Status: pending
+# Status: done
 # Dependencies: 2
 # Priority: high
 # Description: Initialize the client package with Vite, React, and TypeScript support.
