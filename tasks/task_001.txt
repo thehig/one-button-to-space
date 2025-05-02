@@ -1,6 +1,6 @@
 # Task ID: 1
 # Title: Initialize pnpm Monorepo Structure
-# Status: pending
+# Status: done
 # Dependencies: None
 # Priority: high
 # Description: Set up the initial monorepo structure with client, server, and shared packages using pnpm workspaces.

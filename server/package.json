@@ -1,0 +1,16 @@
+{
+  "name": "@one-button-to-space/server",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "nodemon src/index.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "catalog:",
+    "nodemon": "catalog:",
+    "ts-node": "catalog:"
+  }
+}

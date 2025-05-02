@@ -1,0 +1,23 @@
+{
+  "name": "one-button-to-space",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A physics-based rocket game with minimal controls.",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r --parallel dev",
+    "start:server": "pnpm --filter server start",
+    "start:client": "pnpm --filter client dev",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "phaser",
+    "matterjs",
+    "colyseus",
+    "react",
+    "typescript",
+    "game"
+  ],
+  "author": "Gemini",
+  "license": "ISC"
+}

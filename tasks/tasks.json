@@ -4,7 +4,7 @@
       "id": 1,
       "title": "Initialize pnpm Monorepo Structure",
       "description": "Set up the initial monorepo structure with client, server, and shared packages using pnpm workspaces.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [],
       "priority": "high",
       "details": "Create a new directory for the project. Initialize pnpm workspace by creating a pnpm-workspace.yaml file in the root with packages defined as ['client', 'server', 'shared']. Set up package.json in the root with workspace configuration. Create subdirectories for each package with their own package.json files. Configure root-level scripts for building and running all packages.",
