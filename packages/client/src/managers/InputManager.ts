@@ -8,12 +8,15 @@ const LOGGER_SOURCE = "⌨️🖱️";
 
 // Interface for the object that handles scene-specific input logic
 interface ISceneInputHandler {
-  handleThrustStart: () => void;
-  handleThrustStop: () => void;
-  handleSetAngle: (angle: number) => void;
-  handlePinchUpdate: (distanceChange: number, currentDistance: number) => void; // Pass change and current distance
-  handlePointerMove: (pointer: Phaser.Input.Pointer) => void; // Keep for potential drag/other interactions
-  destroy: () => void; // Ensure handlers have a destroy method
+  // Raw physical input handlers
+  handleKeyDown(keyCode: string): void;
+  handleKeyUp(keyCode: string): void;
+  handlePointerDown(pointer: Phaser.Input.Pointer): void;
+  handlePointerUp(pointer: Phaser.Input.Pointer): void;
+  handlePointerMove(pointer: Phaser.Input.Pointer): void;
+  handleOrientationChange(angleRad: number | null): void; // Processed orientation angle (or null)
+  handlePinchUpdate(distanceChange: number, currentDistance: number): void;
+  destroy: () => void;
 }
 
 interface KeyMap {
@@ -22,12 +25,12 @@ interface KeyMap {
 
 /**
  * Handles GLOBAL physical input detection (keyboard, touch, orientation)
- * and delegates logical actions to the active scene's input handler.
+ * and delegates raw events to the active scene's input handler.
  */
 export class InputManager extends BaseManager {
   public static instance: InputManager;
   private scene: Phaser.Scene | null = null;
-  private registeredKeys: KeyMap = {}; // Stores specific keys requested by scenes (could be deprecated)
+  private registeredKeys: KeyMap = {}; // Keep for isKeyDown checks
   private deviceOrientationManager: DeviceOrientationManager;
   private activeSceneInputHandler: ISceneInputHandler | null = null;
 
@@ -35,14 +38,6 @@ export class InputManager extends BaseManager {
   private lastOrientationAngle: number | null = null;
   private isPinching: boolean = false;
   private pinchStartDistance: number = 0;
-
-  // Define standard key mappings (can be overridden by scene handlers later if needed)
-  private keyMappings = {
-    THRUST: ["W", "UP"],
-    ROTATE_LEFT: ["A", "LEFT"],
-    ROTATE_RIGHT: ["D", "RIGHT"],
-    // ACTION_1: ["SPACE"],
-  };
 
   private constructor() {
     super();
@@ -89,9 +84,6 @@ export class InputManager extends BaseManager {
 
     // Setup listeners for the new scene
     this.setupInputListeners();
-
-    // Automatically register standard keys
-    this.registerStandardKeys();
 
     // Attempt to start orientation listening immediately if touch is supported
     if (this.scene?.sys.game.device.input.touch) {
@@ -204,94 +196,69 @@ export class InputManager extends BaseManager {
 
   private handleKeyDown(event: KeyboardEvent): void {
     if (!this.activeSceneInputHandler) return;
-
-    // Logger.trace(LOGGER_SOURCE, `KeyDown: ${event.key}`); // Can be spammy
     const keyUpper = event.key.toUpperCase();
-
-    if (this.keyMappings.THRUST.includes(keyUpper)) {
-      this.activeSceneInputHandler.handleThrustStart();
-    }
-    // Handle rotation start potentially (or handle in update loop based on isKeyDown)
-    // if (this.keyMappings.ROTATE_LEFT.includes(keyUpper)) { ... }
-    // if (this.keyMappings.ROTATE_RIGHT.includes(keyUpper)) { ... }
+    // Simply forward the key code
+    this.activeSceneInputHandler.handleKeyDown(keyUpper);
   }
 
   private handleKeyUp(event: KeyboardEvent): void {
     if (!this.activeSceneInputHandler) return;
-
-    // Logger.trace(LOGGER_SOURCE, `KeyUp: ${event.key}`); // Can be spammy
     const keyUpper = event.key.toUpperCase();
-
-    if (this.keyMappings.THRUST.includes(keyUpper)) {
-      this.activeSceneInputHandler.handleThrustStop();
-    }
-    // Handle rotation stop potentially
-    // if (this.keyMappings.ROTATE_LEFT.includes(keyUpper)) { ... }
-    // if (this.keyMappings.ROTATE_RIGHT.includes(keyUpper)) { ... }
+    // Simply forward the key code
+    this.activeSceneInputHandler.handleKeyUp(keyUpper);
   }
 
   private handlePointerDown(pointer: Phaser.Input.Pointer): void {
     if (!this.activeSceneInputHandler) return;
-    // Logger.debug(LOGGER_SOURCE, `PointerDown ID: ${pointer.id}`);
 
-    const p1 = this.scene?.input.pointer1;
-    const p2 = this.scene?.input.pointer2;
-
-    // Pinch Start Detection
-    // Check pointer2 safely
-    if (p1?.isDown && p2?.isDown && !this.isPinching) {
-      this.isPinching = true;
-      this.pinchStartDistance = Phaser.Math.Distance.Between(
-        p1.x,
-        p1.y,
-        p2.x,
-        p2.y
-      );
-      Logger.trace(
-        LOGGER_SOURCE,
-        `Pinch started. Dist: ${this.pinchStartDistance.toFixed(1)}`
-      );
-      // If starting a pinch, potentially stop thrust if it was active
-      // This requires the scene handler to track its own thrust state
-      // Maybe call a specific handlePinchStart method?
-      this.activeSceneInputHandler.handleThrustStop(); // Stop thrust on pinch start
-      return; // Don't process as tap if pinch starts
+    // Pinch Start Detection (remains here as InputManager owns pinch state)
+    if (this.scene?.sys.game.device.input.touch) {
+      const p1 = this.scene?.input.pointer1;
+      const p2 = this.scene?.input.pointer2;
+      if (p1?.isDown && p2?.isDown && !this.isPinching) {
+        this.isPinching = true;
+        this.pinchStartDistance = Phaser.Math.Distance.Between(
+          p1.x,
+          p1.y,
+          p2.x,
+          p2.y
+        );
+        Logger.trace(
+          LOGGER_SOURCE,
+          `Pinch started. Dist: ${this.pinchStartDistance.toFixed(1)}`
+        );
+        // Forward the pointer event *after* setting pinch state
+        this.activeSceneInputHandler.handlePointerDown(pointer);
+        return; // Stop processing if pinch started
+      }
     }
-
-    // Tap Start Detection (only primary pointer, not pinching)
-    if (p1 === pointer && !this.isPinching) {
-      // Logger.debug(LOGGER_SOURCE, "Primary pointer down, handling as thrust start.");
-      this.activeSceneInputHandler.handleThrustStart();
-    }
+    // Forward the raw pointer event
+    this.activeSceneInputHandler.handlePointerDown(pointer);
   }
 
   private handlePointerUp(pointer: Phaser.Input.Pointer): void {
     if (!this.activeSceneInputHandler) return;
-    // Logger.debug(LOGGER_SOURCE, `PointerUp ID: ${pointer.id}`);
 
-    const p1 = this.scene?.input.pointer1;
-    const p2 = this.scene?.input.pointer2;
-
-    // Pinch End Detection
-    if (this.isPinching && (!p1?.isDown || !p2?.isDown)) {
-      Logger.trace(LOGGER_SOURCE, "Pinch ended.");
-      this.isPinching = false;
-      this.pinchStartDistance = 0;
-      // No specific action needed on handler for pinch end usually
-    }
-
-    // Tap End Detection (only primary pointer)
-    if (p1 === pointer) {
-      // Logger.debug(LOGGER_SOURCE, "Primary pointer up, handling as thrust stop.");
-      // Only stop thrust if not pinching (pinch end handled above)
-      if (!this.isPinching) {
-        this.activeSceneInputHandler.handleThrustStop();
+    // Pinch End Detection (remains here)
+    if (this.isPinching && this.scene?.sys.game.device.input.touch) {
+      const p1 = this.scene?.input.pointer1;
+      const p2 = this.scene?.input.pointer2;
+      if (!p1?.isDown || !p2?.isDown) {
+        Logger.trace(LOGGER_SOURCE, "Pinch ended.");
+        this.isPinching = false;
+        this.pinchStartDistance = 0;
       }
     }
+    // Forward the raw pointer event
+    this.activeSceneInputHandler.handlePointerUp(pointer);
   }
 
   private handlePointerMove(pointer: Phaser.Input.Pointer): void {
-    if (!this.activeSceneInputHandler) return;
+    if (
+      !this.activeSceneInputHandler ||
+      !this.scene?.sys.game.device.input.touch
+    )
+      return;
 
     // Allow scene handler to react to general pointer movement if needed
     this.activeSceneInputHandler.handlePointerMove(pointer);
@@ -302,7 +269,6 @@ export class InputManager extends BaseManager {
       const p2 = this.scene?.input.pointer2;
 
       if (!p1?.isDown || !p2?.isDown) {
-        // Should have been caught by pointerup, but double-check
         if (this.isPinching) {
           Logger.warn(LOGGER_SOURCE, "Pinch ended unexpectedly during move.");
           this.isPinching = false;
@@ -319,15 +285,11 @@ export class InputManager extends BaseManager {
       );
       const distanceChange = currentDistance - this.pinchStartDistance;
 
-      // Delegate pinch update only if distance changed significantly
       if (Math.abs(distanceChange) > 1) {
-        // Threshold reduced for smoother updates
-        // Logger.trace(LOGGER_SOURCE, `Pinch Move Update: Change=${distanceChange.toFixed(1)}`);
         this.activeSceneInputHandler.handlePinchUpdate(
           distanceChange,
           currentDistance
         );
-        // Update start distance for continuous pinch calculation within InputManager
         this.pinchStartDistance = currentDistance;
       }
     }
@@ -336,8 +298,8 @@ export class InputManager extends BaseManager {
   // --- Public Methods --- //
 
   /**
-   * Registers specific keys for tracking. Should be less needed now.
-   * @param keyCodes - An array of key codes (e.g., 'W', 'A', 'SPACE', 'LEFT').
+   * Registers specific keys for tracking.
+   * @param keyCodes - An array of key codes.
    */
   public registerKeys(keyCodes: string[]): void {
     if (!this.scene?.input?.keyboard) {
@@ -359,7 +321,7 @@ export class InputManager extends BaseManager {
         } catch (error) {
           Logger.error(
             LOGGER_SOURCE,
-            `Failed to register key: ${keyUpper}`, // Use standardized code
+            `Failed to register key: ${keyUpper}`,
             error
           );
         }
@@ -367,16 +329,8 @@ export class InputManager extends BaseManager {
     });
   }
 
-  /** Automatically registers keys defined in keyMappings */
-  private registerStandardKeys(): void {
-    const allKeys = Object.values(this.keyMappings).flat();
-    this.registerKeys(allKeys);
-    Logger.debug(LOGGER_SOURCE, "Registered standard keys:", allKeys);
-  }
-
   /**
    * Checks if a specific registered key is currently held down.
-   * Useful for continuous actions like rotation based on hold.
    * @param keyCode - The key code string (e.g., 'W', 'A').
    * @returns True if the key is down, false otherwise.
    */
@@ -420,72 +374,49 @@ export class InputManager extends BaseManager {
     );
   }
 
-  /** Update loop for continuous inputs like orientation and keyboard rotation */
+  /** Update loop for continuous inputs like orientation */
   public update(delta: number): void {
     if (!this.activeSceneInputHandler || !this.scene) return;
 
-    let orientationAngleUsed = false; // Flag to track if orientation angle was processed
+    let finalOrientationAngle: number | null = null;
 
-    // --- Orientation Handling (Only if touch is supported) --- //
-    if (this.scene.sys.game.device.input.touch) {
-      const currentAngleRad = this.getOrientationTargetAngleRadians(); // Get angle ONLY if touch supported
-      if (currentAngleRad !== null) {
-        orientationAngleUsed = true; // Mark that orientation provided an angle
-        // Apply -90 degree offset for spaceship sprite
-        const targetAngle = Phaser.Math.Angle.Wrap(
-          currentAngleRad - Math.PI / 2
-        );
-
-        const angleDifference =
-          this.lastOrientationAngle !== null
-            ? Math.abs(
-                Phaser.Math.Angle.ShortestBetween(
-                  this.lastOrientationAngle,
-                  targetAngle
-                )
-              )
-            : Infinity;
-
-        // Send update if angle changed significantly
-        const ORIENTATION_THRESHOLD = Phaser.Math.DegToRad(1.5); // Smaller threshold for smoother updates
-        if (angleDifference >= ORIENTATION_THRESHOLD) {
-          // Logger.trace(LOGGER_SOURCE, `Orientation Update: Angle=${targetAngle.toFixed(2)}, Diff=${angleDifference.toFixed(3)}`);
-          this.activeSceneInputHandler.handleSetAngle(targetAngle);
-          this.lastOrientationAngle = targetAngle;
-        }
-      }
+    // --- Orientation Handling --- //
+    // Calculate angle regardless of touch support, but handler can ignore it
+    const currentAngleRad = this.getOrientationTargetAngleRadians();
+    if (currentAngleRad !== null) {
+      // Apply offset
+      finalOrientationAngle = Phaser.Math.Angle.Wrap(
+        currentAngleRad - Math.PI / 2
+      );
     }
 
-    // --- Keyboard Rotation Handling (if not using orientation) --- //
-    // Only handle keyboard rotation if orientation wasn't processed OR if not on touch device
-    const canUseKeyboardRotation = !orientationAngleUsed; // Simplified condition
+    // Always notify handler of the current orientation state (even if null)
+    // Only notify if changed significantly from last notification
+    const angleDifference =
+      this.lastOrientationAngle !== null && finalOrientationAngle !== null
+        ? Math.abs(
+            Phaser.Math.Angle.ShortestBetween(
+              this.lastOrientationAngle,
+              finalOrientationAngle
+            )
+          )
+        : this.lastOrientationAngle === null && finalOrientationAngle === null
+        ? 0
+        : Infinity; // Changed if one is null and other isn't
 
-    if (canUseKeyboardRotation) {
-      const rotateLeft = this.isKeyDown("A") || this.isKeyDown("LEFT");
-      const rotateRight = this.isKeyDown("D") || this.isKeyDown("RIGHT");
-
-      if (rotateLeft || rotateRight) {
-        // Delegate angle calculation to the scene handler, as it might need player state
-        // For now, we calculate and send directly, assuming scene handler can cope
-        // This might need refinement if the handler *needs* to know the base rotation
-        const rotationSpeed = Math.PI / 2; // Radians per second (could be configurable)
-        const rotationDelta = (rotationSpeed * delta) / 1000;
-        let angleChange = 0;
-        if (rotateLeft) angleChange -= rotationDelta;
-        if (rotateRight) angleChange += rotationDelta;
-
-        // How to get the base angle? We'll use the last SENT angle from orientation OR 0
-        // This is imperfect. SceneInputHandler should ideally manage its own angle
-        const baseAngle = this.lastOrientationAngle ?? 0; // Imperfect fallback
-        const targetAngle = Phaser.Math.Angle.Wrap(baseAngle + angleChange);
-
-        // Send keyboard angle update (potentially less strict threshold?)
-        this.activeSceneInputHandler.handleSetAngle(targetAngle);
-        // We might want to update lastOrientationAngle here too, or have a separate lastKeyboardAngle
-        this.lastOrientationAngle = targetAngle; // Update last sent angle regardless of source for now
-        // Logger.trace(LOGGER_SOURCE, `Keyboard Rotation Update: Angle=${targetAngle.toFixed(2)}`);
-      }
+    const ORIENTATION_NOTIFY_THRESHOLD = Phaser.Math.DegToRad(1.0);
+    if (angleDifference >= ORIENTATION_NOTIFY_THRESHOLD) {
+      // Logger.trace(LOGGER_SOURCE, `Notifying handler of orientation change: ${finalOrientationAngle?.toFixed(3)} rad`);
+      this.activeSceneInputHandler.handleOrientationChange(
+        finalOrientationAngle
+      );
+      this.lastOrientationAngle = finalOrientationAngle;
     }
+
+    // --- Keyboard Rotation REMOVED --- Scene handler is responsible based on key events
+
+    // Delta is unused here now, but keep param in case needed later
+    _delta = delta; // Suppress unused variable warning if necessary
   }
 
   public override init(): void {
@@ -512,3 +443,7 @@ export class InputManager extends BaseManager {
     Logger.debug(LOGGER_SOURCE, "Input Manager cleanup complete.");
   }
 }
+
+// Helper to suppress unused variable warnings if needed
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+let _delta: number;

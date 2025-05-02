@@ -210,8 +210,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
-    // --- Global Input Manager Update (for continuous inputs like orientation/keyboard rotation) ---
+    // --- Global Input Manager Update (for continuous inputs like orientation) ---
     this.inputManager.update(delta);
+
+    // --- Scene Input Handler Update (for continuous actions like keyboard rotation) ---
+    if (this.sceneInputManager) {
+      this.sceneInputManager.update(delta);
+    }
 
     // --- Entity Updates (interpolation, etc. - handled by EntityManager/NetworkManager) ---
 
