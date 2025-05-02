@@ -1,6 +1,6 @@
 # Task ID: 6
 # Title: Integrate Phaser with React in Client
-# Status: pending
+# Status: done
 # Dependencies: 3
 # Priority: high
 # Description: Set up Phaser within the React application and create the basic scene structure.

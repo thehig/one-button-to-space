@@ -62,7 +62,7 @@
       "id": 6,
       "title": "Integrate Phaser with React in Client",
       "description": "Set up Phaser within the React application and create the basic scene structure.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         3
       ],
