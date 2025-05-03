@@ -6,6 +6,7 @@ import EntityManager from "./EntityManager";
 import CameraManager from "./CameraManager";
 import UIManager from "./UIManager";
 import AudioManager from "./AudioManager";
+import { CommunicationManager } from "./CommunicationManager";
 
 // This manager coordinates the lifecycle of all other managers
 export default class LifecycleManager {
@@ -20,6 +21,7 @@ export default class LifecycleManager {
   private cameraManager!: CameraManager;
   private uiManager!: UIManager;
   private audioManager!: AudioManager;
+  private communicationManager!: CommunicationManager;
 
   constructor(scene: Phaser.Scene, eventEmitter: Phaser.Events.EventEmitter) {
     console.group("LifecycleManager: Constructor"); // Start group
@@ -51,6 +53,16 @@ export default class LifecycleManager {
     );
     this.uiManager = new UIManager(this.scene, this.eventEmitter);
     this.audioManager = new AudioManager(this.scene, this.eventEmitter);
+    this.communicationManager = CommunicationManager.getInstance();
+
+    // Initialize CommunicationManager subscriptions AFTER all managers are instantiated
+    this.communicationManager.initialize({
+      sceneEmitter: this.eventEmitter,
+      phaserSceneEvents: this.scene.events,
+      phaserGameEvents: this.scene.game.events,
+      // Pass other managers/emitters if needed
+    });
+
     console.log("Managers instantiated.");
     console.groupEnd(); // End group
   }
@@ -70,6 +82,7 @@ export default class LifecycleManager {
 
     console.group("LifecycleManager: Initializing Managers"); // Nested group
     console.log("Calling manager init methods...");
+    // CommunicationManager now initialized during instantiation phase
     this.physicsManager.init();
     this.entityManager.init();
     this.inputManager.init();
@@ -133,6 +146,7 @@ export default class LifecycleManager {
   shutdown() {
     console.group("LifecycleManager: Shutdown Phase"); // Start group
     console.log("Calling manager shutdown methods...");
+    this.communicationManager.destroy();
     this.audioManager.shutdown();
     this.uiManager.shutdown();
     this.cameraManager.shutdown();
@@ -150,4 +164,5 @@ export default class LifecycleManager {
   // Optional: Provide access to managers if needed by the scene directly (use sparingly)
   // public getNetworkManager(): NetworkManager { return this.networkManager; }
   // public getEntityManager(): EntityManager { return this.entityManager; }
+  // public getCommunicationManager(): CommunicationManager { return this.communicationManager; }
 }
