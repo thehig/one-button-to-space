@@ -84,17 +84,17 @@ export default class PhysicsManager {
       if (body && gameObject.active) {
         // Log body properties BEFORE applying them to GameObject
         // Check the player body (ID 1)
-        if (body.id === 1) {
-          console.log(
-            `PhysicsManager: Body ${
-              body.id
-            } (Player) - Pos: (${body.position.x.toFixed(
-              2
-            )}, ${body.position.y.toFixed(2)}), Vel: (${body.velocity.x.toFixed(
-              2
-            )}, ${body.velocity.y.toFixed(2)}), isStatic: ${body.isStatic}`
-          );
-        }
+        // if (body.id === 1) {
+        //   console.log(
+        //     `PhysicsManager: Body ${
+        //       body.id
+        //     } (Player) - Pos: (${body.position.x.toFixed(
+        //       2
+        //     )}, ${body.position.y.toFixed(2)}), Vel: (${body.velocity.x.toFixed(
+        //       2
+        //     )}, ${body.velocity.y.toFixed(2)}), isStatic: ${body.isStatic}`
+        //   );
+        // }
 
         gameObject.setPosition(body.position.x, body.position.y);
         gameObject.setRotation(body.angle);
