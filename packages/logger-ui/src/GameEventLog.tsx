@@ -31,7 +31,7 @@ import { EventLogEntry } from "./types"; // Assuming types are defined here or a
 
 // Define props interface
 interface GameEventLogProps {
-  sourceConfigData: SourceTreeNode[]; // New prop: Source tree config
+  sourceConfigData?: SourceTreeNode[]; // Prop is now optional
   startsOpen?: boolean; // New prop: Controls initial open state
   initialX?: number; // New prop: Initial X coordinate
   initialY?: number; // New prop: Initial Y coordinate
@@ -42,7 +42,7 @@ interface GameEventLogProps {
 }
 
 export const GameEventLog: React.FC<GameEventLogProps> = ({
-  sourceConfigData, // Destructure new prop
+  sourceConfigData, // Destructure optional prop
   startsOpen = false,
   initialX = 20,
   initialY = 20,
@@ -53,13 +53,42 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
 }): React.ReactElement => {
   const { events, clearLog } = useCommunicationContext();
 
-  // Instantiate the config based on the prop
-  const config = useMemo(
-    () => new GameEventLogConfig(sourceConfigData),
-    [sourceConfigData]
-  );
+  // --- State for Config --- (Managed in state now)
+  const [config, setConfig] = useState<GameEventLogConfig>(() => {
+    // Initialize config once using the prop data or default
+    return new GameEventLogConfig(sourceConfigData);
+  });
 
-  // --- Filtering State & Logic Hook ---
+  // --- Effect to Handle Dynamic Sources --- (New)
+  useEffect(() => {
+    if (!config) return; // Should not happen with useState initializer, but safe check
+
+    let configWasUpdated = false;
+    const currentSources = new Set(config.getAllSourceIds()); // Use Set for efficient check
+
+    events.forEach((event) => {
+      if (!currentSources.has(event.source)) {
+        // Call ensureSourceExists on the *current* config instance
+        const added = config.ensureSourceExists(event.source);
+        if (added) {
+          configWasUpdated = true;
+          currentSources.add(event.source); // Add to set to avoid re-checking in this loop
+        }
+      }
+    });
+
+    if (configWasUpdated) {
+      // If sources were added, create a NEW config instance based on the updated tree
+      // This is crucial to trigger re-renders in child components relying on config
+      console.log("Config updated with new sources, triggering state update.");
+      setConfig(new GameEventLogConfig(config.getSourceTree()));
+    }
+    // IMPORTANT: Dependency array includes events and the config instance itself.
+    // Relying on the config instance ensures this runs if the config object identity changes
+    // (e.g., if a new one is created). Relying on events ensures it runs when new events arrive.
+  }, [events, config]);
+
+  // --- Filtering State & Logic Hook --- (Pass config state)
   const {
     filterName,
     setFilterName,
@@ -67,7 +96,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     handleSourceTreeToggle,
     filteredEvents,
     eventsCountBySource,
-  } = useEventFiltering(events, config.getAllSourceIds());
+  } = useEventFiltering(events, config.getAllSourceIds()); // Pass all known source IDs from config state
 
   // --- Layout & Visibility State Hook ---
   const {
@@ -121,8 +150,22 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
   }, [events]);
 
   const activeSourcesInLog = useMemo(() => {
-    return new Set(events.map((event) => event.source));
-  }, [events]);
+    // Ensure all sources present in the log are known to the config
+    // This might seem redundant with the useEffect, but ensures activeSourcesInLog
+    // is accurate even if the effect hasn't run yet for a batch of new events.
+    // Note: This check *could* modify config if ensureSourceExists adds something,
+    // but the subsequent useEffect will handle the state update if needed.
+    const sources = new Set<string>();
+    events.forEach((event) => {
+      if (config) {
+        // Check if config is initialized
+        config.ensureSourceExists(event.source);
+        sources.add(event.source);
+      }
+    });
+    return sources;
+    // Depend on events and config state
+  }, [events, config]);
 
   // --- Callbacks --- (Moved layout/collapse toggles to hook)
 
