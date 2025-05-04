@@ -314,12 +314,17 @@ export const GameEventLog: React.FC = () => {
   // State for filter column collapse
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
 
+  // State for details column collapse
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(false);
+
   // Keep other state (filters, hover, etc.)
   const [filterName, setFilterName] = useState("");
   const [allowedSources, setAllowedSources] = useState<Set<string>>(
     new Set(getAllSourceIds(sourceTreeData))
   );
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [selectedEventIndex, setSelectedEventIndex] = useState<number | null>(
+    null
+  );
 
   // Ref for the draggable element - Not directly needed by useDraggable in the same way,
   // but can still be useful for other DOM manipulations if required.
@@ -408,7 +413,7 @@ export const GameEventLog: React.FC = () => {
   // Restore handleClearLog to use clearLog from context
   const handleClearLog = () => {
     clearLog(); // Use context function
-    setHoveredIndex(null);
+    setSelectedEventIndex(null);
     console.log("Clear log clicked");
   };
 
@@ -570,15 +575,16 @@ export const GameEventLog: React.FC = () => {
                 display: "flex",
                 flexDirection: "column",
                 gap: "15px",
-                flexShrink: 0,
-                width: isFilterCollapsed ? "0px" : "auto", // Adjust width
-                minWidth: isFilterCollapsed ? "0px" : "180px", // Prevent shrinking too much when expanded
+                flexShrink: 0, // Correct: Don't shrink
+                flexGrow: 0, // Correct: Don't grow
+                flexBasis: isFilterCollapsed ? "0px" : "auto", // Correct: Width based on content when expanded
+                // minWidth removed, flex-basis:auto handles content width
                 paddingRight: isFilterCollapsed ? "0px" : "10px",
                 borderRight: isFilterCollapsed ? "none" : "1px solid #eee",
                 overflowY: "auto",
-                overflowX: "hidden", // Hide content horizontally when collapsed
+                overflowX: "hidden", // Keep hidden as requested
                 transition:
-                  "width 0.3s ease, padding 0.3s ease, min-width 0.3s ease", // Smooth transition
+                  "width 0.3s ease, padding 0.3s ease, min-width 0.3s ease, flex-basis 0.3s ease", // Correct transition value
               }}
             >
               {/* Conditionally Render Filter Content */}
@@ -629,13 +635,17 @@ export const GameEventLog: React.FC = () => {
                 </>
               )}
             </div>
-            {/* Right Column: Event List Area */}
+
+            {/* Center Column: Event List Area (Renamed from Right) */}
             <div
               style={{
-                flexGrow: 1,
+                flexBasis: "auto", // Correct: Base size on content
+                flexShrink: 0, // Correct: Prevent shrinking below content width
+                flexGrow: isDetailsCollapsed ? 1 : 0, // CHANGE: Grow only if Details are collapsed
                 overflowY: "auto",
                 position: "relative",
                 height: "100%", // Explicitly fill parent height
+                borderRight: "1px solid #eee", // Separator
               }}
             >
               <ul
@@ -659,14 +669,12 @@ export const GameEventLog: React.FC = () => {
                           ? "pointer"
                           : "default",
                     }}
-                    onMouseEnter={
+                    onClick={
                       event.data !== undefined && event.data !== null
-                        ? () => setHoveredIndex(index)
-                        : undefined
-                    }
-                    onMouseLeave={
-                      event.data !== undefined && event.data !== null
-                        ? () => setHoveredIndex(null)
+                        ? () =>
+                            setSelectedEventIndex(
+                              index === selectedEventIndex ? null : index
+                            )
                         : undefined
                     }
                   >
@@ -691,50 +699,95 @@ export const GameEventLog: React.FC = () => {
                     </span>
                     <span>
                       {event.eventName}
+                      {/* Restore asterisk indicator */}
                       {event.data !== undefined && event.data !== null && (
                         <span style={{ color: "#aaa", marginLeft: "3px" }}>
                           *
                         </span>
                       )}
                     </span>
-                    {hoveredIndex === index &&
-                      event.data !== undefined &&
-                      event.data !== null && (
-                        <div
-                          style={{
-                            position: "absolute",
-                            left: "10px",
-                            top: "100%",
-                            backgroundColor: "rgba(248, 248, 248, 0.95)",
-                            border: "1px solid #ccc",
-                            borderRadius: "4px",
-                            padding: "5px 8px",
-                            marginTop: "2px",
-                            fontSize: "0.9em",
-                            zIndex: 10,
-                            maxWidth: "400px",
-                            boxShadow: "2px 2px 5px rgba(0,0,0,0.1)",
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-all",
-                          }}
-                        >
-                          <pre
-                            style={{
-                              margin: 0,
-                              padding: 0,
-                              color: "#333",
-                            }}
-                          >
-                            {JSON.stringify(event.data, null, 2)}
-                          </pre>
-                        </div>
-                      )}
                   </li>
                 ))}
                 {filteredEvents.length === 0 && (
                   <li style={{ color: "#888" }}>No events match filters.</li>
                 )}
               </ul>
+            </div>
+
+            {/* Details Collapse Toggle Button (New) */}
+            <button
+              onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
+              style={{
+                padding: "2px 5px",
+                cursor: "pointer",
+                height: "fit-content", // Prevent stretching vertically
+                alignSelf: "center", // Center vertically in the gap
+                margin: "0 5px", // Add some horizontal space
+                transform: isDetailsCollapsed
+                  ? "rotate(0deg)"
+                  : "rotate(180deg)", // Point right when collapsed, left when expanded
+                transition: "transform 0.3s ease",
+                border: "none",
+                background: "transparent",
+                fontSize: "1.2em",
+              }}
+              title={isDetailsCollapsed ? "Expand Details" : "Collapse Details"}
+            >
+              {"<"}
+            </button>
+
+            {/* Right Column: Selected Event Details (Now Collapsible) */}
+            <div
+              style={{
+                flexGrow: isDetailsCollapsed ? 0 : 1, // Correct: Grow when expanded
+                flexBasis: isDetailsCollapsed ? "0px" : "0%", // Correct: Start at 0% basis when expanded
+                flexShrink: 1, // Correct: Allow shrinking
+                minWidth: isDetailsCollapsed ? "0px" : "0px", // CHANGE: Remove minWidth when expanded, rely on flexbox
+                overflowY: "auto",
+                overflowX: "hidden", // Explicitly hide horizontal overflow
+                height: "100%",
+                paddingLeft: isDetailsCollapsed ? "0px" : "10px", // Collapse padding
+                fontSize: "0.85em",
+                backgroundColor: "#2e2e2e", // Slightly different background for details
+                transition:
+                  "width 0.3s ease, padding 0.3s ease, min-width 0.3s ease, flex-basis 0.3s ease", // Smooth transition
+              }}
+            >
+              {/* Conditionally render content only when not collapsed to avoid layout shifts */}
+              {!isDetailsCollapsed && (
+                <>
+                  {selectedEventIndex !== null &&
+                  filteredEvents[selectedEventIndex]?.data !== undefined ? (
+                    <pre
+                      style={{
+                        margin: 0,
+                        padding: "5px",
+                        color: "#f0f0f0", // Light text on dark background
+                        whiteSpace: "pre-wrap",
+                        wordBreak: "break-all",
+                      }}
+                    >
+                      {JSON.stringify(
+                        filteredEvents[selectedEventIndex].data,
+                        null,
+                        2
+                      )}
+                    </pre>
+                  ) : (
+                    <div
+                      style={{
+                        color: "#888",
+                        padding: "5px",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      {selectedEventIndex !== null
+                        ? "No data for this event."
+                        : "Click an event to view details."}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         )}
