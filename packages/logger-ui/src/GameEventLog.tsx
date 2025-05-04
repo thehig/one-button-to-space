@@ -311,6 +311,9 @@ export const GameEventLog: React.FC = () => {
   // State to remember the width before collapsing
   const [lastExpandedWidth, setLastExpandedWidth] = useState(size.width);
 
+  // State for filter column collapse
+  const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
+
   // Keep other state (filters, hover, etc.)
   const [filterName, setFilterName] = useState("");
   const [allowedSources, setAllowedSources] = useState<Set<string>>(
@@ -539,6 +542,28 @@ export const GameEventLog: React.FC = () => {
               height: "calc(100% - 40px)", // Fill remaining height after header (adjust 40px if header height changes)
             }}
           >
+            {/* Filter Collapse Toggle Button (Moved Outside Left Column) */}
+            <button
+              onClick={() => setIsFilterCollapsed(!isFilterCollapsed)}
+              style={{
+                padding: "2px 5px",
+                cursor: "pointer",
+                height: "fit-content", // Prevent stretching vertically
+                alignSelf: "center", // Center vertically in the gap
+                margin: "0 5px", // Add some horizontal space
+                transform: isFilterCollapsed
+                  ? "rotate(180deg)"
+                  : "rotate(0deg)",
+                transition: "transform 0.3s ease",
+                border: "none", // Optional: make it look less like a standard button
+                background: "transparent", // Optional
+                fontSize: "1.2em", // Make arrow slightly larger
+              }}
+              title={isFilterCollapsed ? "Expand Filters" : "Collapse Filters"}
+            >
+              {"<"}
+            </button>
+
             {/* Left Column: Filters & Controls */}
             <div
               style={{
@@ -546,53 +571,63 @@ export const GameEventLog: React.FC = () => {
                 flexDirection: "column",
                 gap: "15px",
                 flexShrink: 0,
-                borderRight: "1px solid #eee",
-                paddingRight: "10px",
+                width: isFilterCollapsed ? "0px" : "auto", // Adjust width
+                minWidth: isFilterCollapsed ? "0px" : "180px", // Prevent shrinking too much when expanded
+                paddingRight: isFilterCollapsed ? "0px" : "10px",
+                borderRight: isFilterCollapsed ? "none" : "1px solid #eee",
                 overflowY: "auto",
+                overflowX: "hidden", // Hide content horizontally when collapsed
+                transition:
+                  "width 0.3s ease, padding 0.3s ease, min-width 0.3s ease", // Smooth transition
               }}
             >
-              <input
-                type="text"
-                placeholder="Filter by event name..."
-                value={filterName}
-                onChange={(e) => setFilterName(e.target.value)}
-                style={{ padding: "5px" }}
-              />
-              <div
-                style={{
-                  flexGrow: 1,
-                  overflowY: "auto",
-                }}
-              >
-                <span
-                  style={{
-                    fontWeight: "bold",
-                    marginBottom: "5px",
-                    display: "block",
-                  }}
-                >
-                  Filter Sources:
-                </span>
-                {sourceTreeData.map((node) => (
-                  <TreeNode
-                    key={node.id}
-                    node={node}
-                    allowedSources={allowedSources}
-                    onToggle={handleSourceTreeToggle}
-                    activeSourcesInLog={activeSourcesInLog}
-                    eventsCountBySource={eventsCountBySource}
+              {/* Conditionally Render Filter Content */}
+              {!isFilterCollapsed && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Filter by event name..."
+                    value={filterName}
+                    onChange={(e) => setFilterName(e.target.value)}
+                    style={{ padding: "5px" }}
                   />
-                ))}
-              </div>
-              <button
-                onClick={handleClearLog}
-                style={{
-                  padding: "5px 10px",
-                  marginTop: "auto",
-                }}
-              >
-                Clear Log
-              </button>
+                  <div
+                    style={{
+                      flexGrow: 1,
+                      overflowY: "auto",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: "bold",
+                        marginBottom: "5px",
+                        display: "block",
+                      }}
+                    >
+                      Filter Sources:
+                    </span>
+                    {sourceTreeData.map((node) => (
+                      <TreeNode
+                        key={node.id}
+                        node={node}
+                        allowedSources={allowedSources}
+                        onToggle={handleSourceTreeToggle}
+                        activeSourcesInLog={activeSourcesInLog}
+                        eventsCountBySource={eventsCountBySource}
+                      />
+                    ))}
+                  </div>
+                  <button
+                    onClick={handleClearLog}
+                    style={{
+                      padding: "5px 10px",
+                      marginTop: "auto",
+                    }}
+                  >
+                    Clear Log
+                  </button>
+                </>
+              )}
             </div>
             {/* Right Column: Event List Area */}
             <div
