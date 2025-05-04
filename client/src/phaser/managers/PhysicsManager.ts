@@ -2,33 +2,46 @@ import Phaser from "phaser";
 import { PhysicsEngine } from "../../../../shared/src/physics/PhysicsEngine";
 import { FIXED_TIMESTEP } from "../../../../shared/src/physics/constants";
 import Matter from "matter-js"; // Need direct access for Body type
+import { CommunicationManager } from "./CommunicationManager"; // Import CommunicationManager
 
 export default class PhysicsManager {
   private scene: Phaser.Scene;
   private physicsEngine!: PhysicsEngine;
   private accumulator: number = 0;
+  private communicationManager: CommunicationManager; // Add property
   // Map to link Phaser GameObjects to Matter Bodies (if needed for updates)
   private gameObjectToBodyMap: Map<Phaser.GameObjects.GameObject, Matter.Body> =
     new Map();
   private bodyToGameObjectMap: Map<number, Phaser.GameObjects.GameObject> =
     new Map(); // Map by Matter Body ID
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, communicationManager: CommunicationManager) {
+    // Add parameter
     this.scene = scene;
-    console.log("PhysicsManager: constructor");
+    this.communicationManager = communicationManager; // Store instance
+    this.communicationManager.logEvent("PhysicsManager", "constructor");
   }
 
   init() {
-    console.log("PhysicsManager: init");
+    this.communicationManager.logEvent("PhysicsManager", "initStart");
     // Initialize physics settings, possibly based on shared config
-    console.log("PhysicsManager: Initializing shared PhysicsEngine...");
+    this.communicationManager.logEvent(
+      "PhysicsManager",
+      "initializingSharedEngine"
+    );
+    // TODO: Pass logger to PhysicsEngine when it's refactored
+    // For now, PhysicsEngine will still use console.log
     this.physicsEngine = new PhysicsEngine();
-    console.log("PhysicsManager: Shared PhysicsEngine initialized.");
+    this.communicationManager.logEvent(
+      "PhysicsManager",
+      "sharedEngineInitialized"
+    );
     // No need to call startRunner if we use manualStep
+    this.communicationManager.logEvent("PhysicsManager", "initComplete");
   }
 
   create() {
-    console.log("PhysicsManager: create");
+    this.communicationManager.logEvent("PhysicsManager", "create");
     // Set up world bounds, collision layers, etc. via physicsEngine if needed
     // Example: Add ground if not done in PhysicsEngine constructor
     // const ground = Matter.Bodies.rectangle(400, 610, 810, 60, { isStatic: true, label: 'ground' });
@@ -100,8 +113,13 @@ export default class PhysicsManager {
         gameObject.setRotation(body.angle);
       } else if (!body) {
         // Body might have been removed from physics engine, remove mapping
-        console.warn(
-          `PhysicsManager: Body ID ${bodyId} not found in engine. Removing mapping.`
+        // console.warn(
+        //   `PhysicsManager: Body ID ${bodyId} not found in engine. Removing mapping.`
+        // );
+        this.communicationManager.logEvent(
+          "PhysicsManager",
+          "bodyNotFoundWarning",
+          { bodyId } // Include missing ID
         );
         // Need the corresponding GameObject to remove mapping fully
         // This case needs careful handling - perhaps removal should manage mappings
@@ -124,7 +142,7 @@ export default class PhysicsManager {
   }
 
   shutdown() {
-    console.log("PhysicsManager: shutdown");
+    this.communicationManager.logEvent("PhysicsManager", "shutdownStart");
     // Clean up physics engine
     if (this.physicsEngine) {
       this.physicsEngine.destroy();
@@ -133,6 +151,7 @@ export default class PhysicsManager {
     }
     this.gameObjectToBodyMap.clear();
     this.bodyToGameObjectMap.clear();
+    this.communicationManager.logEvent("PhysicsManager", "shutdownComplete");
   }
 
   // Expose engine methods if needed by other managers (use carefully)
@@ -169,15 +188,19 @@ export default class PhysicsManager {
         break;
       // Add more types as needed
       default:
-        console.warn(
-          `PhysicsManager: Cannot create physics body for unknown type: ${type}`
+        this.communicationManager.logEvent(
+          "PhysicsManager",
+          "unknownBodyTypeWarning",
+          { type } // Include type in payload
         );
         return null;
     }
 
     if (body) {
-      console.log(
-        `PhysicsManager: Created Matter body ID ${body.id} for type ${type}`
+      this.communicationManager.logEvent(
+        "PhysicsManager",
+        "matterBodyCreated",
+        { bodyId: body.id, type: type } // Include id and type
       );
       this.physicsEngine.addBody(body);
       this.addMapping(gameObject, body);
@@ -185,7 +208,11 @@ export default class PhysicsManager {
       gameObject.setPosition(body.position.x, body.position.y);
       gameObject.setRotation(body.angle);
     } else {
-      console.error(`PhysicsManager: Failed to create body for type ${type}`);
+      this.communicationManager.logEvent(
+        "PhysicsManager",
+        "failedToCreateBodyError", // Use a more specific name for errors
+        { type } // Include type
+      );
     }
     return body;
   }
@@ -193,13 +220,18 @@ export default class PhysicsManager {
   removeBodyAndMapping(gameObject: Phaser.GameObjects.GameObject) {
     const body = this.getBody(gameObject);
     if (body) {
-      console.log(`PhysicsManager: Removing Matter body ID ${body.id}`);
+      this.communicationManager.logEvent(
+        "PhysicsManager",
+        "removingMatterBody",
+        { bodyId: body.id } // Include ID
+      );
       this.removeMapping(gameObject); // Remove mapping first
       this.physicsEngine.removeBody(body); // Then remove from engine
     } else {
-      console.warn(
-        "PhysicsManager: Attempted to remove body/mapping for GameObject without a mapped body.",
-        gameObject
+      this.communicationManager.logEvent(
+        "PhysicsManager",
+        "removeNonMappedBodyWarning", // Use a more specific name for warnings
+        { gameObjectId: (gameObject as any).id || "unknown" } // Log GameObject ID if available
       );
     }
   }

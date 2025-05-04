@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { CommunicationManager } from "./CommunicationManager";
 
 interface SoundConfig {
   key: string;
@@ -10,6 +11,7 @@ interface SoundConfig {
 export default class AudioManager {
   private scene: Phaser.Scene;
   private eventEmitter: Phaser.Events.EventEmitter;
+  private communicationManager: CommunicationManager;
   private sounds: Map<string, Phaser.Sound.BaseSound>;
 
   // Example sound configuration
@@ -25,31 +27,38 @@ export default class AudioManager {
   //   // Add more sound configurations here
   // ];
 
-  constructor(scene: Phaser.Scene, eventEmitter: Phaser.Events.EventEmitter) {
+  constructor(
+    scene: Phaser.Scene,
+    eventEmitter: Phaser.Events.EventEmitter,
+    communicationManager: CommunicationManager
+  ) {
     this.scene = scene;
     this.eventEmitter = eventEmitter;
+    this.communicationManager = communicationManager;
     this.sounds = new Map();
-    console.log("AudioManager: constructor");
+    this.communicationManager.logEvent("AudioManager", "constructor");
   }
 
   preload() {
-    console.log("AudioManager: preload");
+    this.communicationManager.logEvent("AudioManager", "preloadStart");
     // Preload audio assets defined in configs
     // this.soundConfigs.forEach((config) => {
-    //   console.log(
-    //     `AudioManager: Loading sound ${config.key} from ${config.path}`
-    //   );
+    //   this.communicationManager.logEvent("AudioManager", "loadingSoundAsset", {
+    //     key: config.key,
+    //     path: config.path,
+    //   });
     //   // Check if the asset is already loaded by another scene/manager if necessary
     //   if (!this.scene.load.isLoading()) {
-    //     // Basic check, might need more robust logic
     //     this.scene.load.audio(config.key, config.path);
     //   }
     // });
+    this.communicationManager.logEvent("AudioManager", "preloadComplete");
   }
 
   init() {
-    console.log("AudioManager: init");
+    this.communicationManager.logEvent("AudioManager", "initStart");
     this.setupEventListeners();
+    this.communicationManager.logEvent("AudioManager", "initComplete");
   }
 
   setupEventListeners() {
@@ -62,7 +71,7 @@ export default class AudioManager {
   }
 
   create() {
-    console.log("AudioManager: create");
+    this.communicationManager.logEvent("AudioManager", "createStart");
     // Add sounds to the manager once loaded
     // This often happens implicitly via preload, but you could add sounds manually too
     // this.soundConfigs.forEach((config) => {
@@ -73,39 +82,56 @@ export default class AudioManager {
     //     });
     //     this.sounds.set(config.key, soundInstance);
     //   } else {
-    //     console.warn(
-    //       `AudioManager: Sound asset '${config.key}' not found after preload.`
+    //     this.communicationManager.logEvent(
+    //       "AudioManager",
+    //       "soundAssetNotFoundWarning",
+    //       { key: config.key }
     //     );
     //   }
     // });
 
     // Optionally, play background music immediately
     // this.playSound("background_music");
+    this.communicationManager.logEvent("AudioManager", "createComplete");
   }
 
   playSound(key: string) {
     const sound = this.sounds.get(key);
     if (sound && !sound.isPlaying) {
-      console.log(`AudioManager: Playing sound ${key}`);
+      this.communicationManager.logEvent("AudioManager", "playingSound", {
+        key,
+      });
       sound.play();
     } else if (!sound) {
-      console.warn(`AudioManager: Sound ${key} not found or not ready.`);
+      this.communicationManager.logEvent(
+        "AudioManager",
+        "soundNotFoundWarning",
+        {
+          key,
+        }
+      );
     } else {
       // Optionally handle cases where sound is already playing (e.g., restart or ignore)
-      // console.log(`AudioManager: Sound ${key} is already playing.`);
+      this.communicationManager.logEvent(
+        "AudioManager",
+        "soundAlreadyPlaying",
+        { key }
+      );
     }
   }
 
   stopSound(key: string) {
     const sound = this.sounds.get(key);
     if (sound && sound.isPlaying) {
-      console.log(`AudioManager: Stopping sound ${key}`);
+      this.communicationManager.logEvent("AudioManager", "stoppingSound", {
+        key,
+      });
       sound.stop();
     }
   }
 
   stopAllSounds() {
-    console.log("AudioManager: Stopping all sounds");
+    this.communicationManager.logEvent("AudioManager", "stoppingAllSounds");
     this.scene.sound.stopAll();
     // Note: stopAll() stops everything, including potentially sounds not managed here.
     // A more granular approach might iterate through `this.sounds`:
@@ -113,19 +139,25 @@ export default class AudioManager {
   }
 
   setMusicVolume(volume: number) {
-    console.log(`AudioManager: Setting music volume to ${volume}`);
+    const clampedVolume = Phaser.Math.Clamp(volume, 0, 1);
+    this.communicationManager.logEvent("AudioManager", "settingMusicVolume", {
+      volume: clampedVolume,
+    });
     const music = this.sounds.get("background_music"); // Assuming 'background_music' key
     if (music) {
-      music.setVolume(Phaser.Math.Clamp(volume, 0, 1));
+      music.setVolume(clampedVolume);
     }
   }
 
   setSfxVolume(volume: number) {
-    console.log(`AudioManager: Setting SFX volume to ${volume}`);
+    const clampedVolume = Phaser.Math.Clamp(volume, 0, 1);
+    this.communicationManager.logEvent("AudioManager", "settingSfxVolume", {
+      volume: clampedVolume,
+    });
     this.sounds.forEach((sound, key) => {
       // Assuming sounds other than 'background_music' are SFX
       if (key !== "background_music") {
-        sound.setVolume(Phaser.Math.Clamp(volume, 0, 1));
+        sound.setVolume(clampedVolume);
       }
     });
   }
@@ -135,7 +167,7 @@ export default class AudioManager {
   }
 
   shutdown() {
-    console.log("AudioManager: shutdown");
+    this.communicationManager.logEvent("AudioManager", "shutdownStart");
     // Stop all sounds managed by this instance and remove listeners
     this.sounds.forEach((sound) => {
       if (sound.isPlaying) {
@@ -154,5 +186,6 @@ export default class AudioManager {
 
     // Consider if `this.scene.sound.removeAll()` is appropriate, but be careful
     // as it affects sounds potentially managed by other scenes/systems.
+    this.communicationManager.logEvent("AudioManager", "shutdownComplete");
   }
 }

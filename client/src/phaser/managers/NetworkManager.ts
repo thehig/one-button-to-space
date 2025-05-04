@@ -1,29 +1,38 @@
 import Phaser from "phaser";
 // import { Client, Room } from 'colyseus.js'; // Import later when integrating Colyseus
+import { CommunicationManager } from "./CommunicationManager"; // Import CommunicationManager
 
 export default class NetworkManager {
   private scene: Phaser.Scene;
   private eventEmitter: Phaser.Events.EventEmitter;
+  private communicationManager: CommunicationManager; // Add property
   // private client?: Client;
   // private room?: Room;
 
-  constructor(scene: Phaser.Scene, eventEmitter: Phaser.Events.EventEmitter) {
+  constructor(
+    scene: Phaser.Scene,
+    eventEmitter: Phaser.Events.EventEmitter,
+    communicationManager: CommunicationManager // Add parameter
+  ) {
     this.scene = scene;
     this.eventEmitter = eventEmitter;
-    console.log("NetworkManager: constructor");
+    this.communicationManager = communicationManager; // Store instance
+    this.communicationManager.logEvent("NetworkManager", "constructor");
   }
 
   init() {
-    console.log("NetworkManager: init");
+    this.communicationManager.logEvent("NetworkManager", "initStart");
     // Initialize Colyseus client later (Task #8)
     // this.client = new Client('ws://localhost:2567'); // Example endpoint
     this.setupEventListeners();
+    this.communicationManager.logEvent("NetworkManager", "initComplete");
   }
 
   create() {
-    console.log("NetworkManager: create");
+    this.communicationManager.logEvent("NetworkManager", "createStart");
     // Attempt to join a room later (Task #8)
     // this.joinRoom();
+    this.communicationManager.logEvent("NetworkManager", "createComplete");
   }
 
   setupEventListeners() {
@@ -32,7 +41,7 @@ export default class NetworkManager {
   }
 
   handleInputUpdate(payload: any) {
-    // console.log('NetworkManager: Sending input', payload);
+    // this.communicationManager.logEvent('NetworkManager', 'sendingInput', payload);
     // Send input payload to the server room later
     // this.room?.send('input', payload);
   }
@@ -40,14 +49,14 @@ export default class NetworkManager {
   // async joinRoom() {
   //   if (!this.client) return;
   //   try {
-  //     console.log('NetworkManager: Attempting to join room...');
+  //     this.communicationManager.logEvent('NetworkManager', 'attemptingToJoinRoom');
   //     // Replace 'your_room_name' with the actual room name defined on the server
   //     this.room = await this.client.joinOrCreate('your_room_name');
-  //     console.log('NetworkManager: Joined room successfully!', this.room.sessionId);
+  //     this.communicationManager.logEvent('NetworkManager', 'joinedRoomSuccessfully', { sessionId: this.room.sessionId });
   //     this.setupRoomListeners();
   //     this.eventEmitter.emit('networkConnected', this.room);
   //   } catch (e) {
-  //     console.error("NetworkManager: Join error", e);
+  //     this.communicationManager.logEvent('NetworkManager', 'joinRoomError', { error: e });
   //     this.eventEmitter.emit('networkError', e);
   //   }
   // }
@@ -56,7 +65,8 @@ export default class NetworkManager {
   //   if (!this.room) return;
   //   // Listen for messages from the server (e.g., state updates, entity creation/removal)
   //   this.room.onStateChange((state) => {
-  //     // console.log('NetworkManager: State change received', state);
+  //     // Consider logging only specific parts or diffs of the state
+  //     // this.communicationManager.logEvent('NetworkManager', 'stateChangeReceived', { state });
   //     this.eventEmitter.emit('serverStateUpdate', state);
   //   });
   //   this.room.onMessage('entitySpawn', (message) => {
@@ -66,11 +76,11 @@ export default class NetworkManager {
   //     this.eventEmitter.emit('serverEntityRemove', message);
   //   });
   //   this.room.onError((code, message) => {
-  //     console.error('NetworkManager: Colyseus room error', code, message);
+  //     this.communicationManager.logEvent('NetworkManager', 'colyseusRoomError', { code, message });
   //     this.eventEmitter.emit('networkError', { code, message });
   //   });
   //   this.room.onLeave((code) => {
-  //     console.log('NetworkManager: Left room', code);
+  //     this.communicationManager.logEvent('NetworkManager', 'leftRoom', { code });
   //     this.eventEmitter.emit('networkDisconnected', code);
   //     this.room = undefined;
   //   });
@@ -81,10 +91,11 @@ export default class NetworkManager {
   }
 
   shutdown() {
-    console.log("NetworkManager: shutdown");
+    this.communicationManager.logEvent("NetworkManager", "shutdownStart");
     // Leave the room and clean up listeners
     // this.room?.leave();
     this.eventEmitter.off("inputUpdate", this.handleInputUpdate, this);
     // this.client = undefined; // Optional: Clean up client instance if appropriate
+    this.communicationManager.logEvent("NetworkManager", "shutdownComplete");
   }
 }

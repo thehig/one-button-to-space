@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { CommunicationManager } from "../managers/CommunicationManager";
 
 export default class BootScene extends Phaser.Scene {
   constructor() {
@@ -6,13 +7,13 @@ export default class BootScene extends Phaser.Scene {
   }
 
   preload() {
-    console.log("BootScene: preload");
+    CommunicationManager.getInstance().logEvent("BootScene", "preload");
     // Load minimal assets needed for the next scene (e.g., loading bar)
     // Often used to load assets for the MainMenuScene
   }
 
   create() {
-    console.log("BootScene: create");
+    CommunicationManager.getInstance().logEvent("BootScene", "create");
     // Start the next scene (e.g., Main Menu)
     this.scene.start("MainMenuScene");
   }

@@ -1,27 +1,32 @@
 import Phaser from "phaser";
 import PhysicsManager from "./PhysicsManager"; // Import PhysicsManager
+import { CommunicationManager } from "./CommunicationManager"; // Import CommunicationManager
 
 export default class EntityManager {
   private scene: Phaser.Scene;
   private eventEmitter: Phaser.Events.EventEmitter;
   private physicsManager: PhysicsManager; // Add PhysicsManager property
+  private communicationManager: CommunicationManager; // Add CommunicationManager property
   private entities: Map<string, Phaser.GameObjects.GameObject>; // Example: Store entities by a unique ID
 
   constructor(
     scene: Phaser.Scene,
     eventEmitter: Phaser.Events.EventEmitter,
-    physicsManager: PhysicsManager // Add physicsManager to constructor
+    physicsManager: PhysicsManager,
+    communicationManager: CommunicationManager // Add communicationManager to constructor
   ) {
     this.scene = scene;
     this.eventEmitter = eventEmitter;
     this.physicsManager = physicsManager; // Store physicsManager
+    this.communicationManager = communicationManager; // Store communicationManager
     this.entities = new Map();
-    console.log("EntityManager: constructor (with PhysicsManager)");
+    this.communicationManager.logEvent("EntityManager", "constructor");
   }
 
   init() {
-    console.log("EntityManager: init");
+    this.communicationManager.logEvent("EntityManager", "initStart");
     this.setupEventListeners();
+    this.communicationManager.logEvent("EntityManager", "initComplete");
   }
 
   setupEventListeners() {
@@ -39,7 +44,7 @@ export default class EntityManager {
   }
 
   create() {
-    console.log("EntityManager: create");
+    this.communicationManager.logEvent("EntityManager", "create");
     // Create initial entities if needed (e.g., player character based on network connection)
   }
 
@@ -51,9 +56,13 @@ export default class EntityManager {
     // Add potential physics options if sent from server
     options?: any; // Use a more specific type if possible
   }) {
-    console.log("EntityManager: Spawning entity", data);
+    this.communicationManager.logEvent("EntityManager", "spawningEntity", data);
     if (this.entities.has(data.id)) {
-      console.warn(`EntityManager: Entity with id ${data.id} already exists.`);
+      this.communicationManager.logEvent(
+        "EntityManager",
+        "entityAlreadyExistsWarning",
+        { entityId: data.id }
+      );
       return;
     }
 
@@ -85,12 +94,18 @@ export default class EntityManager {
     // Alternatively: Create sprite -> this.scene.add.sprite(data.x, data.y, textureKey);
 
     if (!gameObject) {
-      console.error(
-        `EntityManager: Failed to create visual GameObject for type ${data.type}`
+      this.communicationManager.logEvent(
+        "EntityManager",
+        "failedToCreateVisualError",
+        { type: data.type }
       );
       return;
     }
-    console.log(`EntityManager: Created visual GameObject for ID ${data.id}`);
+    this.communicationManager.logEvent(
+      "EntityManager",
+      "createdVisualGameObject",
+      { entityId: data.id }
+    );
     this.entities.set(data.id, gameObject); // Store the visual representation
 
     // --- Create Physics Body and Map it ---
@@ -105,8 +120,10 @@ export default class EntityManager {
     );
 
     if (physicsBody) {
-      console.log(
-        `EntityManager: Physics body ${physicsBody.id} created and mapped for entity ${data.id}.`
+      this.communicationManager.logEvent(
+        "EntityManager",
+        "physicsBodyCreatedAndMapped",
+        { entityId: data.id, bodyId: physicsBody.id }
       );
       // Optionally emit an event if other systems need to know the physics body exists
       this.eventEmitter.emit("physicsBodyCreated", {
@@ -120,8 +137,10 @@ export default class EntityManager {
         this.eventEmitter.emit("playerEntityCreated", data.id);
       }
     } else {
-      console.error(
-        `EntityManager: Failed to create physics body for entity ${data.id}. Cleaning up visual.`
+      this.communicationManager.logEvent(
+        "EntityManager",
+        "failedToCreatePhysicsBodyError",
+        { entityId: data.id }
       );
       gameObject.destroy();
       this.entities.delete(data.id);
@@ -129,7 +148,9 @@ export default class EntityManager {
   }
 
   handleServerEntityRemove(data: { id: string }) {
-    console.log("EntityManager: Removing entity", data.id);
+    this.communicationManager.logEvent("EntityManager", "removingEntity", {
+      entityId: data.id,
+    });
     const gameObject = this.entities.get(data.id);
 
     if (gameObject) {
@@ -141,10 +162,18 @@ export default class EntityManager {
 
       // 3. Remove from entity map
       this.entities.delete(data.id);
-      console.log(`EntityManager: Entity ${data.id} fully removed.`);
+      this.communicationManager.logEvent(
+        "EntityManager",
+        "entityFullyRemoved",
+        {
+          entityId: data.id,
+        }
+      );
     } else {
-      console.warn(
-        `EntityManager: Cannot remove non-existent entity ${data.id}`
+      this.communicationManager.logEvent(
+        "EntityManager",
+        "removeNonExistentEntityWarning",
+        { entityId: data.id }
       );
     }
   }
@@ -161,7 +190,7 @@ export default class EntityManager {
   }
 
   shutdown() {
-    console.log("EntityManager: shutdown");
+    this.communicationManager.logEvent("EntityManager", "shutdownStart");
     // Destroy all managed entities and clean up listeners
     // Ensure physics bodies are removed via PhysicsManager during shutdown
     // Iterate IDs and call remove logic to ensure physics cleanup
@@ -179,6 +208,6 @@ export default class EntityManager {
       this.handleServerEntityRemove,
       this
     );
-    console.log("EntityManager: Shutdown complete.");
+    this.communicationManager.logEvent("EntityManager", "shutdownComplete");
   }
 }

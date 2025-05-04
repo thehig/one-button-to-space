@@ -1,20 +1,28 @@
 import Phaser from "phaser";
+import { CommunicationManager } from "./CommunicationManager";
 
 export default class UIManager {
   private scene: Phaser.Scene;
   private eventEmitter: Phaser.Events.EventEmitter;
+  private communicationManager: CommunicationManager;
   private scoreText?: Phaser.GameObjects.Text;
   // Add other UI elements as needed (health bar, ammo count, etc.)
 
-  constructor(scene: Phaser.Scene, eventEmitter: Phaser.Events.EventEmitter) {
+  constructor(
+    scene: Phaser.Scene,
+    eventEmitter: Phaser.Events.EventEmitter,
+    communicationManager: CommunicationManager
+  ) {
     this.scene = scene;
     this.eventEmitter = eventEmitter;
-    console.log("UIManager: constructor");
+    this.communicationManager = communicationManager;
+    this.communicationManager.logEvent("UIManager", "constructor");
   }
 
   init() {
-    console.log("UIManager: init");
+    this.communicationManager.logEvent("UIManager", "initStart");
     this.setupEventListeners();
+    this.communicationManager.logEvent("UIManager", "initComplete");
   }
 
   setupEventListeners() {
@@ -23,7 +31,7 @@ export default class UIManager {
   }
 
   create() {
-    console.log("UIManager: create");
+    this.communicationManager.logEvent("UIManager", "createStart");
     // Create static UI elements
     // Note: UI elements should often be added to a separate UI Scene overlaid on top,
     // or carefully managed with camera scrolling.
@@ -35,10 +43,13 @@ export default class UIManager {
       backgroundColor: "#000000a0", // Semi-transparent background
     });
     this.scoreText.setScrollFactor(0); // Make it fixed relative to the camera
+    this.communicationManager.logEvent("UIManager", "createComplete");
   }
 
   updateScoreDisplay(score: number) {
-    console.log("UIManager: Updating score display", score);
+    this.communicationManager.logEvent("UIManager", "updatingScoreDisplay", {
+      score,
+    });
     if (this.scoreText) {
       this.scoreText.setText(`Score: ${score}`);
     }
@@ -49,9 +60,10 @@ export default class UIManager {
   }
 
   shutdown() {
-    console.log("UIManager: shutdown");
+    this.communicationManager.logEvent("UIManager", "shutdownStart");
     // Destroy UI elements and remove listeners
     this.scoreText?.destroy();
     this.eventEmitter.off("scoreUpdated", this.updateScoreDisplay, this);
+    this.communicationManager.logEvent("UIManager", "shutdownComplete");
   }
 }

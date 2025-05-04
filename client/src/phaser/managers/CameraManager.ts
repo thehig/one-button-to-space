@@ -1,26 +1,31 @@
 import Phaser from "phaser";
 import EntityManager from "./EntityManager"; // May depend on EntityManager to find target
+import { CommunicationManager } from "./CommunicationManager"; // Import CommunicationManager
 
 export default class CameraManager {
   private scene: Phaser.Scene;
   private entityManager: EntityManager;
   private eventEmitter: Phaser.Events.EventEmitter;
+  private communicationManager: CommunicationManager; // Add property
   private followTarget: Phaser.GameObjects.GameObject | null = null;
 
   constructor(
     scene: Phaser.Scene,
     entityManager: EntityManager,
-    eventEmitter: Phaser.Events.EventEmitter
+    eventEmitter: Phaser.Events.EventEmitter,
+    communicationManager: CommunicationManager // Add parameter
   ) {
     this.scene = scene;
     this.entityManager = entityManager;
     this.eventEmitter = eventEmitter;
-    console.log("CameraManager: constructor");
+    this.communicationManager = communicationManager; // Store instance
+    this.communicationManager.logEvent("CameraManager", "constructor");
   }
 
   init() {
-    console.log("CameraManager: init");
+    this.communicationManager.logEvent("CameraManager", "initStart");
     this.setupEventListeners();
+    this.communicationManager.logEvent("CameraManager", "initComplete");
   }
 
   setupEventListeners() {
@@ -30,11 +35,12 @@ export default class CameraManager {
   }
 
   create() {
-    console.log("CameraManager: create");
+    this.communicationManager.logEvent("CameraManager", "createStart");
     // Configure main camera properties
     this.scene.cameras.main.setBackgroundColor(0x1a1a1a); // Example background
     // Set bounds if the world is larger than the screen
     // this.scene.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
+    this.communicationManager.logEvent("CameraManager", "createComplete");
   }
 
   setFollowTarget(targetId: string) {
@@ -42,10 +48,14 @@ export default class CameraManager {
     if (target) {
       this.followTarget = target;
       this.scene.cameras.main.startFollow(this.followTarget, true, 0.08, 0.08); // Round pixels, lerp x/y
-      console.log(`CameraManager: Now following target ${targetId}`);
+      this.communicationManager.logEvent("CameraManager", "followingTarget", {
+        targetId,
+      });
     } else {
-      console.warn(
-        `CameraManager: Could not find target entity with ID ${targetId}`
+      this.communicationManager.logEvent(
+        "CameraManager",
+        "followTargetNotFoundWarning",
+        { targetId }
       );
     }
   }
@@ -56,10 +66,11 @@ export default class CameraManager {
   }
 
   shutdown() {
-    console.log("CameraManager: shutdown");
+    this.communicationManager.logEvent("CameraManager", "shutdownStart");
     // Stop following and remove listeners
     this.scene.cameras.main.stopFollow();
     this.eventEmitter.off("playerEntityCreated", this.setFollowTarget, this);
     this.followTarget = null;
+    this.communicationManager.logEvent("CameraManager", "shutdownComplete");
   }
 }

@@ -1,27 +1,35 @@
 import Phaser from "phaser";
+import { CommunicationManager } from "./CommunicationManager";
 
 export default class InputManager {
   private scene: Phaser.Scene;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private eventEmitter: Phaser.Events.EventEmitter;
+  private communicationManager: CommunicationManager;
 
-  constructor(scene: Phaser.Scene, eventEmitter: Phaser.Events.EventEmitter) {
+  constructor(
+    scene: Phaser.Scene,
+    eventEmitter: Phaser.Events.EventEmitter,
+    communicationManager: CommunicationManager
+  ) {
     this.scene = scene;
     this.eventEmitter = eventEmitter;
-    console.log("InputManager: constructor");
+    this.communicationManager = communicationManager;
+    this.communicationManager.logEvent("InputManager", "constructor");
   }
 
   init() {
-    console.log("InputManager: init");
+    this.communicationManager.logEvent("InputManager", "initStart");
     // Initialize input listeners (keyboard, mouse, touch)
     if (this.scene.input.keyboard) {
       this.cursors = this.scene.input.keyboard.createCursorKeys();
     }
     this.scene.input.on("pointerdown", this.handlePointerDown, this);
+    this.communicationManager.logEvent("InputManager", "initComplete");
   }
 
   create() {
-    console.log("InputManager: create");
+    this.communicationManager.logEvent("InputManager", "create");
     // Set up specific input contexts or states if needed
   }
 
@@ -42,18 +50,20 @@ export default class InputManager {
   }
 
   handlePointerDown(pointer: Phaser.Input.Pointer) {
-    console.log("InputManager: pointerdown", pointer.x, pointer.y);
+    const payload = { x: pointer.x, y: pointer.y };
+    this.communicationManager.logEvent("InputManager", "pointerDown", payload);
     // Emit an event for pointer clicks
-    this.eventEmitter.emit("pointerDown", { x: pointer.x, y: pointer.y });
+    this.eventEmitter.emit("pointerDown", payload);
   }
 
   shutdown() {
-    console.log("InputManager: shutdown");
+    this.communicationManager.logEvent("InputManager", "shutdownStart");
     // Remove listeners
     if (this.scene.input) {
       this.scene.input.off("pointerdown", this.handlePointerDown, this);
     }
     // Keyboard listeners managed by Phaser are typically cleaned up automatically
     // if created via createCursorKeys
+    this.communicationManager.logEvent("InputManager", "shutdownComplete");
   }
 }

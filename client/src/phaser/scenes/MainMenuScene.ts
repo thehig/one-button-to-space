@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { CommunicationManager } from "../managers/CommunicationManager";
 
 export default class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -6,12 +7,12 @@ export default class MainMenuScene extends Phaser.Scene {
   }
 
   preload() {
-    console.log("MainMenuScene: preload");
+    CommunicationManager.getInstance().logEvent("MainMenuScene", "preload");
     // Load menu assets (buttons, background)
   }
 
   create() {
-    console.log("MainMenuScene: create");
+    CommunicationManager.getInstance().logEvent("MainMenuScene", "create");
     // Create menu elements (title, buttons)
 
     // Example: Add some text and a button to start the game
@@ -33,7 +34,10 @@ export default class MainMenuScene extends Phaser.Scene {
       .setInteractive();
 
     startButton.on("pointerdown", () => {
-      console.log("Start button clicked");
+      CommunicationManager.getInstance().logEvent(
+        "MainMenuScene",
+        "startButtonClick"
+      );
       this.scene.start("GameScene"); // Transition to GameScene
     });
 

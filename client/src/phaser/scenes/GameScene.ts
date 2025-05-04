@@ -4,6 +4,7 @@ import Phaser from "phaser";
 // import InputManager from "../managers/InputManager";
 // ... etc.
 import LifecycleManager from "../managers/LifecycleManager";
+import { CommunicationManager } from "../managers/CommunicationManager";
 
 export default class GameScene extends Phaser.Scene {
   private eventEmitter: Phaser.Events.EventEmitter;
@@ -19,7 +20,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   preload() {
-    console.log("GameScene: preload - Delegating to LifecycleManager");
+    CommunicationManager.getInstance().logEvent(
+      "GameScene",
+      "preloadStart_Delegating"
+    );
     // Instantiate LifecycleManager here or in create(). If it handles preload, instantiate before calling preload.
     // Let's instantiate here to ensure it exists before preload call.
     this.lifecycleManager = new LifecycleManager(this, this.eventEmitter);
@@ -27,10 +31,17 @@ export default class GameScene extends Phaser.Scene {
     // Remove direct manager preload calls
     // this.audioManager = new AudioManager(this, this.eventEmitter);
     // this.audioManager.preload();
+    CommunicationManager.getInstance().logEvent(
+      "GameScene",
+      "preloadComplete_Delegated"
+    );
   }
 
   create() {
-    console.log("GameScene: create - Delegating to LifecycleManager");
+    CommunicationManager.getInstance().logEvent(
+      "GameScene",
+      "createStart_Delegating"
+    );
     // LifecycleManager already instantiated in preload
     // Remove all manager instantiation, init, and create calls
 
@@ -40,7 +51,10 @@ export default class GameScene extends Phaser.Scene {
     // Remove test event triggers - they are now in LifecycleManager
     // setTimeout(() => { ... }, 2000);
 
-    console.log("GameScene: create complete after LifecycleManager");
+    CommunicationManager.getInstance().logEvent(
+      "GameScene",
+      "createComplete_Delegated"
+    );
   }
 
   update(time: number, delta: number) {
@@ -50,12 +64,19 @@ export default class GameScene extends Phaser.Scene {
   }
 
   shutdown() {
-    console.log("GameScene: shutdown - Delegating to LifecycleManager");
+    CommunicationManager.getInstance().logEvent(
+      "GameScene",
+      "shutdownStart_Delegating"
+    );
     // Delegate shutdown to LifecycleManager
     this.lifecycleManager.shutdown();
     // Remove direct manager shutdown calls
     // Remove event emitter cleanup if LifecycleManager handles it
     // this.eventEmitter.removeAllListeners();
-    console.log("GameScene: shutdown complete after LifecycleManager");
+    // Cannot log after lifecycleManager.shutdown() if it destroys CommunicationManager
+    // CommunicationManager.getInstance().logEvent(
+    //   "GameScene",
+    //   "shutdownComplete_Delegated"
+    // );
   }
 }
