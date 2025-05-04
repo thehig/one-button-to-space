@@ -47,7 +47,7 @@ export const useComponentLayout = ({
   });
   const [isCollapsed, setIsCollapsed] = useState(!startsOpen);
   const [size, setSize] = useState({
-    width: initialWidth,
+    width: !startsOpen ? 300 : initialWidth,
     height: isCollapsed ? 50 : initialHeight, // Adjust initial height based on startsOpen
   });
   const [lastExpandedWidth, setLastExpandedWidth] = useState(initialWidth);
