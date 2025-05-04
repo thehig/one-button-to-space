@@ -33,3 +33,10 @@ export type MainWindowMessage =
   | LogInitialRequestMessage;
 */
 // --- End Remove PostMessage Types ---
+
+export interface SourceTreeNode {
+  id: string; // Unique identifier (usually the source name)
+  label: string; // Display name (usually the source name)
+  symbol?: string; // Emoji/Symbol
+  children?: SourceTreeNode[];
+}
