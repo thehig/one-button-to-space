@@ -3,11 +3,16 @@ description:
 globs: 
 alwaysApply: true
 ---
+---
+description: Index of the client package structure and contents
+globs: packages/client/**
+---
+
 # Client Package Index
 
 This document provides an overview of the `client` package structure to aid navigation and understanding.
 
--   **`client/` (Root)**
+-   **`packages/client/` (Root)**
     -   `index.html`: Main HTML entry point for the Vite application.
     -   `package.json`: Project dependencies and scripts for the client.
     -   `vite.config.ts`: Vite build configuration.
@@ -15,7 +20,7 @@ This document provides an overview of the `client` package structure to aid navi
     -   `public/`: Static assets served directly by Vite.
     -   `src/`: Main source code directory.
 
--   **`client/src/`**
+-   **`packages/client/src/`**
     -   `main.tsx`: Application entry point, renders the root React component (`App.tsx`).
     -   `App.tsx`: Root React component, likely sets up routing and global layout.
     -   `index.css`, `App.css`: Global and App-level CSS styles.
@@ -27,7 +32,7 @@ This document provides an overview of the `client` package structure to aid navi
     -   `types/`: TypeScript type definitions specific to the client.
     -   `index.ts`: Likely re-exports modules or types from within `src`.
 
--   **`client/src/phaser/managers/`**
+-   **`packages/client/src/phaser/managers/`**
     -   **`LifecycleManager.ts`**: Central coordinator for all other managers. Instantiates them and drives their `init`, `create`, `update`, `shutdown` cycles based on the Phaser Scene lifecycle.
     -   **`CommunicationManager.ts`**: Singleton event hub and logger. Subscribes to events from various sources (other managers, network via emitter) and logs them. Can provide this log externally (e.g., to React).
     -   **`PhysicsManager.ts`**: Manages the Matter.js physics simulation (using shared `PhysicsEngine`), creates/removes physics bodies for entities, and syncs GameObject positions.
@@ -46,8 +51,8 @@ This document provides an overview of the `client` package structure to aid navi
     -   **Language:** TypeScript ([typescript.mdc](mdc:.cursor/rules/typescript.mdc))
 
 -   **Navigation Notes for LLMs**
-    -   UI changes likely involve files in `client/src/components/` and `client/src/App.tsx`.
-    -   Game logic modifications will primarily be within `client/src/phaser/`.
-    -   Shared types might be in `client/src/types/` or imported from the `shared` package.
+    -   UI changes likely involve files in `packages/client/src/components/` and `packages/client/src/App.tsx`.
+    -   Game logic modifications will primarily be within `packages/client/src/phaser/`.
+    -   Shared types might be in `packages/shared/src/` (confirm path).
     -   Refer to linked `.mdc` rules for technology-specific guidelines.
     -   Need to explore `components`, `contexts`, and `phaser` directories further for a more detailed map.
