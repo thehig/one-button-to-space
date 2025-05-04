@@ -302,13 +302,14 @@ export const GameEventLog: React.FC = () => {
   const { events, clearLog } = useCommunicationContext();
 
   // --- Draggable State ---
-  // We'll manage position manually based on dnd-kit events
-  const [position, setPosition] = useState({ x: 20, y: 20 }); // Initial position for Rnd
-  // Define a unique ID for the draggable item
-  // const draggableId = "game-event-log-draggable";
+  const [position, setPosition] = useState({ x: 20, y: 20 });
+  // --- Size State ---
+  const [size, setSize] = useState({ width: 550, height: 400 }); // Initial size
 
   // State for collapse
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // State to remember the width before collapsing
+  const [lastExpandedWidth, setLastExpandedWidth] = useState(size.width);
 
   // Keep other state (filters, hover, etc.)
   const [filterName, setFilterName] = useState("");
@@ -410,7 +411,23 @@ export const GameEventLog: React.FC = () => {
 
   // Toggle collapse state
   const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
+    const newCollapsedState = !isCollapsed;
+
+    if (newCollapsedState) {
+      // Store current width before collapsing
+      setLastExpandedWidth(size.width);
+    }
+
+    // Set new size based on collapse state
+    setSize((prevSize) => ({
+      width: newCollapsedState ? 200 : lastExpandedWidth, // Collapse to 200px, expand to remembered width
+      height: newCollapsedState
+        ? 50
+        : prevSize.height < 200
+        ? 400
+        : prevSize.height, // Set to minHeight or restore previous/default height
+    }));
+    setIsCollapsed(newCollapsedState);
   };
 
   // Transform style for dnd-kit
@@ -424,30 +441,38 @@ export const GameEventLog: React.FC = () => {
   // Wrap the draggable element with DndContext
   return (
     <Rnd
-      default={{
-        x: position.x,
-        y: position.y,
-        width: 550, // Keep initial width consistent
-        height: 400, // Provide an initial default height
-      }}
+      size={{ width: size.width, height: size.height }}
+      position={{ x: position.x, y: position.y }}
       style={{
         zIndex: 1000, // Ensure it stays on top
         border: "1px solid #ccc",
         backgroundColor: "rgba(64, 64, 64, 0.9)",
         borderRadius: "5px",
         boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+        opacity: isCollapsed ? 0.7 : 1, // Make semi-transparent when collapsed
         // Let Rnd handle positioning, remove absolute/left/top from here
       }}
       dragHandleClassName="drag-handle" // Specify the class for the drag handle
       minWidth={250} // Set a reasonable minimum width
       minHeight={isCollapsed ? 50 : 200} // Adjust min height based on collapse state
       enableResizing={!isCollapsed} // Disable resizing when collapsed
-      bounds="window" // Keep within viewport
       onDragStop={(e, d) => {
         setPosition({ x: d.x, y: d.y });
       }}
-      // Optionally manage size state on resize stop if needed
-      // onResizeStop={(e, direction, ref, delta, position) => { setSize({ width: ref.style.width, height: ref.style.height }); }}
+      // Update size state on resize stop
+      onResizeStop={(e, direction, ref, delta, position) => {
+        setSize({
+          width: parseInt(ref.style.width, 10),
+          height: parseInt(ref.style.height, 10),
+        });
+        // Also update the remembered expanded width if resizing while expanded
+        if (!isCollapsed) {
+          setLastExpandedWidth(parseInt(ref.style.width, 10));
+        }
+        // Also update position if resize moves the element
+        setPosition(position);
+      }}
+      bounds="window" // Keep within viewport
     >
       {/* Remove Draggable wrapper */}
       {/* <Draggable handle=".drag-handle" nodeRef={nodeRef}> */}
@@ -458,7 +483,7 @@ export const GameEventLog: React.FC = () => {
           // Basic positioning styles (can be enhanced)
           // Remove positioning/border/bg/shadow styles managed by Rnd wrapper
           width: isCollapsed ? "auto" : "100%", // Let Rnd control width, take 100% internally
-          height: "100%", // Let Rnd control height, take 100% internally
+          height: isCollapsed ? "auto" : "100%", // Adjust height based on collapse state
           display: "flex",
           flexDirection: "column",
           fontSize: "0.9em",
@@ -520,12 +545,10 @@ export const GameEventLog: React.FC = () => {
                 display: "flex",
                 flexDirection: "column",
                 gap: "15px",
-                flexBasis: "200px", // Slightly narrower filters
                 flexShrink: 0,
                 borderRight: "1px solid #eee",
                 paddingRight: "10px",
                 overflowY: "auto",
-                height: "100%", // Explicitly fill parent height
               }}
             >
               <input
