@@ -580,7 +580,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
           className="drag-handle" // Assign the handle class for Rnd
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent: "space-between", // Keep space-between for overall layout
             alignItems: "center",
             padding: "5px 10px",
             backgroundColor: "#242424",
@@ -594,8 +594,27 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
           // {...listeners}
           // {...attributes}
         >
-          <h3 style={{ margin: 0, fontSize: "1em" }}>Game Event Log</h3>
-          {/* Group buttons on the right */}
+          {/* Left side: Collapse button and Title */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {/* Moved Collapse/Expand Button Here */}
+            <button
+              onClick={toggleCollapse}
+              style={{
+                padding: "2px 8px",
+                cursor: "pointer",
+                border: "none", // Make consistent with others
+                background: "transparent", // Make consistent
+                fontSize: "1.2em", // Match size
+                color: "inherit", // Inherit color
+              }}
+              title={isCollapsed ? "Expand Log" : "Collapse Log"}
+            >
+              {isCollapsed ? "➕" : "➖"} {/* Keep original icons */}
+            </button>
+            <h3 style={{ margin: 0, fontSize: "1em" }}>Game Event Log</h3>
+          </div>
+
+          {/* Right side: Other buttons */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             {/* Conditionally render extra buttons */}
             {!isCollapsed && (
@@ -651,22 +670,6 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                 </button>
               </>
             )}
-
-            {/* Main Collapse/Expand Button (Always Visible) */}
-            <button
-              onClick={toggleCollapse}
-              style={{
-                padding: "2px 8px",
-                cursor: "pointer",
-                border: "none", // Make consistent with others
-                background: "transparent", // Make consistent
-                fontSize: "1.2em", // Match size
-                color: "inherit", // Inherit color
-              }}
-              title={isCollapsed ? "Expand Log" : "Collapse Log"}
-            >
-              {isCollapsed ? "➕" : "➖"} {/* Keep original icons */}
-            </button>
           </div>
         </div>
 
