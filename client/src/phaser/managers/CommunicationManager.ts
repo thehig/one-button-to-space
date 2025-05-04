@@ -61,10 +61,12 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
       this.logEvent("Scene", "playerEntityCreated", { playerId });
     });
     // Listen for events from other managers via the shared emitter
+    /* Comment out the noisy inputUpdate listener
     this.sceneEmitter.on("inputUpdate", (payload: unknown) => {
       // Only log periodically or on change to avoid spam?
       this.logEvent("Input", "inputUpdate", payload);
     });
+    */
     this.sceneEmitter.on("pointerDown", (payload: { x: number; y: number }) => {
       this.logEvent("Input", "pointerDown", payload);
     });
@@ -168,7 +170,7 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
       this.sceneEmitter.off("serverEntitySpawn");
       this.sceneEmitter.off("playerEntityCreated");
       // Remove listeners for manager events
-      // this.sceneEmitter.off("inputUpdate"); // Keep commented out
+      // this.sceneEmitter.off("inputUpdate"); // Ensure corresponding off call is also commented/removed
       this.sceneEmitter.off("pointerDown");
       this.sceneEmitter.off("physicsBodyCreated");
       // Remove other scene listeners...
