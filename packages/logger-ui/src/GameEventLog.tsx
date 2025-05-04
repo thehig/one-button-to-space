@@ -747,6 +747,28 @@ export const GameEventLog: React.FC = () => {
                           </span>
                         )}
                       </span>
+                      {/* Conditionally render inline JSON preview HERE */}
+                      {isDetailsCollapsed &&
+                        event.data !== undefined &&
+                        event.data !== null && (
+                          <span // Use span for better inline flow
+                            style={{
+                              fontSize: "0.8em",
+                              color: "#aaa",
+                              marginLeft: "8px", // Space after event name
+                              overflowX: "hidden",
+                              whiteSpace: "nowrap",
+                              textOverflow: "ellipsis",
+                              // maxWidth: '50%', // Limit width to avoid pushing too much
+                              display: "inline-block", // Needed for ellipsis/width
+                              verticalAlign: "baseline", // Align with event name text
+                            }}
+                            title={JSON.stringify(event.data)} // Show full data on hover
+                          >
+                            {JSON.stringify(event.data, null, 0)}{" "}
+                            {/* Compact JSON */}
+                          </span>
+                        )}
                     </div>
                   </li>
                 ))}
