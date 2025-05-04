@@ -689,6 +689,18 @@ export const GameEventLog: React.FC = () => {
                         event.data !== undefined && event.data !== null
                           ? "pointer"
                           : "default",
+                      backgroundColor:
+                        index === selectedEventIndex
+                          ? "#5f5f5f" // Lighter background
+                          : "transparent",
+                      borderLeft:
+                        index === selectedEventIndex
+                          ? "3px solid #888" // Add a left border
+                          : "none",
+                      paddingLeft:
+                        index === selectedEventIndex
+                          ? "2px" // Adjust padding to account for border
+                          : "5px", // Original padding
                     }}
                     onClick={
                       event.data !== undefined && event.data !== null
