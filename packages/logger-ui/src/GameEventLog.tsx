@@ -307,24 +307,32 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 
 // Define props interface
 interface GameEventLogProps {
-  initialCollapsed?: boolean; // Optional prop
+  // initialCollapsed?: boolean; // Optional prop - REMOVED
+  startsOpen?: boolean; // New prop: Controls initial open state
+  initialX?: number; // New prop: Initial X coordinate
+  initialY?: number; // New prop: Initial Y coordinate
+  collapsedOpacity?: number; // New prop: Opacity when collapsed
 }
 
 export const GameEventLog: React.FC<GameEventLogProps> = ({
-  initialCollapsed = true, // Default to true (closed)
+  // initialCollapsed = true, // Default to true (closed) - REMOVED
+  startsOpen = false, // Default to false (closed)
+  initialX = 20, // Default X position
+  initialY = 20, // Default Y position
+  collapsedOpacity = 0.7, // Default opacity when collapsed
 }) => {
   const { events, clearLog } = useCommunicationContext();
 
   // --- Draggable State ---
-  const [position, setPosition] = useState({ x: 20, y: 20 });
-  // --- Size State --- Initialize based on initialCollapsed
+  const [position, setPosition] = useState({ x: initialX, y: initialY }); // Use initialX, initialY
+  // --- Size State --- Initialize based on startsOpen
   const [size, setSize] = useState({
     width: 550,
-    height: initialCollapsed ? 50 : 400, // Set initial height based on prop
+    height: !startsOpen ? 50 : 400, // Set initial height based on startsOpen
   });
 
   // State for collapse - Use prop for initial state
-  const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
+  const [isCollapsed, setIsCollapsed] = useState(!startsOpen); // Initialize based on startsOpen
   // State to remember the width before collapsing
   const [lastExpandedWidth, setLastExpandedWidth] = useState(size.width);
 
@@ -523,10 +531,10 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       style={{
         zIndex: 1000, // Ensure it stays on top
         border: "1px solid #ccc",
-        backgroundColor: "rgba(64, 64, 64, 0.9)",
+        backgroundColor: "rgba(64, 64, 64, 0.9)", // Base background
         borderRadius: "5px",
         boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-        opacity: isCollapsed ? 0.7 : 1, // Make semi-transparent when collapsed
+        opacity: isCollapsed ? collapsedOpacity : 1, // Use collapsedOpacity prop
         // Let Rnd handle positioning, remove absolute/left/top from here
       }}
       dragHandleClassName="drag-handle" // Specify the class for the drag handle
