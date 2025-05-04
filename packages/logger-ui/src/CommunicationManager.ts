@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { EventLogEntry } from "../../types/events"; // Import the interface
+import { EventLogEntry } from "./types"; // Update import path
 // Remove NetworkManager import if no longer needed for direct interaction
 // import NetworkManager from "./NetworkManager";
 
@@ -10,7 +10,7 @@ import { EventLogEntry } from "../../types/events"; // Import the interface
 export class CommunicationManager extends Phaser.Events.EventEmitter {
   private static instance: CommunicationManager;
   private eventLog: EventLogEntry[] = []; // Use the imported interface
-  private maxLogSize = 100; // Example size, adjust as needed
+  private _maxLogSize = 100; // Rename private property
 
   // Keep track of emitters for potential cleanup
   private sceneEmitter: Phaser.Events.EventEmitter | null = null;
@@ -18,6 +18,11 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
   // private networkManager: NetworkManager | null = null;
   private phaserSceneEvents: Phaser.Events.EventEmitter | null = null;
   private phaserGameEvents: Phaser.Events.EventEmitter | null = null;
+
+  // Public getter for maxLogSize
+  public get maxLogSize(): number {
+    return this._maxLogSize;
+  }
 
   private constructor() {
     super();
@@ -133,7 +138,7 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     const logEntry: EventLogEntry = { timestamp, source, eventName, data }; // Use the interface
 
     this.eventLog.push(logEntry);
-    if (this.eventLog.length > this.maxLogSize) {
+    if (this.eventLog.length > this._maxLogSize) {
       this.eventLog.shift(); // Keep the log size manageable (FIFO)
     }
 

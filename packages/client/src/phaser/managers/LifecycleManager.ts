@@ -6,7 +6,7 @@ import EntityManager from "./EntityManager";
 import CameraManager from "./CameraManager";
 import UIManager from "./UIManager";
 import AudioManager from "./AudioManager";
-import { CommunicationManager } from "./CommunicationManager";
+import { CommunicationManager } from "@one-button-to-space/logger-ui";
 
 // Define a type for the logger function if needed, or pass the whole manager
 type LoggerFunction = (
@@ -28,7 +28,7 @@ export default class LifecycleManager {
   private cameraManager!: CameraManager;
   private uiManager!: UIManager;
   private audioManager!: AudioManager;
-  private communicationManager!: CommunicationManager;
+  private communicationManager: CommunicationManager;
 
   constructor(scene: Phaser.Scene, eventEmitter: Phaser.Events.EventEmitter) {
     this.scene = scene;

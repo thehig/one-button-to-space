@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-// EventLogEntry type is implicitly used via context, no need for direct import if not used elsewhere
-// import { EventLogEntry } from "../types/events";
-import { useCommunicationContext } from "../contexts/CommunicationContext"; // Import the hook and type
+// Remove EventLogEntry import if context provides it implicitly or type is handled by hook
+// import { EventLogEntry } from "./types";
+// Restore context import
+import { useCommunicationContext } from "./CommunicationContext";
 
 // TODO: Define an interface for the event log entry
 // Remove the duplicate inline interface definition
@@ -285,26 +286,22 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 
 // --- Main GameEventLog Component ---
 export const GameEventLog: React.FC = () => {
-  const { events, clearLog } = useCommunicationContext(); // Use the context hook
-  // Remove filterSourceText state
-  // const [filterSourceText, setFilterSourceText] = useState("");
+  // Remove props from signature
+  // Restore context hook
+  const { events, clearLog } = useCommunicationContext();
+
+  // Keep other state (filters, hover, etc.)
   const [filterName, setFilterName] = useState("");
-
-  // State to keep track of which sources are currently allowed/checked
-  // Initialize with all known sources from the tree definition
   const [allowedSources, setAllowedSources] = useState<Set<string>>(
-    new Set(getAllSourceIds(sourceTreeData)) // Start with all known sources checked
+    new Set(getAllSourceIds(sourceTreeData))
   );
-
-  // Hover state for displaying data payload
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
-  // Determine the timestamp of the first event (earliest)
+  // Keep memos, they now depend on `events` from context
   const initializationTime = useMemo(() => {
     if (events.length === 0) {
       return null;
     }
-    // Since events are prepended, the last event is the earliest
     const firstEventTimestamp = events[events.length - 1].timestamp;
     try {
       return new Date(firstEventTimestamp);
@@ -316,22 +313,20 @@ export const GameEventLog: React.FC = () => {
       );
       return null;
     }
-  }, [events]); // Recalculate only when events array fundamentally changes (length becomes > 0)
+  }, [events]);
 
-  // Recalculate unique sources present in the *current unfiltered* events
   const activeSourcesInLog = useMemo(() => {
     return new Set(events.map((event) => event.source));
   }, [events]);
 
-  // Handler for toggling sources via the tree
+  // Keep handleSourceTreeToggle callback
   const handleSourceTreeToggle = useCallback(
     (node: SourceTreeNode, isChecked: boolean) => {
       setAllowedSources((prevAllowed) => {
         const newAllowed = new Set(prevAllowed);
-        const idsToUpdate = getAllSourceIds([node]); // Get this node and all its descendants
+        const idsToUpdate = getAllSourceIds([node]);
 
         idsToUpdate.forEach((id) => {
-          // Only modify sources that are known/mappable
           if (sourceSymbols[id]) {
             if (isChecked) {
               newAllowed.add(id);
@@ -341,7 +336,6 @@ export const GameEventLog: React.FC = () => {
           }
         });
 
-        // Also handle toggling parent nodes ("Scenes", "Managers") based on children
         if (node.children && node.children.length > 0) {
           const childSourceIds = getAllSourceIds(node.children);
           childSourceIds.forEach((childId) => {
@@ -359,62 +353,55 @@ export const GameEventLog: React.FC = () => {
       });
     },
     []
-  ); // No dependencies needed as logic is self-contained
+  );
 
-  // Memoize the filtered events list
+  // Keep filteredEvents memo (depends on `events` from context and local filter state)
   const filteredEvents = useMemo(() => {
     return events.filter(
       (event) =>
-        allowedSources.has(event.source) && // Check if source is allowed by checkbox tree
-        // Remove filterSourceText check
-        // (!filterSourceText ||
-        //   event.source
-        //     .toLowerCase()
-        //     .includes(filterSourceText.toLowerCase())) &&
+        allowedSources.has(event.source) &&
         (!filterName ||
-          event.eventName.toLowerCase().includes(filterName.toLowerCase())) // Keep name filter
+          event.eventName.toLowerCase().includes(filterName.toLowerCase()))
     );
-  }, [events, allowedSources, /* removed filterSourceText */ filterName]);
+  }, [events, allowedSources, filterName]);
 
-  // Calculate counts based on the *filtered* events
+  // Keep eventsCountBySource memo (depends on filteredEvents)
   const eventsCountBySource = useMemo(() => {
     const counts: Record<string, number> = {};
     filteredEvents.forEach((event) => {
       counts[event.source] = (counts[event.source] || 0) + 1;
     });
     return counts;
-  }, [filteredEvents]); // Recalculate when filtered events change
+  }, [filteredEvents]);
 
+  // Restore handleClearLog to use clearLog from context
   const handleClearLog = () => {
-    clearLog();
-    setHoveredIndex(null); // Clear hover state on log clear
-    // Use CommunicationManager for logging user actions if possible/desired
-    // CommunicationManager.getInstance().logEvent('GameEventLog', 'clearLogClicked');
-    console.log("Clear log clicked"); // Keep console log for basic feedback
+    clearLog(); // Use context function
+    setHoveredIndex(null);
+    console.log("Clear log clicked");
   };
 
+  // Keep the rest of the component rendering logic (JSX)
   return (
     <div
       style={{
         border: "1px solid #ccc",
         padding: "10px",
         margin: "10px",
-        maxHeight: "500px", // Increased height a bit more for tree
+        maxHeight: "500px",
         display: "flex",
         flexDirection: "column",
-        fontSize: "0.9em", // Slightly smaller base font
+        fontSize: "0.9em",
       }}
     >
       <h3 style={{ marginTop: 0, marginBottom: "10px" }}>Game Event Log</h3>
-
-      {/* Main Layout: Filters (Left) | Log (Right) */}
       <div
         style={{
           display: "flex",
           flexDirection: "row",
           gap: "15px",
           flexGrow: 1,
-          overflow: "hidden" /* Prevent parent overflow */,
+          overflow: "hidden",
         }}
       >
         {/* Left Column: Filters & Controls */}
@@ -423,14 +410,13 @@ export const GameEventLog: React.FC = () => {
             display: "flex",
             flexDirection: "column",
             gap: "15px",
-            flexBasis: "250px" /* Adjust width as needed */,
+            flexBasis: "250px",
             flexShrink: 0,
             borderRight: "1px solid #ccc",
             paddingRight: "15px",
             overflowY: "auto",
           }}
         >
-          {/* Event Name Filter */}
           <input
             type="text"
             placeholder="Filter by event name..."
@@ -438,14 +424,12 @@ export const GameEventLog: React.FC = () => {
             onChange={(e) => setFilterName(e.target.value)}
             style={{ padding: "5px", minWidth: "180px" }}
           />
-
-          {/* Source Tree Filter */}
           <div
             style={{
-              flexGrow: 1, // Allow tree to take available space in column
-              minWidth: "200px", // Ensure minimum width
-              overflowY: "auto", // Scroll tree if needed
-              paddingBottom: "10px", // Space at the bottom
+              flexGrow: 1,
+              minWidth: "200px",
+              overflowY: "auto",
+              paddingBottom: "10px",
             }}
           >
             <span
@@ -464,30 +448,26 @@ export const GameEventLog: React.FC = () => {
                 allowedSources={allowedSources}
                 onToggle={handleSourceTreeToggle}
                 activeSourcesInLog={activeSourcesInLog}
-                eventsCountBySource={eventsCountBySource} // Pass down counts
+                eventsCountBySource={eventsCountBySource}
               />
             ))}
-            {/* TODO: Add handling for dynamically discovered sources ('Other' category?) */}
           </div>
-
-          {/* Clear Button (at the bottom of left col) */}
           <button
-            onClick={handleClearLog}
+            onClick={handleClearLog} // Uses context clearLog
             style={{
               padding: "5px 10px",
-              marginTop: "auto" /* Push to bottom */,
+              marginTop: "auto",
             }}
           >
             Clear Log
           </button>
         </div>
-
         {/* Right Column: Event List Area */}
         <div
           style={{
             flexGrow: 1,
-            overflowY: "auto" /* Make log scrollable */,
-            position: "relative" /* Keep for hover */,
+            overflowY: "auto",
+            position: "relative",
           }}
         >
           <ul
@@ -495,25 +475,22 @@ export const GameEventLog: React.FC = () => {
               listStyle: "none",
               padding: "5px",
               margin: 0,
-              // Removed flexGrow, borderTop, paddingTop as they are handled by the parent div
             }}
           >
             {filteredEvents.map((event, index) => (
               <li
-                key={`${event.timestamp}-${event.source}-${event.eventName}-${index}`} // Simple key for now
+                key={`${event.timestamp}-${event.source}-${event.eventName}-${index}`}
                 style={{
-                  marginBottom: "3px", // More compact
-                  fontSize: "0.9em", // Inherit smaller font
-                  borderBottom: "1px dotted #eee", // Dotted line for less visual weight
+                  marginBottom: "3px",
+                  fontSize: "0.9em",
+                  borderBottom: "1px dotted #eee",
                   paddingBottom: "2px",
-                  position: "relative", // For hover positioning context
-                  // Only set cursor to pointer if there's data to show
+                  position: "relative",
                   cursor:
                     event.data !== undefined && event.data !== null
                       ? "pointer"
                       : "default",
                 }}
-                // Only attach hover handlers if there is data
                 onMouseEnter={
                   event.data !== undefined && event.data !== null
                     ? () => setHoveredIndex(index)
@@ -525,17 +502,10 @@ export const GameEventLog: React.FC = () => {
                     : undefined
                 }
               >
-                {/* Compact Event Line */}
                 <span style={{ color: "#888", marginRight: "5px" }}>
-                  {/* Calculate and display time since init */}
-                  {
-                    initializationTime
-                      ? formatTimeDifference(
-                          event.timestamp,
-                          initializationTime
-                        )
-                      : `[${event.timestamp}]` /* Fallback to original */
-                  }
+                  {initializationTime
+                    ? formatTimeDifference(event.timestamp, initializationTime)
+                    : `[${event.timestamp}]`}
                 </span>
                 <span
                   title={event.source}
@@ -550,31 +520,27 @@ export const GameEventLog: React.FC = () => {
                 </span>
                 <span>
                   {event.eventName}
-                  {/* Add asterisk if data payload exists */}
                   {event.data !== undefined && event.data !== null && (
                     <span style={{ color: "#aaa", marginLeft: "3px" }}>*</span>
                   )}
                 </span>
-
-                {/* Hover Data Payload */}
                 {hoveredIndex === index &&
                   event.data !== undefined &&
                   event.data !== null && (
                     <div
                       style={{
                         position: "absolute",
-                        left: "10px", // Position relative to the li
-                        top: "100%", // Position below the li
-                        backgroundColor: "rgba(248, 248, 248, 0.95)", // Slightly transparent background
+                        left: "10px",
+                        top: "100%",
+                        backgroundColor: "rgba(248, 248, 248, 0.95)",
                         border: "1px solid #ccc",
                         borderRadius: "4px",
                         padding: "5px 8px",
                         marginTop: "2px",
-                        fontSize: "0.9em", // Keep consistent small font
-                        zIndex: 10, // Ensure it's above other list items
-                        maxWidth: "400px", // Prevent excessive width
+                        fontSize: "0.9em",
+                        zIndex: 10,
+                        maxWidth: "400px",
                         boxShadow: "2px 2px 5px rgba(0,0,0,0.1)",
-                        // Ensure preformatted text wraps correctly
                         whiteSpace: "pre-wrap",
                         wordBreak: "break-all",
                       }}
@@ -583,7 +549,7 @@ export const GameEventLog: React.FC = () => {
                         style={{
                           margin: 0,
                           padding: 0,
-                          color: "#333" /* Add dark color for readability */,
+                          color: "#333",
                         }}
                       >
                         {JSON.stringify(event.data, null, 2)}
@@ -612,13 +578,12 @@ const formatTimeDifference = (
   try {
     const eventTime = new Date(eventTimestampStr);
     const diffMs = eventTime.getTime() - initTime.getTime();
-    if (isNaN(diffMs) || diffMs < 0) return `[${eventTimestampStr}]`; // Fallback on parse error or negative diff
-
+    if (isNaN(diffMs) || diffMs < 0) return `[${eventTimestampStr}]`;
     const diffSeconds = diffMs / 1000;
     return `+${diffSeconds.toFixed(3)} s`;
   } catch (e) {
     console.error("Failed to parse event timestamp:", eventTimestampStr, e);
-    return `[${eventTimestampStr}]`; // Fallback
+    return `[${eventTimestampStr}]`;
   }
 };
 

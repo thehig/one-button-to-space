@@ -5,8 +5,8 @@ import React, {
   useEffect,
   PropsWithChildren,
 } from "react";
-import { CommunicationManager } from "../phaser/managers/CommunicationManager";
-import { EventLogEntry } from "../types/events";
+import { CommunicationManager } from "./CommunicationManager";
+import { EventLogEntry } from "./types";
 
 interface CommunicationContextType {
   events: EventLogEntry[];
@@ -30,7 +30,7 @@ export const CommunicationProvider: React.FC<PropsWithChildren> = ({
       // console.log("CommunicationContext: Received new-event", event);
       setEvents((prevEvents) =>
         [event, ...prevEvents].slice(0, commManager.maxLogSize || 100)
-      ); // Use maxLogSize from manager
+      ); // Use the public getter
     };
 
     const handleLogCleared = () => {

@@ -4,10 +4,9 @@ import Phaser from "phaser";
 // import InputManager from "../managers/InputManager";
 // ... etc.
 import LifecycleManager from "../managers/LifecycleManager";
-import { CommunicationManager } from "../managers/CommunicationManager";
+import { CommunicationManager } from "@one-button-to-space/logger-ui";
 
 export default class GameScene extends Phaser.Scene {
-  private eventEmitter: Phaser.Events.EventEmitter;
   private lifecycleManager!: LifecycleManager;
   // Remove individual manager properties
   // private physicsManager!: PhysicsManager;
@@ -15,68 +14,43 @@ export default class GameScene extends Phaser.Scene {
 
   constructor() {
     super("GameScene");
-    // Event emitter is still created here, as it's fundamental to the scene's communication
-    this.eventEmitter = new Phaser.Events.EventEmitter();
+  }
+
+  init() {
+    // Scene is starting
+    CommunicationManager.getInstance().logEvent("GameScene", "init");
+    const eventEmitter = new Phaser.Events.EventEmitter();
+    this.lifecycleManager = new LifecycleManager(this, eventEmitter);
   }
 
   preload() {
-    CommunicationManager.getInstance().logEvent(
-      "GameScene",
-      "preloadStart_Delegating"
-    );
-    // Instantiate LifecycleManager here or in create(). If it handles preload, instantiate before calling preload.
-    // Let's instantiate here to ensure it exists before preload call.
-    this.lifecycleManager = new LifecycleManager(this, this.eventEmitter);
+    CommunicationManager.getInstance().logEvent("GameScene", "preloadStart");
     this.lifecycleManager.preload();
-    // Remove direct manager preload calls
-    // this.audioManager = new AudioManager(this, this.eventEmitter);
-    // this.audioManager.preload();
-    CommunicationManager.getInstance().logEvent(
-      "GameScene",
-      "preloadComplete_Delegated"
-    );
+    CommunicationManager.getInstance().logEvent("GameScene", "preloadComplete");
   }
 
   create() {
-    CommunicationManager.getInstance().logEvent(
-      "GameScene",
-      "createStart_Delegating"
-    );
-    // LifecycleManager already instantiated in preload
-    // Remove all manager instantiation, init, and create calls
-
-    // Delegate the create call to LifecycleManager
+    CommunicationManager.getInstance().logEvent("GameScene", "createStart");
     this.lifecycleManager.create();
-
-    // Remove test event triggers - they are now in LifecycleManager
-    // setTimeout(() => { ... }, 2000);
-
-    CommunicationManager.getInstance().logEvent(
-      "GameScene",
-      "createComplete_Delegated"
-    );
+    CommunicationManager.getInstance().logEvent("GameScene", "createComplete");
   }
 
   update(time: number, delta: number) {
-    // Delegate update to LifecycleManager
+    // Don't log every frame, too noisy
+    // CommunicationManager.getInstance().logEvent('GameScene', 'update');
     this.lifecycleManager.update(time, delta);
-    // Remove direct manager update calls
   }
 
   shutdown() {
+    CommunicationManager.getInstance().logEvent("GameScene", "shutdownStart");
+    if (this.lifecycleManager) {
+      this.lifecycleManager.shutdown();
+    }
+    // Any other scene-specific cleanup
     CommunicationManager.getInstance().logEvent(
       "GameScene",
-      "shutdownStart_Delegating"
+      "shutdownComplete"
     );
-    // Delegate shutdown to LifecycleManager
-    this.lifecycleManager.shutdown();
-    // Remove direct manager shutdown calls
-    // Remove event emitter cleanup if LifecycleManager handles it
-    // this.eventEmitter.removeAllListeners();
-    // Cannot log after lifecycleManager.shutdown() if it destroys CommunicationManager
-    // CommunicationManager.getInstance().logEvent(
-    //   "GameScene",
-    //   "shutdownComplete_Delegated"
-    // );
+    super.shutdown(); // Call parent shutdown method
   }
 }
