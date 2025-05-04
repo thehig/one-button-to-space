@@ -525,13 +525,58 @@ export const GameEventLog: React.FC = () => {
           // {...attributes}
         >
           <h3 style={{ margin: 0, fontSize: "1em" }}>Game Event Log</h3>
-          <button
-            onClick={toggleCollapse}
-            style={{ padding: "2px 8px", cursor: "pointer" }}
-            title={isCollapsed ? "Expand" : "Collapse"}
-          >
-            {isCollapsed ? "➕" : "➖"} {/* Simple icons */}
-          </button>
+          {/* Group buttons on the right */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {/* Filter Panel Toggle Button */}
+            <button
+              onClick={() => setIsFilterCollapsed(!isFilterCollapsed)}
+              style={{
+                padding: "2px 5px",
+                cursor: "pointer",
+                border: "none",
+                background: "transparent",
+                fontSize: "1.2em",
+                color: "inherit", // Inherit color from parent
+                opacity: isFilterCollapsed ? 0.6 : 1, // Dim when collapsed
+              }}
+              title={isFilterCollapsed ? "Show Filters" : "Hide Filters"}
+            >
+              ☰
+            </button>
+
+            {/* Details Panel Toggle Button */}
+            <button
+              onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
+              style={{
+                padding: "2px 5px",
+                cursor: "pointer",
+                border: "none",
+                background: "transparent",
+                fontSize: "1.2em",
+                color: "inherit", // Inherit color from parent
+                opacity: isDetailsCollapsed ? 0.6 : 1, // Dim when collapsed
+              }}
+              title={isDetailsCollapsed ? "Show Details" : "Hide Details"}
+            >
+              ℹ️
+            </button>
+
+            {/* Main Collapse/Expand Button */}
+            <button
+              onClick={toggleCollapse}
+              style={{
+                padding: "2px 8px",
+                cursor: "pointer",
+                border: "none", // Make consistent with others
+                background: "transparent", // Make consistent
+                fontSize: "1.2em", // Match size
+                color: "inherit", // Inherit color
+              }}
+              title={isCollapsed ? "Expand Log" : "Collapse Log"}
+            >
+              {isCollapsed ? "➕" : "➖"} {/* Keep original icons */}
+            </button>
+          </div>
         </div>
 
         {/* Collapsible Content Area */}
@@ -541,34 +586,12 @@ export const GameEventLog: React.FC = () => {
               padding: "10px", // Apply padding only when expanded
               display: "flex",
               flexDirection: "row",
-              gap: "15px",
+              // REMOVE gap: "15px", handled by column margins/padding now
               flexGrow: 1,
               overflow: "hidden", // Keep hidden, inner columns will scroll
               height: "calc(100% - 40px)", // Fill remaining height after header (adjust 40px if header height changes)
             }}
           >
-            {/* Filter Collapse Toggle Button (Moved Outside Left Column) */}
-            <button
-              onClick={() => setIsFilterCollapsed(!isFilterCollapsed)}
-              style={{
-                padding: "2px 5px",
-                cursor: "pointer",
-                height: "fit-content", // Prevent stretching vertically
-                alignSelf: "center", // Center vertically in the gap
-                margin: "0 5px", // Add some horizontal space
-                transform: isFilterCollapsed
-                  ? "rotate(180deg)"
-                  : "rotate(0deg)",
-                transition: "transform 0.3s ease",
-                border: "none", // Optional: make it look less like a standard button
-                background: "transparent", // Optional
-                fontSize: "1.2em", // Make arrow slightly larger
-              }}
-              title={isFilterCollapsed ? "Expand Filters" : "Collapse Filters"}
-            >
-              {"<"}
-            </button>
-
             {/* Left Column: Filters & Controls */}
             <div
               style={{
@@ -713,28 +736,6 @@ export const GameEventLog: React.FC = () => {
                 )}
               </ul>
             </div>
-
-            {/* Details Collapse Toggle Button (New) */}
-            <button
-              onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
-              style={{
-                padding: "2px 5px",
-                cursor: "pointer",
-                height: "fit-content", // Prevent stretching vertically
-                alignSelf: "center", // Center vertically in the gap
-                margin: "0 5px", // Add some horizontal space
-                transform: isDetailsCollapsed
-                  ? "rotate(0deg)"
-                  : "rotate(180deg)", // Point right when collapsed, left when expanded
-                transition: "transform 0.3s ease",
-                border: "none",
-                background: "transparent",
-                fontSize: "1.2em",
-              }}
-              title={isDetailsCollapsed ? "Expand Details" : "Collapse Details"}
-            >
-              {"<"}
-            </button>
 
             {/* Right Column: Selected Event Details (Now Collapsible) */}
             <div
