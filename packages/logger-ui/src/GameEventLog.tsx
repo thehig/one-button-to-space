@@ -223,7 +223,12 @@ const TreeNode: React.FC<TreeNodeProps> = ({
   );
 
   return (
-    <div style={{ marginLeft: isParent ? "0px" : "20px" }}>
+    <div
+      style={{
+        marginLeft: isParent ? "0px" : "20px",
+        overflowX: "hidden",
+      }}
+    >
       {" "}
       {/* Indent children */}
       <label
@@ -232,7 +237,6 @@ const TreeNode: React.FC<TreeNodeProps> = ({
           alignItems: "center",
           cursor: "pointer",
           marginBottom: "3px",
-          whiteSpace: "nowrap",
           // Apply greyed-out style if node (or its children) have no active events
           color: isNodeActive ? "inherit" : "#999",
           opacity: isNodeActive ? 1 : 0.6,
@@ -666,6 +670,7 @@ export const GameEventLog: React.FC = () => {
                 flexShrink: 0, // Correct: Prevent shrinking below content width
                 flexGrow: isDetailsCollapsed ? 1 : 0, // CHANGE: Grow only if Details are collapsed
                 overflowY: "auto",
+                overflowX: "hidden", // Add this to hide horizontal scroll
                 position: "relative",
                 height: "100%", // Explicitly fill parent height
                 borderRight: "1px solid #eee", // Separator
@@ -701,34 +706,43 @@ export const GameEventLog: React.FC = () => {
                         : undefined
                     }
                   >
-                    <span style={{ color: "#888", marginRight: "5px" }}>
-                      {initializationTime
-                        ? formatTimeDifference(
-                            event.timestamp,
-                            initializationTime
-                          )
-                        : `[${event.timestamp}]`}
-                    </span>
-                    <span
-                      title={event.source}
+                    {/* Wrap content in a flex container */}
+                    <div
                       style={{
-                        marginRight: "5px",
-                        display: "inline-block",
-                        minWidth: "1.5em",
-                        textAlign: "center",
+                        display: "flex",
+                        alignItems: "center",
+                        // Remove gap if spans have margins, or adjust as needed
                       }}
                     >
-                      {getSymbol(event.source)}
-                    </span>
-                    <span>
-                      {event.eventName}
-                      {/* Restore asterisk indicator */}
-                      {event.data !== undefined && event.data !== null && (
-                        <span style={{ color: "#aaa", marginLeft: "3px" }}>
-                          *
-                        </span>
-                      )}
-                    </span>
+                      <span style={{ color: "#888", marginRight: "5px" }}>
+                        {initializationTime
+                          ? formatTimeDifference(
+                              event.timestamp,
+                              initializationTime
+                            )
+                          : `[${event.timestamp}]`}
+                      </span>
+                      <span
+                        title={event.source}
+                        style={{
+                          marginRight: "5px",
+                          display: "inline-block",
+                          minWidth: "1.5em",
+                          textAlign: "center",
+                        }}
+                      >
+                        {getSymbol(event.source)}
+                      </span>
+                      <span>
+                        {event.eventName}
+                        {/* Restore asterisk indicator */}
+                        {event.data !== undefined && event.data !== null && (
+                          <span style={{ color: "#aaa", marginLeft: "3px" }}>
+                            *
+                          </span>
+                        )}
+                      </span>
+                    </div>
                   </li>
                 ))}
                 {filteredEvents.length === 0 && (
