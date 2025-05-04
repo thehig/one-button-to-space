@@ -8,12 +8,7 @@ import React, {
 // Import react-rnd
 import { Rnd } from "react-rnd";
 // Import types from the main module
-import type { RndDragCallback, RndResizeCallback } from "react-rnd"; // Adjust based on actual exports
-// Remove necessary components and hooks from dnd-kit
-// import { DndContext, useDraggable, DragEndEvent } from "@dnd-kit/core";
-// import { CSS } from "@dnd-kit/utilities";
-// Remove EventLogEntry import if context provides it implicitly or type is handled by hook
-// import { EventLogEntry } from "./types";
+// Removed direct RndDragCallback, RndResizeCallback imports as hook handles callbacks
 // Restore context import
 import { useCommunicationContext } from "./CommunicationContext";
 // Import the JSON viewer component
@@ -22,52 +17,25 @@ import ReactJson from "react-json-view";
 import "./GameEventLog.css";
 // Import configuration
 import {
-  sourceSymbols,
+  sourceSymbols, // Keep this for preamble
   sourceTreeData,
   getSymbol,
   getAllSourceIds,
-  SourceTreeNode, // Import the interface too
+  SourceTreeNode,
 } from "./GameEventLogConfig"; // Adjust path if needed
 // Import the TreeNode component
 import { TreeNode } from "./TreeNode";
 // Import helper functions
 import { formatTimeDifference } from "./utils";
-
-// TODO: Define an interface for the event log entry
-// Remove the duplicate inline interface definition
-/*
-interface EventLogEntry {
-  timestamp: string;
-  source: string;
-  eventName: string;
-  data?: unknown;
-}
-*/
-
-// --- Configuration --- REMOVED ---
-
-// 1. Source-Emoji/Symbol Mapping REMOVED
-// 2. Hierarchical Source Filter Definition REMOVED
-// Function to get all source IDs REMOVED
-
-// --- TreeNode Component for Hierarchical Filter --- MOVED TO TreeNode.tsx ---
-/*
-interface TreeNodeProps {
-  node: SourceTreeNode;
-  allowedSources: Set<string>;
-  onToggle: (node: SourceTreeNode, isChecked: boolean) => void;
-  activeSourcesInLog: Set<string>; // Sources currently present in the unfiltered log
-  eventsCountBySource: Record<string, number>; // New prop: Counts per source in filtered log
-}
-
-const TreeNode: React.FC<TreeNodeProps> = ({ ... }) => { ... };
-*/
+// Import the custom hooks
+import { useEventFiltering } from "./hooks/useEventFiltering";
+import { useComponentLayout } from "./hooks/useComponentLayout";
+import { EventLogEntry } from "./types"; // Assuming types are defined here or adjust path
 
 // --- Main GameEventLog Component ---
 
 // Define props interface
 interface GameEventLogProps {
-  // initialCollapsed?: boolean; // Optional prop - REMOVED
   startsOpen?: boolean; // New prop: Controls initial open state
   initialX?: number; // New prop: Initial X coordinate
   initialY?: number; // New prop: Initial Y coordinate
@@ -75,55 +43,59 @@ interface GameEventLogProps {
 }
 
 export const GameEventLog: React.FC<GameEventLogProps> = ({
-  // initialCollapsed = true, // Default to true (closed) - REMOVED
-  startsOpen = false, // Default to false (closed)
-  initialX = 20, // Default X position
-  initialY = 20, // Default Y position
-  collapsedOpacity = 0.7, // Default opacity when collapsed
+  startsOpen = false,
+  initialX = 20,
+  initialY = 20,
+  collapsedOpacity = 0.7,
 }): React.ReactElement => {
   const { events, clearLog } = useCommunicationContext();
 
-  // --- Draggable State ---
-  const [position, setPosition] = useState({ x: initialX, y: initialY }); // Use initialX, initialY
-  // --- Size State --- Initialize based on startsOpen
-  const [size, setSize] = useState({
-    width: 550,
-    height: !startsOpen ? 50 : 400, // Set initial height based on startsOpen
+  // --- Filtering State & Logic Hook ---
+  const {
+    filterName,
+    setFilterName,
+    allowedSources,
+    handleSourceTreeToggle,
+    filteredEvents,
+    eventsCountBySource,
+  } = useEventFiltering(events);
+
+  // --- Layout & Visibility State Hook ---
+  const {
+    position,
+    size,
+    isCollapsed,
+    isFilterCollapsed,
+    isDetailsCollapsed,
+    toggleCollapse,
+    toggleFilterCollapse,
+    toggleDetailsCollapse,
+    handleDragStop,
+    handleResizeStop,
+  } = useComponentLayout({
+    initialX,
+    initialY,
+    startsOpen,
+    // Pass other initial layout props if needed (e.g., initialWidth, initialHeight)
   });
 
-  // State for collapse - Use prop for initial state
-  const [isCollapsed, setIsCollapsed] = useState(!startsOpen); // Initialize based on startsOpen
-  // State to remember the width before collapsing
-  const [lastExpandedWidth, setLastExpandedWidth] = useState(size.width);
-
-  // State for filter column collapse - START COLLAPSED
-  const [isFilterCollapsed, setIsFilterCollapsed] = useState(true);
-
-  // State for details column collapse - START COLLAPSED
-  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(true);
-
-  // Keep other state (filters, hover, etc.)
-  const [filterName, setFilterName] = useState("");
-  const [allowedSources, setAllowedSources] = useState<Set<string>>(
-    new Set(getAllSourceIds(sourceTreeData))
-  );
+  // --- Other State --- (Selection state remains here for now)
   const [selectedEventIndex, setSelectedEventIndex] = useState<number | null>(
     null
   );
 
-  // Ref for the draggable element - Not directly needed by useDraggable in the same way,
-  // but can still be useful for other DOM manipulations if required.
-  // const nodeRef = useRef(null);
-  // const { attributes, listeners, setNodeRef, transform } = useDraggable({
-  //   id: draggableId,
-  // });
-
-  // Keep memos, they now depend on `events` from context
+  // --- Memoized Calculations ---
   const initializationTime = useMemo(() => {
     if (events.length === 0) {
       return null;
     }
-    const firstEventTimestamp = events[events.length - 1].timestamp;
+    const sortedEvents = [...events].sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+    const firstEventTimestamp = sortedEvents[0]?.timestamp;
+    if (!firstEventTimestamp) return null;
+
     try {
       return new Date(firstEventTimestamp);
     } catch (e) {
@@ -140,90 +112,16 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     return new Set(events.map((event) => event.source));
   }, [events]);
 
-  // Keep handleSourceTreeToggle callback
-  const handleSourceTreeToggle = useCallback(
-    (node: SourceTreeNode, isChecked: boolean) => {
-      setAllowedSources((prevAllowed) => {
-        const newAllowed = new Set(prevAllowed);
-        const idsToUpdate = getAllSourceIds([node]);
+  // --- Callbacks --- (Moved layout/collapse toggles to hook)
 
-        idsToUpdate.forEach((id) => {
-          if (sourceSymbols[id]) {
-            if (isChecked) {
-              newAllowed.add(id);
-            } else {
-              newAllowed.delete(id);
-            }
-          }
-        });
-
-        if (node.children && node.children.length > 0) {
-          const childSourceIds = getAllSourceIds(node.children);
-          childSourceIds.forEach((childId) => {
-            if (sourceSymbols[childId]) {
-              if (isChecked) {
-                newAllowed.add(childId);
-              } else {
-                newAllowed.delete(childId);
-              }
-            }
-          });
-        }
-
-        return newAllowed;
-      });
-    },
-    []
-  );
-
-  // Keep filteredEvents memo (depends on `events` from context and local filter state)
-  const filteredEvents = useMemo(() => {
-    return events.filter(
-      (event) =>
-        allowedSources.has(event.source) &&
-        (!filterName ||
-          event.eventName.toLowerCase().includes(filterName.toLowerCase()))
-    );
-  }, [events, allowedSources, filterName]);
-
-  // Keep eventsCountBySource memo (depends on filteredEvents)
-  const eventsCountBySource = useMemo(() => {
-    const counts: Record<string, number> = {};
-    filteredEvents.forEach((event) => {
-      counts[event.source] = (counts[event.source] || 0) + 1;
-    });
-    return counts;
-  }, [filteredEvents]);
-
-  // Restore handleClearLog to use clearLog from context
+  // Clear Log callback remains
   const handleClearLog = () => {
-    clearLog(); // Use context function
+    clearLog();
     setSelectedEventIndex(null);
     console.log("Clear log clicked");
   };
 
-  // Toggle collapse state
-  const toggleCollapse = () => {
-    const newCollapsedState = !isCollapsed;
-
-    if (newCollapsedState) {
-      // Store current width before collapsing
-      setLastExpandedWidth(size.width);
-    }
-
-    // Set new size based on collapse state
-    setSize((prevSize) => ({
-      width: newCollapsedState ? 200 : lastExpandedWidth, // Collapse to 200px, expand to remembered width
-      height: newCollapsedState
-        ? 50
-        : prevSize.height < 200
-        ? 400
-        : prevSize.height, // Set to minHeight or restore previous/default height
-    }));
-    setIsCollapsed(newCollapsedState);
-  };
-
-  // ** NEW: Function to handle copying filtered log to clipboard **
+  // Copy to Clipboard callback remains (depends on filteredEvents & initTime)
   const handleCopyToClipboard = useCallback(() => {
     if (!initializationTime) {
       console.warn(
@@ -232,13 +130,11 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       return;
     }
 
-    // ** NEW: Generate Preamble **
     const preambleLines = Object.entries(sourceSymbols).map(
       ([source, symbol]) => `${symbol}: ${source}`
     );
     const preamble = `Emoji Legend:\n${preambleLines.join("\n")}\n---\n\n`;
 
-    // Generate Log Lines
     const logLines = filteredEvents
       .map((event) => {
         const timestamp = formatTimeDifference(
@@ -247,191 +143,90 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
         );
         const symbol = getSymbol(event.source);
         const eventName = event.eventName;
-
-        // Start building the string
         let line = `${timestamp} ${symbol} ${eventName}`;
-
-        // Conditionally add data string if data exists
         if (event.data !== undefined && event.data !== null) {
-          const dataString = JSON.stringify(event.data); // Stringify only if it exists
+          const dataString = JSON.stringify(event.data);
           line += ` ${dataString}`;
         }
-
         return line;
       })
       .join("\n");
 
-    // ** Combine Preamble and Log Lines **
     const textToCopy = preamble + logLines;
 
     navigator.clipboard
       .writeText(textToCopy)
       .then(() => {
         console.log("Filtered log copied to clipboard!");
-        // Optional: Add visual feedback here (e.g., temporarily change button icon/text)
       })
       .catch((err) => {
         console.error("Failed to copy log to clipboard:", err);
       });
   }, [filteredEvents, initializationTime]);
 
-  // Transform style for dnd-kit
-  // const style = transform
-  //   ? {
-  //       transform: CSS.Translate.toString(transform),
-  //     }
-  //   : undefined;
-
-  // Keep the rest of the component rendering logic (JSX)
-  // Wrap the draggable element with DndContext
+  // --- JSX Rendering ---
   return (
     <Rnd
-      size={{ width: size.width, height: size.height }}
-      position={{ x: position.x, y: position.y }}
+      size={size} // Use size from hook
+      position={position} // Use position from hook
       className="log-container"
       style={{
-        opacity: isCollapsed ? collapsedOpacity : 1, // Keep dynamic opacity
+        opacity: isCollapsed ? collapsedOpacity : 1, // Use isCollapsed from hook
       }}
-      dragHandleClassName="drag-handle" // Specify the class for the drag handle
-      minWidth={250} // Set a reasonable minimum width
-      minHeight={isCollapsed ? 50 : 200} // Adjust min height based on collapse state
-      enableResizing={!isCollapsed} // Disable resizing when collapsed
-      onDragStop={(e, d) => {
-        setPosition({ x: d.x, y: d.y });
-      }}
-      // Update size state on resize stop
-      onResizeStop={(e, direction, ref, delta, position) => {
-        setSize({
-          width: parseInt(ref.style.width, 10),
-          height: parseInt(ref.style.height, 10),
-        });
-        // Also update the remembered expanded width if resizing while expanded
-        if (!isCollapsed) {
-          setLastExpandedWidth(parseInt(ref.style.width, 10));
-        }
-        // Also update position if resize moves the element
-        setPosition(position);
-      }}
-      bounds="window" // Keep within viewport
+      dragHandleClassName="drag-handle"
+      minWidth={250}
+      minHeight={isCollapsed ? 50 : 200} // Use isCollapsed from hook
+      enableResizing={!isCollapsed} // Use isCollapsed from hook
+      onDragStop={handleDragStop} // Use handler from hook
+      onResizeStop={handleResizeStop} // Use handler from hook
+      bounds="window"
     >
-      {/* Remove Draggable wrapper */}
-      {/* <Draggable handle=".drag-handle" nodeRef={nodeRef}> */}
-      {/* Use a class for the handle */}
       <div
-        // ref={setNodeRef} // Remove dnd-kit ref
-        // Apply CSS classes for the main content wrapper
         className={`log-content-wrapper ${
-          isCollapsed
+          isCollapsed // Use isCollapsed from hook
             ? "log-content-wrapper--collapsed"
             : "log-content-wrapper--expanded"
         }`}
-        // Spread the listeners onto the element itself if the whole div is draggable
-        // {...listeners}
-        // {...attributes}
       >
-        {/* Header for Title, Collapse Button, and Drag Handle */}
-        <div
-          // Combine drag-handle with log-header class
-          className="log-header drag-handle"
-          // Remove inline styles handled by log-header class
-          // style={{
-          //   display: "flex",
-          //   justifyContent: "space-between", // Keep space-between for overall layout
-          //   alignItems: "center",
-          //   padding: "5px 10px",
-          //   backgroundColor: "#242424",
-          //   borderBottom: "1px solid #242424",
-          //   cursor: "grab", // Change cursor to indicate draggable area
-          //   borderTopLeftRadius: "5px",
-          //   borderTopRightRadius: "5px",
-          //   touchAction: "none", // Recommended for better mobile dragging
-          // }}
-          // Spread listeners/attributes onto the handle div if only header should drag
-          // {...listeners}
-          // {...attributes}
-        >
-          {/* Left side: Collapse button and Title */}
-          {/* Apply log-header-left class */}
+        {/* Header */}
+        <div className="log-header drag-handle">
           <div className="log-header-left">
-            {/* Moved Collapse/Expand Button Here */}
-            {/* Apply log-button and modifier */}
             <button
-              onClick={toggleCollapse}
-              // style={{
-              //   padding: "2px 8px",
-              //   cursor: "pointer",
-              //   border: "none", // Make consistent with others
-              //   background: "transparent", // Make consistent
-              //   fontSize: "1.2em", // Match size
-              //   color: "inherit", // Inherit color
-              // }}
+              onClick={toggleCollapse} // Use handler from hook
               className="log-button log-button--collapse-toggle"
-              title={isCollapsed ? "Expand Log" : "Collapse Log"}
+              title={isCollapsed ? "Expand Log" : "Collapse Log"} // Use isCollapsed from hook
             >
-              {isCollapsed ? "➕" : "➖"} {/* Keep original icons */}
+              {isCollapsed ? "➕" : "➖"} {/* Use isCollapsed from hook */}
             </button>
-            {/* Apply log-header-title class */}
             <h3 className="log-header-title">Game Event Log</h3>
           </div>
 
-          {/* Right side: Other buttons */}
-          {/* Apply log-header-right class */}
           <div className="log-header-right">
-            {/* Conditionally render extra buttons */}
-            {!isCollapsed && (
+            {!isCollapsed && ( // Use isCollapsed from hook
               <>
-                {/* Filter Panel Toggle Button */}
-                {/* Apply log-button class, keep dynamic opacity */}
+                {/* Filter Panel Toggle */}
                 <button
-                  onClick={() => setIsFilterCollapsed(!isFilterCollapsed)}
-                  // style={{
-                  //   padding: "2px 5px",
-                  //   cursor: "pointer",
-                  //   border: "none",
-                  //   background: "transparent",
-                  //   fontSize: "1.2em",
-                  //   color: "inherit", // Inherit color from parent
-                  //   opacity: isFilterCollapsed ? 0.6 : 1, // Dim when collapsed
-                  // }}
+                  onClick={toggleFilterCollapse} // Use handler from hook
                   className="log-button"
-                  style={{ opacity: isFilterCollapsed ? 0.6 : 1 }} // Keep dynamic opacity
-                  title={isFilterCollapsed ? "Show Filters" : "Hide Filters"}
+                  style={{ opacity: isFilterCollapsed ? 0.6 : 1 }} // Use isFilterCollapsed from hook
+                  title={isFilterCollapsed ? "Show Filters" : "Hide Filters"} // Use isFilterCollapsed from hook
                 >
                   ☰
                 </button>
 
-                {/* Details Panel Toggle Button */}
-                {/* Apply log-button class, keep dynamic opacity */}
+                {/* Details Panel Toggle */}
                 <button
-                  onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
-                  // style={{
-                  //   padding: "2px 5px",
-                  //   cursor: "pointer",
-                  //   border: "none",
-                  //   background: "transparent",
-                  //   fontSize: "1.2em",
-                  //   color: "inherit", // Inherit color from parent
-                  //   opacity: isDetailsCollapsed ? 0.6 : 1, // Dim when collapsed
-                  // }}
+                  onClick={toggleDetailsCollapse} // Use handler from hook
                   className="log-button"
-                  style={{ opacity: isDetailsCollapsed ? 0.6 : 1 }} // Keep dynamic opacity
-                  title={isDetailsCollapsed ? "Show Details" : "Hide Details"}
+                  style={{ opacity: isDetailsCollapsed ? 0.6 : 1 }} // Use isDetailsCollapsed from hook
+                  title={isDetailsCollapsed ? "Show Details" : "Hide Details"} // Use isDetailsCollapsed from hook
                 >
                   ℹ️
                 </button>
 
-                {/* ** NEW: Copy to Clipboard Button ** */}
-                {/* Apply log-button class */}
+                {/* Copy Button */}
                 <button
                   onClick={handleCopyToClipboard}
-                  // style={{
-                  //   padding: "2px 5px",
-                  //   cursor: "pointer",
-                  //   border: "none",
-                  //   background: "transparent",
-                  //   fontSize: "1.2em",
-                  //   color: "inherit",
-                  // }}
                   className="log-button"
                   title="Copy filtered log to clipboard"
                 >
@@ -443,64 +238,29 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
         </div>
 
         {/* Collapsible Content Area */}
-        {!isCollapsed && (
-          // Apply log-main-content class, keep dynamic height
+        {!isCollapsed && ( // Use isCollapsed from hook
           <div
-            // style={{
-            //   padding: "10px", // Apply padding only when expanded
-            //   display: "flex",
-            //   flexDirection: "row",
-            //   // REMOVE gap: "15px", handled by column margins/padding now
-            //   flexGrow: 1,
-            //   overflow: "hidden", // Keep hidden, inner columns will scroll
-            //   height: "calc(100% - 40px)", // Fill remaining height after header (adjust 40px if header height changes)
-            // }}
             className="log-main-content"
-            style={{ height: `calc(100% - 37px)` }} // Keep dynamic height, adjust value if header height changed (seems it's 37px in CSS)
+            style={{ height: `calc(100% - 37px)` }}
           >
-            {/* Left Column: Filters & Controls */}
-            {/* Apply column classes and conditional collapsed class */}
+            {/* Filter Column */}
             <div
-              // style={{
-              //   display: "flex",
-              //   flexDirection: "column",
-              //   gap: "15px",
-              //   flexShrink: 0, // Correct: Don't shrink
-              //   flexGrow: 0, // Correct: Don't grow
-              //   flexBasis: isFilterCollapsed ? "0px" : "auto", // Correct: Width based on content when expanded
-              //   // minWidth removed, flex-basis:auto handles content width
-              //   paddingRight: isFilterCollapsed ? "0px" : "10px",
-              //   borderRight: isFilterCollapsed ? "none" : "1px solid #eee",
-              //   overflowY: "auto",
-              //   overflowX: "hidden", // Keep hidden as requested
-              //   transition:
-              //     "width 0.3s ease, padding 0.3s ease, min-width 0.3s ease, flex-basis 0.3s ease", // Correct transition value
-              // }}
               className={`log-column log-column--filter ${
                 isFilterCollapsed ? "log-column--filter-collapsed" : ""
               }`}
             >
-              {/* Conditionally Render Filter Content */}
-              {!isFilterCollapsed && (
+              {!isFilterCollapsed && ( // Use isFilterCollapsed from hook
                 <>
-                  {/* Apply log-filter-input class */}
                   <input
                     type="text"
                     placeholder="Filter by event name..."
                     value={filterName}
                     onChange={(e) => setFilterName(e.target.value)}
-                    // style={{ padding: "5px" }}
                     className="log-filter-input"
                   />
-                  {/* Apply log-filter-tree class */}
-                  <div
-                    // style={{
-                    //   flexGrow: 1,
-                    //   overflowY: "auto",
-                    // }}
-                    className="log-filter-tree"
-                  >
-                    {sourceTreeData.map((node) => (
+                  <div className="log-filter-tree">
+                    {/* FIX: Add type annotation for map parameter */}
+                    {sourceTreeData.map((node: SourceTreeNode) => (
                       <TreeNode
                         key={node.id}
                         node={node}
@@ -511,13 +271,8 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                       />
                     ))}
                   </div>
-                  {/* Apply log-button and log-button--clear classes */}
                   <button
                     onClick={handleClearLog}
-                    // style={{
-                    //   padding: "5px 10px",
-                    //   marginTop: "auto",
-                    // }}
                     className="log-button log-button--clear"
                   >
                     Clear Log
@@ -526,60 +281,17 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
               )}
             </div>
 
-            {/* Center Column: Event List Area (Renamed from Right) */}
-            {/* Apply list column classes, keep dynamic flexGrow */}
+            {/* Event List Column */}
             <div
-              // style={{
-              //   flexBasis: "auto", // Correct: Base size on content
-              //   flexShrink: 0, // Correct: Prevent shrinking below content width
-              //   flexGrow: isDetailsCollapsed ? 1 : 0, // CHANGE: Grow only if Details are collapsed
-              //   overflowY: "auto",
-              //   overflowX: "hidden", // Add this to hide horizontal scroll
-              //   position: "relative",
-              //   height: "100%", // Explicitly fill parent height
-              //   borderRight: "1px solid #eee", // Separator
-              // }}
               className={`log-column log-column--list ${
                 isDetailsCollapsed ? "log-column--list-no-details" : ""
               }`}
-              style={{ flexGrow: isDetailsCollapsed ? 1 : 0 }} // Keep dynamic flexGrow
+              style={{ flexGrow: isDetailsCollapsed ? 1 : 0 }} // Use isDetailsCollapsed from hook
             >
-              {/* Apply log-event-list class */}
-              <ul
-                // style={{
-                //   listStyle: "none",
-                //   padding: "0 5px", // Adjust padding
-                //   margin: 0,
-                // }}
-                className="log-event-list"
-              >
+              <ul className="log-event-list">
                 {filteredEvents.map((event, index) => (
-                  // Apply log-event-item class and conditional modifiers
                   <li
                     key={`${event.timestamp}-${event.source}-${event.eventName}-${index}`}
-                    // style={{
-                    //   marginBottom: "3px",
-                    //   fontSize: "0.9em",
-                    //   borderBottom: "1px dotted #eee",
-                    //   paddingBottom: "2px",
-                    //   position: "relative",
-                    //   cursor:
-                    //     event.data !== undefined && event.data !== null
-                    //       ? "pointer"
-                    //       : "default",
-                    //   backgroundColor:
-                    //     index === selectedEventIndex
-                    //       ? "#5f5f5f" // Lighter background
-                    //       : "transparent",
-                    //   borderLeft:
-                    //     index === selectedEventIndex
-                    //       ? "3px solid #888" // Add a left border
-                    //       : "none",
-                    //   paddingLeft:
-                    //     index === selectedEventIndex
-                    //       ? "2px" // Adjust padding to account for border
-                    //       : "5px", // Original padding
-                    // }}
                     className={`log-event-item ${
                       index === selectedEventIndex
                         ? "log-event-item--selected"
@@ -598,21 +310,9 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                         : undefined
                     }
                   >
-                    {/* Wrap content in a flex container */}
-                    {/* Apply log-event-item-content class */}
-                    <div
-                      // style={{
-                      //   display: "flex",
-                      //   alignItems: "center",
-                      //   // Remove gap if spans have margins, or adjust as needed
-                      // }}
-                      className="log-event-item-content"
-                    >
-                      {/* Apply log-event-timestamp class */}
-                      <span
-                        // style={{ color: "#888", marginRight: "5px" }}
-                        className="log-event-timestamp"
-                      >
+                    {/* ... (event item content remains the same) ... */}
+                    <div className="log-event-item-content">
+                      <span className="log-event-timestamp">
                         {initializationTime
                           ? formatTimeDifference(
                               event.timestamp,
@@ -620,62 +320,29 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                             )
                           : `[${event.timestamp}]`}
                       </span>
-                      {/* Apply log-event-symbol class */}
-                      <span
-                        title={event.source}
-                        // style={{
-                        //   marginRight: "5px",
-                        //   display: "inline-block",
-                        //   minWidth: "1.5em",
-                        //   textAlign: "center",
-                        // }}
-                        className="log-event-symbol"
-                      >
+                      <span title={event.source} className="log-event-symbol">
                         {getSymbol(event.source)}
                       </span>
-                      {/* Apply log-event-name class */}
                       <span className="log-event-name">
                         {event.eventName}
-                        {/* Restore asterisk indicator */}
                         {event.data !== undefined && event.data !== null && (
-                          // Apply log-event-data-indicator class
-                          <span
-                            // style={{ color: "#aaa", marginLeft: "3px" }}
-                            className="log-event-data-indicator"
-                          >
-                            *
-                          </span>
+                          <span className="log-event-data-indicator">*</span>
                         )}
                       </span>
-                      {/* Conditionally render inline JSON preview HERE */}
-                      {isDetailsCollapsed &&
+                      {isDetailsCollapsed && // Use isDetailsCollapsed from hook
                         event.data !== undefined &&
                         event.data !== null && (
-                          // Apply log-event-inline-preview class
-                          <span // Use span for better inline flow
-                            // style={{
-                            //   fontSize: "0.8em",
-                            //   color: "#aaa",
-                            //   marginLeft: "8px", // Space after event name
-                            //   overflowX: "hidden",
-                            //   whiteSpace: "nowrap",
-                            //   textOverflow: "ellipsis",
-                            //   // maxWidth: '50%', // Limit width to avoid pushing too much
-                            //   display: "inline-block", // Needed for ellipsis/width
-                            //   verticalAlign: "baseline", // Align with event name text
-                            // }}
+                          <span
                             className="log-event-inline-preview"
-                            title={JSON.stringify(event.data)} // Show full data on hover
+                            title={JSON.stringify(event.data)}
                           >
                             {JSON.stringify(event.data, null, 0)}{" "}
-                            {/* Compact JSON */}
                           </span>
                         )}
                     </div>
                   </li>
                 ))}
                 {filteredEvents.length === 0 && (
-                  // Apply a similar item class, maybe adjust styling in CSS if needed
                   <li className="log-event-item log-event-item--no-data">
                     No events match filters.
                   </li>
@@ -683,65 +350,39 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
               </ul>
             </div>
 
-            {/* Right Column: Selected Event Details (Now Collapsible) */}
-            {/* Apply details column classes, keep dynamic flex styles */}
+            {/* Details Column */}
             <div
-              // style={{
-              //   flexGrow: isDetailsCollapsed ? 0 : 1, // Correct: Grow when expanded
-              //   flexBasis: isDetailsCollapsed ? "0px" : "0%", // Correct: Start at 0% basis when expanded
-              //   flexShrink: 1, // Correct: Allow shrinking
-              //   minWidth: isDetailsCollapsed ? "0px" : "0px", // CHANGE: Remove minWidth when expanded, rely on flexbox
-              //   overflowY: "auto",
-              //   overflowX: "hidden", // Explicitly hide horizontal overflow
-              //   height: "100%",
-              //   paddingLeft: isDetailsCollapsed ? "0px" : "10px", // Collapse padding
-              //   fontSize: "0.85em",
-              //   backgroundColor: "#2e2e2e", // Slightly different background for details
-              //   transition:
-              //     "width 0.3s ease, padding 0.3s ease, min-width 0.3s ease, flex-basis 0.3s ease", // Smooth transition
-              // }}
               className={`log-column log-column--details ${
                 isDetailsCollapsed ? "log-column--details-collapsed" : ""
               }`}
               style={{
-                flexGrow: isDetailsCollapsed ? 0 : 1,
-                flexBasis: isDetailsCollapsed ? "0px" : "auto", // Adjust basis
+                flexGrow: isDetailsCollapsed ? 0 : 1, // Use isDetailsCollapsed from hook
+                flexBasis: isDetailsCollapsed ? "0px" : "auto", // Use isDetailsCollapsed from hook
               }}
             >
-              {/* Conditionally render content only when not collapsed to avoid layout shifts */}
-              {!isDetailsCollapsed && (
+              {!isDetailsCollapsed && ( // Use isDetailsCollapsed from hook
                 <>
                   {selectedEventIndex !== null &&
                   filteredEvents[selectedEventIndex]?.data !== undefined &&
                   filteredEvents[selectedEventIndex]?.data !== null ? (
-                    // Wrap ReactJson to enforce alignment
                     <div style={{ textAlign: "left" }}>
-                      {/* Replace pre with ReactJson */}
                       <ReactJson
-                        src={filteredEvents[selectedEventIndex].data as object} // Cast data as object
-                        theme="ocean" // Dark theme
-                        collapsed={false} // Start expanded
+                        src={filteredEvents[selectedEventIndex].data as object}
+                        theme="ocean"
+                        collapsed={false}
                         enableClipboard={true}
                         displayDataTypes={true}
                         displayObjectSize={true}
-                        name={false} // Hide root name
+                        name={false}
                         style={{
                           padding: "5px",
-                          backgroundColor: "transparent", // Use parent background
-                          fontSize: "1em", // Adjust font size if needed
+                          backgroundColor: "transparent",
+                          fontSize: "1em",
                         }}
                       />
                     </div>
                   ) : (
-                    // Apply log-details-placeholder class
-                    <div
-                      // style={{
-                      //   color: "#888",
-                      //   padding: "5px",
-                      //   fontStyle: "italic",
-                      // }}
-                      className="log-details-placeholder"
-                    >
+                    <div className="log-details-placeholder">
                       {selectedEventIndex !== null
                         ? "No data for this event."
                         : "Click an event to view details."}
@@ -753,7 +394,6 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
           </div>
         )}
       </div>
-      {/* </Draggable> */}
     </Rnd>
   );
 };
