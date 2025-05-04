@@ -88,7 +88,6 @@
 
 .log-button--clear {
   padding: 5px 10px;
-  margin-top: auto; /* Keeps it at bottom */
   font-size: 0.9em; /* Reset size if needed */
   background-color: #555;
   color: white;
@@ -141,6 +140,7 @@
   /* flex-grow handled dynamically via inline style */
   flex-shrink: 0;
   position: relative; /* Keep for list item positioning? */
+  overflow: hidden;
 }
 .log-column--list-no-details {
   border-right: none; /* Remove border if details are collapsed */
@@ -168,7 +168,9 @@
   border: 1px solid #555;
   color: #eee;
   border-radius: 3px;
-  width: 100%; /* Take full column width */
+  /* Let the input flex to take available space */
+  flex-grow: 1;
+  /* width: 100%; <-- Remove fixed width */
   box-sizing: border-box; /* Include padding in width */
 }
 
@@ -390,4 +392,11 @@
   pointer-events: none;
   opacity: 0.6;
   user-select: none;
+}
+
+/* Adjust the container for the filter input and clear button */
+.filter-name-input {
+  display: flex;
+  align-items: center;
+  gap: 5px; /* Add some space between input and button */
 }

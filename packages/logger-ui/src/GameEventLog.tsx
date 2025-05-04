@@ -419,6 +419,13 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                       onChange={(e) => setFilterName(e.target.value)}
                       className="log-filter-input"
                     />
+                    <button
+                      onClick={handleClearLog}
+                      className="log-button log-button--clear"
+                      title="Clear all log entries"
+                    >
+                      Clear Log
+                    </button>
                   </div>
                   <div className="filter-source-list">
                     {config.getSourceTree().map((topLevelNode) => (
@@ -433,12 +440,6 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                       />
                     ))}
                   </div>
-                  <button
-                    onClick={handleClearLog}
-                    className="log-button log-button--clear"
-                  >
-                    Clear Log
-                  </button>
                 </>
               )}
             </div>
