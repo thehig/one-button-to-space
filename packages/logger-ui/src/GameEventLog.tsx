@@ -304,24 +304,35 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 };
 
 // --- Main GameEventLog Component ---
-export const GameEventLog: React.FC = () => {
+
+// Define props interface
+interface GameEventLogProps {
+  initialCollapsed?: boolean; // Optional prop
+}
+
+export const GameEventLog: React.FC<GameEventLogProps> = ({
+  initialCollapsed = true, // Default to true (closed)
+}) => {
   const { events, clearLog } = useCommunicationContext();
 
   // --- Draggable State ---
   const [position, setPosition] = useState({ x: 20, y: 20 });
-  // --- Size State ---
-  const [size, setSize] = useState({ width: 550, height: 400 }); // Initial size
+  // --- Size State --- Initialize based on initialCollapsed
+  const [size, setSize] = useState({
+    width: 550,
+    height: initialCollapsed ? 50 : 400, // Set initial height based on prop
+  });
 
-  // State for collapse
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // State for collapse - Use prop for initial state
+  const [isCollapsed, setIsCollapsed] = useState(initialCollapsed);
   // State to remember the width before collapsing
   const [lastExpandedWidth, setLastExpandedWidth] = useState(size.width);
 
-  // State for filter column collapse
-  const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
+  // State for filter column collapse - START COLLAPSED
+  const [isFilterCollapsed, setIsFilterCollapsed] = useState(true);
 
-  // State for details column collapse
-  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(false);
+  // State for details column collapse - START COLLAPSED
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(true);
 
   // Keep other state (filters, hover, etc.)
   const [filterName, setFilterName] = useState("");
@@ -444,6 +455,58 @@ export const GameEventLog: React.FC = () => {
     setIsCollapsed(newCollapsedState);
   };
 
+  // ** NEW: Function to handle copying filtered log to clipboard **
+  const handleCopyToClipboard = useCallback(() => {
+    if (!initializationTime) {
+      console.warn(
+        "Initialization time not set, cannot format timestamps accurately."
+      );
+      return;
+    }
+
+    // ** NEW: Generate Preamble **
+    const preambleLines = Object.entries(sourceSymbols).map(
+      ([source, symbol]) => `${symbol}: ${source}`
+    );
+    const preamble = `Emoji Legend:\n${preambleLines.join("\n")}\n---\n\n`;
+
+    // Generate Log Lines
+    const logLines = filteredEvents
+      .map((event) => {
+        const timestamp = formatTimeDifference(
+          event.timestamp,
+          initializationTime
+        );
+        const symbol = getSymbol(event.source);
+        const eventName = event.eventName;
+
+        // Start building the string
+        let line = `${timestamp} ${symbol} ${eventName}`;
+
+        // Conditionally add data string if data exists
+        if (event.data !== undefined && event.data !== null) {
+          const dataString = JSON.stringify(event.data); // Stringify only if it exists
+          line += ` ${dataString}`;
+        }
+
+        return line;
+      })
+      .join("\n");
+
+    // ** Combine Preamble and Log Lines **
+    const textToCopy = preamble + logLines;
+
+    navigator.clipboard
+      .writeText(textToCopy)
+      .then(() => {
+        console.log("Filtered log copied to clipboard!");
+        // Optional: Add visual feedback here (e.g., temporarily change button icon/text)
+      })
+      .catch((err) => {
+        console.error("Failed to copy log to clipboard:", err);
+      });
+  }, [filteredEvents, initializationTime]);
+
   // Transform style for dnd-kit
   // const style = transform
   //   ? {
@@ -496,8 +559,9 @@ export const GameEventLog: React.FC = () => {
         style={{
           // Basic positioning styles (can be enhanced)
           // Remove positioning/border/bg/shadow styles managed by Rnd wrapper
-          width: isCollapsed ? "auto" : "100%", // Let Rnd control width, take 100% internally
-          height: isCollapsed ? "auto" : "100%", // Adjust height based on collapse state
+          width: "100%", // Let Rnd control width, take 100% internally
+          height: isCollapsed ? "50px" : "100%", // Explicit height based on collapsed state
+          minHeight: isCollapsed ? "50px" : "200px", // Ensure minHeight is respected internally too
           display: "flex",
           flexDirection: "column",
           fontSize: "0.9em",
@@ -533,41 +597,62 @@ export const GameEventLog: React.FC = () => {
           <h3 style={{ margin: 0, fontSize: "1em" }}>Game Event Log</h3>
           {/* Group buttons on the right */}
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {/* Filter Panel Toggle Button */}
-            <button
-              onClick={() => setIsFilterCollapsed(!isFilterCollapsed)}
-              style={{
-                padding: "2px 5px",
-                cursor: "pointer",
-                border: "none",
-                background: "transparent",
-                fontSize: "1.2em",
-                color: "inherit", // Inherit color from parent
-                opacity: isFilterCollapsed ? 0.6 : 1, // Dim when collapsed
-              }}
-              title={isFilterCollapsed ? "Show Filters" : "Hide Filters"}
-            >
-              ☰
-            </button>
+            {/* Conditionally render extra buttons */}
+            {!isCollapsed && (
+              <>
+                {/* Filter Panel Toggle Button */}
+                <button
+                  onClick={() => setIsFilterCollapsed(!isFilterCollapsed)}
+                  style={{
+                    padding: "2px 5px",
+                    cursor: "pointer",
+                    border: "none",
+                    background: "transparent",
+                    fontSize: "1.2em",
+                    color: "inherit", // Inherit color from parent
+                    opacity: isFilterCollapsed ? 0.6 : 1, // Dim when collapsed
+                  }}
+                  title={isFilterCollapsed ? "Show Filters" : "Hide Filters"}
+                >
+                  ☰
+                </button>
 
-            {/* Details Panel Toggle Button */}
-            <button
-              onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
-              style={{
-                padding: "2px 5px",
-                cursor: "pointer",
-                border: "none",
-                background: "transparent",
-                fontSize: "1.2em",
-                color: "inherit", // Inherit color from parent
-                opacity: isDetailsCollapsed ? 0.6 : 1, // Dim when collapsed
-              }}
-              title={isDetailsCollapsed ? "Show Details" : "Hide Details"}
-            >
-              ℹ️
-            </button>
+                {/* Details Panel Toggle Button */}
+                <button
+                  onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
+                  style={{
+                    padding: "2px 5px",
+                    cursor: "pointer",
+                    border: "none",
+                    background: "transparent",
+                    fontSize: "1.2em",
+                    color: "inherit", // Inherit color from parent
+                    opacity: isDetailsCollapsed ? 0.6 : 1, // Dim when collapsed
+                  }}
+                  title={isDetailsCollapsed ? "Show Details" : "Hide Details"}
+                >
+                  ℹ️
+                </button>
 
-            {/* Main Collapse/Expand Button */}
+                {/* ** NEW: Copy to Clipboard Button ** */}
+                <button
+                  onClick={handleCopyToClipboard}
+                  style={{
+                    padding: "2px 5px",
+                    cursor: "pointer",
+                    border: "none",
+                    background: "transparent",
+                    fontSize: "1.2em",
+                    color: "inherit",
+                  }}
+                  title="Copy filtered log to clipboard"
+                >
+                  📋
+                </button>
+              </>
+            )}
+
+            {/* Main Collapse/Expand Button (Always Visible) */}
             <button
               onClick={toggleCollapse}
               style={{
