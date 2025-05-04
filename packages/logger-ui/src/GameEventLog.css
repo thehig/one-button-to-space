@@ -1,0 +1,311 @@
+/* Styles for GameEventLog component */
+
+.log-container {
+  z-index: 1000;
+  border: 1px solid #444; /* Darker border */
+  background-color: rgba(
+    45,
+    45,
+    45,
+    0.95
+  ); /* Slightly darker, less transparent */
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  transition: opacity 0.3s ease;
+  color: #ddd; /* Default text color for the log */
+}
+
+.log-content-wrapper {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9em;
+  overflow: hidden;
+  height: 100%; /* Let Rnd control outer height, internal fills it */
+}
+
+.log-content-wrapper--collapsed {
+  min-height: 50px;
+  height: 50px;
+}
+
+.log-content-wrapper--expanded {
+  min-height: 200px;
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 10px;
+  background-color: #242424;
+  border-bottom: 1px solid #444; /* Match container border */
+  cursor: grab;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  touch-action: none;
+  flex-shrink: 0; /* Prevent header shrinking */
+}
+
+.log-header-left,
+.log-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-header-title {
+  margin: 0;
+  font-size: 1em;
+  font-weight: bold;
+  color: #eee;
+}
+
+.log-button {
+  padding: 2px 5px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-size: 1.2em;
+  color: inherit;
+  line-height: 1; /* Ensure icon alignment */
+  display: inline-flex; /* Align icon */
+  align-items: center; /* Align icon */
+}
+
+.log-button--collapse-toggle {
+  padding: 2px 8px;
+}
+
+/* Opacity for filter/details toggle handled inline via style prop based on state */
+
+.log-button--clear {
+  padding: 5px 10px;
+  margin-top: auto; /* Keeps it at bottom */
+  font-size: 0.9em; /* Reset size if needed */
+  background-color: #555;
+  color: white;
+  border-radius: 3px;
+}
+.log-button--clear:hover {
+  background-color: #777;
+}
+
+.log-main-content {
+  padding: 10px;
+  display: flex;
+  flex-direction: row;
+  flex-grow: 1;
+  overflow: hidden;
+  /* Explicit height calculation moved to inline style */
+}
+
+.log-column {
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+  transition: width 0.3s ease, padding 0.3s ease, min-width 0.3s ease,
+    flex-basis 0.3s ease, flex-grow 0.3s ease;
+  flex-shrink: 0; /* Default shrink to 0 */
+}
+
+.log-column--filter {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  border-right: 1px solid #eee; /* Match original inline style */
+  flex-grow: 0; /* Filter column doesn't grow */
+  flex-basis: auto; /* Base on content when open */
+  padding-right: 10px;
+}
+.log-column--filter-collapsed {
+  flex-basis: 0px !important;
+  width: 0px;
+  min-width: 0px;
+  padding-right: 0px;
+  border-right: none;
+  overflow: hidden; /* Hide content immediately */
+  gap: 0; /* Remove gap when collapsed */
+}
+
+.log-column--list {
+  border-right: 1px solid #444;
+  flex-basis: auto;
+  /* flex-grow handled dynamically via inline style */
+  flex-shrink: 0;
+  position: relative; /* Keep for list item positioning? */
+}
+.log-column--list-no-details {
+  border-right: none; /* Remove border if details are collapsed */
+}
+
+.log-column--details {
+  flex-shrink: 1; /* Allow details to shrink */
+  /* flex-grow handled dynamically via inline style */
+  /* flex-basis handled dynamically via inline style */
+  padding-left: 10px;
+  font-size: 0.85em;
+  background-color: #2e2e2e;
+}
+.log-column--details-collapsed {
+  flex-basis: 0px !important;
+  width: 0px;
+  min-width: 0px;
+  padding-left: 0px;
+  overflow: hidden;
+}
+
+.log-filter-input {
+  padding: 5px;
+  background-color: #333;
+  border: 1px solid #555;
+  color: #eee;
+  border-radius: 3px;
+  width: 100%; /* Take full column width */
+  box-sizing: border-box; /* Include padding in width */
+}
+
+.log-filter-tree {
+  flex-grow: 1;
+  overflow-y: auto;
+  min-height: 100px; /* Ensure some space for the tree */
+}
+
+.log-event-list {
+  list-style: none;
+  padding: 0 10px;
+  margin: 0;
+  height: 100%; /* Ensure it takes height for scrolling */
+}
+
+.log-event-item {
+  margin-bottom: 3px;
+  font-size: 0.9em;
+  border-bottom: 1px dotted #444;
+  padding-bottom: 2px;
+  position: relative; /* Keep? Needed? */
+  cursor: pointer; /* Default pointer */
+  transition: background-color 0.2s ease, border-left 0.2s ease,
+    padding-left 0.2s ease;
+  padding-left: 5px; /* Default padding */
+}
+.log-event-item--no-data {
+  cursor: default;
+}
+.log-event-item--selected {
+  background-color: #5f5f5f;
+  border-left: 3px solid #888;
+  padding-left: 2px; /* Adjust for border */
+}
+
+.log-event-item-content {
+  display: flex;
+  align-items: center;
+  color: #ddd; /* Default text color */
+  line-height: 1.4; /* Improve readability */
+  overflow: hidden; /* Prevent content wrapping/overflow */
+  text-overflow: ellipsis; /* Add ellipsis */
+  white-space: nowrap; /* Keep on one line */
+}
+
+.log-event-timestamp {
+  color: #888;
+  margin-right: 5px;
+  flex-shrink: 0; /* Prevent timestamp shrinking */
+}
+.log-event-symbol {
+  margin-right: 5px;
+  display: inline-block;
+  min-width: 1.5em;
+  text-align: center;
+  flex-shrink: 0;
+}
+.log-event-name {
+  /* flex-shrink: 1; */ /* Allow name to shrink if needed */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 5px; /* Space before inline preview */
+}
+
+.log-event-data-indicator {
+  /* Asterisk */
+  color: #aaa;
+  margin-left: 3px;
+}
+
+.log-event-inline-preview {
+  font-size: 0.8em;
+  color: #aaa;
+  margin-left: auto; /* Push to the right */
+  padding-left: 8px; /* Space from event name */
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  /* max-width: 50%; */ /* Avoid fixed max-width */
+  display: inline-block;
+  vertical-align: baseline;
+  flex-shrink: 1; /* Allow preview to shrink significantly */
+}
+
+/* Details Column Specific */
+.log-details-content {
+  /* Wrapper for ReactJson or placeholder */
+  height: 100%;
+}
+
+.log-details-placeholder {
+  color: #888;
+  padding: 10px;
+  font-style: italic;
+}
+
+/* TreeNode Specific Styles */
+.log-filter-treenode {
+  overflow-x: hidden;
+}
+.log-filter-treenode--child {
+  margin-left: 20px;
+}
+
+.log-filter-treenode-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  margin-bottom: 3px;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+.log-filter-treenode-label--inactive {
+  color: #999;
+  opacity: 0.6;
+}
+
+.log-filter-treenode-checkbox {
+  margin-right: 5px;
+  flex-shrink: 0;
+}
+
+.log-filter-treenode-symbol {
+  margin-right: 5px;
+  min-width: 1.2em;
+  display: inline-block;
+  text-align: center;
+  flex-shrink: 0;
+}
+.log-filter-treenode-text {
+  white-space: nowrap; /* Prevent label text wrapping */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.log-filter-treenode-count {
+  margin-left: 5px;
+  font-size: 0.9em;
+  color: #777;
+}
+
+.log-filter-treenode-children {
+  margin-left: 20px;
+  border-left: 1px solid #444;
+  padding-left: 10px;
+}

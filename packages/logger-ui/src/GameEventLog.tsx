@@ -18,6 +18,8 @@ import type { RndDragCallback, RndResizeCallback } from "react-rnd"; // Adjust b
 import { useCommunicationContext } from "./CommunicationContext";
 // Import the JSON viewer component
 import ReactJson from "react-json-view";
+// Import the CSS file
+import "./GameEventLog.css";
 
 // TODO: Define an interface for the event log entry
 // Remove the duplicate inline interface definition
@@ -528,14 +530,9 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     <Rnd
       size={{ width: size.width, height: size.height }}
       position={{ x: position.x, y: position.y }}
+      className="log-container"
       style={{
-        zIndex: 1000, // Ensure it stays on top
-        border: "1px solid #ccc",
-        backgroundColor: "rgba(64, 64, 64, 0.9)", // Base background
-        borderRadius: "5px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-        opacity: isCollapsed ? collapsedOpacity : 1, // Use collapsedOpacity prop
-        // Let Rnd handle positioning, remove absolute/left/top from here
+        opacity: isCollapsed ? collapsedOpacity : 1, // Keep dynamic opacity
       }}
       dragHandleClassName="drag-handle" // Specify the class for the drag handle
       minWidth={250} // Set a reasonable minimum width
@@ -564,114 +561,120 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       {/* Use a class for the handle */}
       <div
         // ref={setNodeRef} // Remove dnd-kit ref
-        style={{
-          // Basic positioning styles (can be enhanced)
-          // Remove positioning/border/bg/shadow styles managed by Rnd wrapper
-          width: "100%", // Let Rnd control width, take 100% internally
-          height: isCollapsed ? "50px" : "100%", // Explicit height based on collapsed state
-          minHeight: isCollapsed ? "50px" : "200px", // Ensure minHeight is respected internally too
-          display: "flex",
-          flexDirection: "column",
-          fontSize: "0.9em",
-          // Remove hardcoded right/top
-          // right: "20px",
-          // top: "20px",
-          overflow: "hidden",
-          // ...style, // Apply the transform style from dnd-kit
-        }}
+        // Apply CSS classes for the main content wrapper
+        className={`log-content-wrapper ${
+          isCollapsed
+            ? "log-content-wrapper--collapsed"
+            : "log-content-wrapper--expanded"
+        }`}
         // Spread the listeners onto the element itself if the whole div is draggable
         // {...listeners}
         // {...attributes}
       >
         {/* Header for Title, Collapse Button, and Drag Handle */}
         <div
-          className="drag-handle" // Assign the handle class for Rnd
-          style={{
-            display: "flex",
-            justifyContent: "space-between", // Keep space-between for overall layout
-            alignItems: "center",
-            padding: "5px 10px",
-            backgroundColor: "#242424",
-            borderBottom: "1px solid #242424",
-            cursor: "grab", // Change cursor to indicate draggable area
-            borderTopLeftRadius: "5px",
-            borderTopRightRadius: "5px",
-            touchAction: "none", // Recommended for better mobile dragging
-          }}
+          // Combine drag-handle with log-header class
+          className="log-header drag-handle"
+          // Remove inline styles handled by log-header class
+          // style={{
+          //   display: "flex",
+          //   justifyContent: "space-between", // Keep space-between for overall layout
+          //   alignItems: "center",
+          //   padding: "5px 10px",
+          //   backgroundColor: "#242424",
+          //   borderBottom: "1px solid #242424",
+          //   cursor: "grab", // Change cursor to indicate draggable area
+          //   borderTopLeftRadius: "5px",
+          //   borderTopRightRadius: "5px",
+          //   touchAction: "none", // Recommended for better mobile dragging
+          // }}
           // Spread listeners/attributes onto the handle div if only header should drag
           // {...listeners}
           // {...attributes}
         >
           {/* Left side: Collapse button and Title */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {/* Apply log-header-left class */}
+          <div className="log-header-left">
             {/* Moved Collapse/Expand Button Here */}
+            {/* Apply log-button and modifier */}
             <button
               onClick={toggleCollapse}
-              style={{
-                padding: "2px 8px",
-                cursor: "pointer",
-                border: "none", // Make consistent with others
-                background: "transparent", // Make consistent
-                fontSize: "1.2em", // Match size
-                color: "inherit", // Inherit color
-              }}
+              // style={{
+              //   padding: "2px 8px",
+              //   cursor: "pointer",
+              //   border: "none", // Make consistent with others
+              //   background: "transparent", // Make consistent
+              //   fontSize: "1.2em", // Match size
+              //   color: "inherit", // Inherit color
+              // }}
+              className="log-button log-button--collapse-toggle"
               title={isCollapsed ? "Expand Log" : "Collapse Log"}
             >
               {isCollapsed ? "➕" : "➖"} {/* Keep original icons */}
             </button>
-            <h3 style={{ margin: 0, fontSize: "1em" }}>Game Event Log</h3>
+            {/* Apply log-header-title class */}
+            <h3 className="log-header-title">Game Event Log</h3>
           </div>
 
           {/* Right side: Other buttons */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          {/* Apply log-header-right class */}
+          <div className="log-header-right">
             {/* Conditionally render extra buttons */}
             {!isCollapsed && (
               <>
                 {/* Filter Panel Toggle Button */}
+                {/* Apply log-button class, keep dynamic opacity */}
                 <button
                   onClick={() => setIsFilterCollapsed(!isFilterCollapsed)}
-                  style={{
-                    padding: "2px 5px",
-                    cursor: "pointer",
-                    border: "none",
-                    background: "transparent",
-                    fontSize: "1.2em",
-                    color: "inherit", // Inherit color from parent
-                    opacity: isFilterCollapsed ? 0.6 : 1, // Dim when collapsed
-                  }}
+                  // style={{
+                  //   padding: "2px 5px",
+                  //   cursor: "pointer",
+                  //   border: "none",
+                  //   background: "transparent",
+                  //   fontSize: "1.2em",
+                  //   color: "inherit", // Inherit color from parent
+                  //   opacity: isFilterCollapsed ? 0.6 : 1, // Dim when collapsed
+                  // }}
+                  className="log-button"
+                  style={{ opacity: isFilterCollapsed ? 0.6 : 1 }} // Keep dynamic opacity
                   title={isFilterCollapsed ? "Show Filters" : "Hide Filters"}
                 >
                   ☰
                 </button>
 
                 {/* Details Panel Toggle Button */}
+                {/* Apply log-button class, keep dynamic opacity */}
                 <button
                   onClick={() => setIsDetailsCollapsed(!isDetailsCollapsed)}
-                  style={{
-                    padding: "2px 5px",
-                    cursor: "pointer",
-                    border: "none",
-                    background: "transparent",
-                    fontSize: "1.2em",
-                    color: "inherit", // Inherit color from parent
-                    opacity: isDetailsCollapsed ? 0.6 : 1, // Dim when collapsed
-                  }}
+                  // style={{
+                  //   padding: "2px 5px",
+                  //   cursor: "pointer",
+                  //   border: "none",
+                  //   background: "transparent",
+                  //   fontSize: "1.2em",
+                  //   color: "inherit", // Inherit color from parent
+                  //   opacity: isDetailsCollapsed ? 0.6 : 1, // Dim when collapsed
+                  // }}
+                  className="log-button"
+                  style={{ opacity: isDetailsCollapsed ? 0.6 : 1 }} // Keep dynamic opacity
                   title={isDetailsCollapsed ? "Show Details" : "Hide Details"}
                 >
                   ℹ️
                 </button>
 
                 {/* ** NEW: Copy to Clipboard Button ** */}
+                {/* Apply log-button class */}
                 <button
                   onClick={handleCopyToClipboard}
-                  style={{
-                    padding: "2px 5px",
-                    cursor: "pointer",
-                    border: "none",
-                    background: "transparent",
-                    fontSize: "1.2em",
-                    color: "inherit",
-                  }}
+                  // style={{
+                  //   padding: "2px 5px",
+                  //   cursor: "pointer",
+                  //   border: "none",
+                  //   background: "transparent",
+                  //   fontSize: "1.2em",
+                  //   color: "inherit",
+                  // }}
+                  className="log-button"
                   title="Copy filtered log to clipboard"
                 >
                   📋
@@ -683,50 +686,61 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
 
         {/* Collapsible Content Area */}
         {!isCollapsed && (
+          // Apply log-main-content class, keep dynamic height
           <div
-            style={{
-              padding: "10px", // Apply padding only when expanded
-              display: "flex",
-              flexDirection: "row",
-              // REMOVE gap: "15px", handled by column margins/padding now
-              flexGrow: 1,
-              overflow: "hidden", // Keep hidden, inner columns will scroll
-              height: "calc(100% - 40px)", // Fill remaining height after header (adjust 40px if header height changes)
-            }}
+            // style={{
+            //   padding: "10px", // Apply padding only when expanded
+            //   display: "flex",
+            //   flexDirection: "row",
+            //   // REMOVE gap: "15px", handled by column margins/padding now
+            //   flexGrow: 1,
+            //   overflow: "hidden", // Keep hidden, inner columns will scroll
+            //   height: "calc(100% - 40px)", // Fill remaining height after header (adjust 40px if header height changes)
+            // }}
+            className="log-main-content"
+            style={{ height: `calc(100% - 37px)` }} // Keep dynamic height, adjust value if header height changed (seems it's 37px in CSS)
           >
             {/* Left Column: Filters & Controls */}
+            {/* Apply column classes and conditional collapsed class */}
             <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "15px",
-                flexShrink: 0, // Correct: Don't shrink
-                flexGrow: 0, // Correct: Don't grow
-                flexBasis: isFilterCollapsed ? "0px" : "auto", // Correct: Width based on content when expanded
-                // minWidth removed, flex-basis:auto handles content width
-                paddingRight: isFilterCollapsed ? "0px" : "10px",
-                borderRight: isFilterCollapsed ? "none" : "1px solid #eee",
-                overflowY: "auto",
-                overflowX: "hidden", // Keep hidden as requested
-                transition:
-                  "width 0.3s ease, padding 0.3s ease, min-width 0.3s ease, flex-basis 0.3s ease", // Correct transition value
-              }}
+              // style={{
+              //   display: "flex",
+              //   flexDirection: "column",
+              //   gap: "15px",
+              //   flexShrink: 0, // Correct: Don't shrink
+              //   flexGrow: 0, // Correct: Don't grow
+              //   flexBasis: isFilterCollapsed ? "0px" : "auto", // Correct: Width based on content when expanded
+              //   // minWidth removed, flex-basis:auto handles content width
+              //   paddingRight: isFilterCollapsed ? "0px" : "10px",
+              //   borderRight: isFilterCollapsed ? "none" : "1px solid #eee",
+              //   overflowY: "auto",
+              //   overflowX: "hidden", // Keep hidden as requested
+              //   transition:
+              //     "width 0.3s ease, padding 0.3s ease, min-width 0.3s ease, flex-basis 0.3s ease", // Correct transition value
+              // }}
+              className={`log-column log-column--filter ${
+                isFilterCollapsed ? "log-column--filter-collapsed" : ""
+              }`}
             >
               {/* Conditionally Render Filter Content */}
               {!isFilterCollapsed && (
                 <>
+                  {/* Apply log-filter-input class */}
                   <input
                     type="text"
                     placeholder="Filter by event name..."
                     value={filterName}
                     onChange={(e) => setFilterName(e.target.value)}
-                    style={{ padding: "5px" }}
+                    // style={{ padding: "5px" }}
+                    className="log-filter-input"
                   />
+                  {/* Apply log-filter-tree class */}
                   <div
-                    style={{
-                      flexGrow: 1,
-                      overflowY: "auto",
-                    }}
+                    // style={{
+                    //   flexGrow: 1,
+                    //   overflowY: "auto",
+                    // }}
+                    className="log-filter-tree"
                   >
                     {sourceTreeData.map((node) => (
                       <TreeNode
@@ -739,12 +753,14 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                       />
                     ))}
                   </div>
+                  {/* Apply log-button and log-button--clear classes */}
                   <button
                     onClick={handleClearLog}
-                    style={{
-                      padding: "5px 10px",
-                      marginTop: "auto",
-                    }}
+                    // style={{
+                    //   padding: "5px 10px",
+                    //   marginTop: "auto",
+                    // }}
+                    className="log-button log-button--clear"
                   >
                     Clear Log
                   </button>
@@ -753,51 +769,68 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
             </div>
 
             {/* Center Column: Event List Area (Renamed from Right) */}
+            {/* Apply list column classes, keep dynamic flexGrow */}
             <div
-              style={{
-                flexBasis: "auto", // Correct: Base size on content
-                flexShrink: 0, // Correct: Prevent shrinking below content width
-                flexGrow: isDetailsCollapsed ? 1 : 0, // CHANGE: Grow only if Details are collapsed
-                overflowY: "auto",
-                overflowX: "hidden", // Add this to hide horizontal scroll
-                position: "relative",
-                height: "100%", // Explicitly fill parent height
-                borderRight: "1px solid #eee", // Separator
-              }}
+              // style={{
+              //   flexBasis: "auto", // Correct: Base size on content
+              //   flexShrink: 0, // Correct: Prevent shrinking below content width
+              //   flexGrow: isDetailsCollapsed ? 1 : 0, // CHANGE: Grow only if Details are collapsed
+              //   overflowY: "auto",
+              //   overflowX: "hidden", // Add this to hide horizontal scroll
+              //   position: "relative",
+              //   height: "100%", // Explicitly fill parent height
+              //   borderRight: "1px solid #eee", // Separator
+              // }}
+              className={`log-column log-column--list ${
+                isDetailsCollapsed ? "log-column--list-no-details" : ""
+              }`}
+              style={{ flexGrow: isDetailsCollapsed ? 1 : 0 }} // Keep dynamic flexGrow
             >
+              {/* Apply log-event-list class */}
               <ul
-                style={{
-                  listStyle: "none",
-                  padding: "0 5px", // Adjust padding
-                  margin: 0,
-                }}
+                // style={{
+                //   listStyle: "none",
+                //   padding: "0 5px", // Adjust padding
+                //   margin: 0,
+                // }}
+                className="log-event-list"
               >
                 {filteredEvents.map((event, index) => (
+                  // Apply log-event-item class and conditional modifiers
                   <li
                     key={`${event.timestamp}-${event.source}-${event.eventName}-${index}`}
-                    style={{
-                      marginBottom: "3px",
-                      fontSize: "0.9em",
-                      borderBottom: "1px dotted #eee",
-                      paddingBottom: "2px",
-                      position: "relative",
-                      cursor:
-                        event.data !== undefined && event.data !== null
-                          ? "pointer"
-                          : "default",
-                      backgroundColor:
-                        index === selectedEventIndex
-                          ? "#5f5f5f" // Lighter background
-                          : "transparent",
-                      borderLeft:
-                        index === selectedEventIndex
-                          ? "3px solid #888" // Add a left border
-                          : "none",
-                      paddingLeft:
-                        index === selectedEventIndex
-                          ? "2px" // Adjust padding to account for border
-                          : "5px", // Original padding
-                    }}
+                    // style={{
+                    //   marginBottom: "3px",
+                    //   fontSize: "0.9em",
+                    //   borderBottom: "1px dotted #eee",
+                    //   paddingBottom: "2px",
+                    //   position: "relative",
+                    //   cursor:
+                    //     event.data !== undefined && event.data !== null
+                    //       ? "pointer"
+                    //       : "default",
+                    //   backgroundColor:
+                    //     index === selectedEventIndex
+                    //       ? "#5f5f5f" // Lighter background
+                    //       : "transparent",
+                    //   borderLeft:
+                    //     index === selectedEventIndex
+                    //       ? "3px solid #888" // Add a left border
+                    //       : "none",
+                    //   paddingLeft:
+                    //     index === selectedEventIndex
+                    //       ? "2px" // Adjust padding to account for border
+                    //       : "5px", // Original padding
+                    // }}
+                    className={`log-event-item ${
+                      index === selectedEventIndex
+                        ? "log-event-item--selected"
+                        : ""
+                    } ${
+                      event.data === undefined || event.data === null
+                        ? "log-event-item--no-data"
+                        : ""
+                    }`}
                     onClick={
                       event.data !== undefined && event.data !== null
                         ? () =>
@@ -808,14 +841,20 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                     }
                   >
                     {/* Wrap content in a flex container */}
+                    {/* Apply log-event-item-content class */}
                     <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        // Remove gap if spans have margins, or adjust as needed
-                      }}
+                      // style={{
+                      //   display: "flex",
+                      //   alignItems: "center",
+                      //   // Remove gap if spans have margins, or adjust as needed
+                      // }}
+                      className="log-event-item-content"
                     >
-                      <span style={{ color: "#888", marginRight: "5px" }}>
+                      {/* Apply log-event-timestamp class */}
+                      <span
+                        // style={{ color: "#888", marginRight: "5px" }}
+                        className="log-event-timestamp"
+                      >
                         {initializationTime
                           ? formatTimeDifference(
                               event.timestamp,
@@ -823,22 +862,29 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                             )
                           : `[${event.timestamp}]`}
                       </span>
+                      {/* Apply log-event-symbol class */}
                       <span
                         title={event.source}
-                        style={{
-                          marginRight: "5px",
-                          display: "inline-block",
-                          minWidth: "1.5em",
-                          textAlign: "center",
-                        }}
+                        // style={{
+                        //   marginRight: "5px",
+                        //   display: "inline-block",
+                        //   minWidth: "1.5em",
+                        //   textAlign: "center",
+                        // }}
+                        className="log-event-symbol"
                       >
                         {getSymbol(event.source)}
                       </span>
-                      <span>
+                      {/* Apply log-event-name class */}
+                      <span className="log-event-name">
                         {event.eventName}
                         {/* Restore asterisk indicator */}
                         {event.data !== undefined && event.data !== null && (
-                          <span style={{ color: "#aaa", marginLeft: "3px" }}>
+                          // Apply log-event-data-indicator class
+                          <span
+                            // style={{ color: "#aaa", marginLeft: "3px" }}
+                            className="log-event-data-indicator"
+                          >
                             *
                           </span>
                         )}
@@ -847,18 +893,20 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                       {isDetailsCollapsed &&
                         event.data !== undefined &&
                         event.data !== null && (
+                          // Apply log-event-inline-preview class
                           <span // Use span for better inline flow
-                            style={{
-                              fontSize: "0.8em",
-                              color: "#aaa",
-                              marginLeft: "8px", // Space after event name
-                              overflowX: "hidden",
-                              whiteSpace: "nowrap",
-                              textOverflow: "ellipsis",
-                              // maxWidth: '50%', // Limit width to avoid pushing too much
-                              display: "inline-block", // Needed for ellipsis/width
-                              verticalAlign: "baseline", // Align with event name text
-                            }}
+                            // style={{
+                            //   fontSize: "0.8em",
+                            //   color: "#aaa",
+                            //   marginLeft: "8px", // Space after event name
+                            //   overflowX: "hidden",
+                            //   whiteSpace: "nowrap",
+                            //   textOverflow: "ellipsis",
+                            //   // maxWidth: '50%', // Limit width to avoid pushing too much
+                            //   display: "inline-block", // Needed for ellipsis/width
+                            //   verticalAlign: "baseline", // Align with event name text
+                            // }}
+                            className="log-event-inline-preview"
                             title={JSON.stringify(event.data)} // Show full data on hover
                           >
                             {JSON.stringify(event.data, null, 0)}{" "}
@@ -869,26 +917,37 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                   </li>
                 ))}
                 {filteredEvents.length === 0 && (
-                  <li style={{ color: "#888" }}>No events match filters.</li>
+                  // Apply a similar item class, maybe adjust styling in CSS if needed
+                  <li className="log-event-item log-event-item--no-data">
+                    No events match filters.
+                  </li>
                 )}
               </ul>
             </div>
 
             {/* Right Column: Selected Event Details (Now Collapsible) */}
+            {/* Apply details column classes, keep dynamic flex styles */}
             <div
+              // style={{
+              //   flexGrow: isDetailsCollapsed ? 0 : 1, // Correct: Grow when expanded
+              //   flexBasis: isDetailsCollapsed ? "0px" : "0%", // Correct: Start at 0% basis when expanded
+              //   flexShrink: 1, // Correct: Allow shrinking
+              //   minWidth: isDetailsCollapsed ? "0px" : "0px", // CHANGE: Remove minWidth when expanded, rely on flexbox
+              //   overflowY: "auto",
+              //   overflowX: "hidden", // Explicitly hide horizontal overflow
+              //   height: "100%",
+              //   paddingLeft: isDetailsCollapsed ? "0px" : "10px", // Collapse padding
+              //   fontSize: "0.85em",
+              //   backgroundColor: "#2e2e2e", // Slightly different background for details
+              //   transition:
+              //     "width 0.3s ease, padding 0.3s ease, min-width 0.3s ease, flex-basis 0.3s ease", // Smooth transition
+              // }}
+              className={`log-column log-column--details ${
+                isDetailsCollapsed ? "log-column--details-collapsed" : ""
+              }`}
               style={{
-                flexGrow: isDetailsCollapsed ? 0 : 1, // Correct: Grow when expanded
-                flexBasis: isDetailsCollapsed ? "0px" : "0%", // Correct: Start at 0% basis when expanded
-                flexShrink: 1, // Correct: Allow shrinking
-                minWidth: isDetailsCollapsed ? "0px" : "0px", // CHANGE: Remove minWidth when expanded, rely on flexbox
-                overflowY: "auto",
-                overflowX: "hidden", // Explicitly hide horizontal overflow
-                height: "100%",
-                paddingLeft: isDetailsCollapsed ? "0px" : "10px", // Collapse padding
-                fontSize: "0.85em",
-                backgroundColor: "#2e2e2e", // Slightly different background for details
-                transition:
-                  "width 0.3s ease, padding 0.3s ease, min-width 0.3s ease, flex-basis 0.3s ease", // Smooth transition
+                flexGrow: isDetailsCollapsed ? 0 : 1,
+                flexBasis: isDetailsCollapsed ? "0px" : "auto", // Adjust basis
               }}
             >
               {/* Conditionally render content only when not collapsed to avoid layout shifts */}
@@ -916,12 +975,14 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                       />
                     </div>
                   ) : (
+                    // Apply log-details-placeholder class
                     <div
-                      style={{
-                        color: "#888",
-                        padding: "5px",
-                        fontStyle: "italic",
-                      }}
+                      // style={{
+                      //   color: "#888",
+                      //   padding: "5px",
+                      //   fontStyle: "italic",
+                      // }}
+                      className="log-details-placeholder"
                     >
                       {selectedEventIndex !== null
                         ? "No data for this event."
