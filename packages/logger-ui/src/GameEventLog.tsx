@@ -320,7 +320,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
   initialX = 20, // Default X position
   initialY = 20, // Default Y position
   collapsedOpacity = 0.7, // Default opacity when collapsed
-}) => {
+}): React.ReactElement => {
   const { events, clearLog } = useCommunicationContext();
 
   // --- Draggable State ---

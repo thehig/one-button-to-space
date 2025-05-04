@@ -8,7 +8,12 @@ function App() {
     <>
       <h1>One Button To Space</h1>
       <PhaserGame />
-      <GameEventLog />
+      <GameEventLog
+        startsOpen={true}
+        collapsedOpacity={0.7}
+        initialX={0}
+        initialY={0}
+      />
     </>
   );
 }
