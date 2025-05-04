@@ -2,7 +2,7 @@ import React from "react";
 import "./App.css";
 import PhaserGame from "./components/PhaserGame";
 import { GameEventLog } from "@one-button-to-space/logger-ui";
-// import { sourceTreeData } from "./types/LogTypes";
+import { sourceTreeData } from "./types/LogTypes";
 
 function App() {
   return (
@@ -17,7 +17,7 @@ function App() {
         startDataOpen={true}
         startTreeOpen={true}
         initialWidth={900}
-        // sourceConfigData={sourceTreeData}
+        sourceConfigData={sourceTreeData}
       />
     </>
   );
