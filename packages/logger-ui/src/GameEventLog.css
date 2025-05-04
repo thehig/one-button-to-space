@@ -317,35 +317,37 @@
   padding-left: 10px;
 }
 
-/* Additions for Locking */
+/* --- Locking Styles --- */
 
-/* Disable RIGHT header controls when locked */
-.log-container.locked .log-header-right .log-button {
+/* Make the entire container ignore pointer events when locked */
+.log-container.locked {
   pointer-events: none;
-  opacity: 0.6;
-  user-select: none;
+  /* user-select: none; applied below to header/content */
 }
 
-/* Ensure the lock button (in left header) remains interactive */
+/* Ensure the lock button remains interactive */
 .log-container.locked .lock-button {
   pointer-events: auto;
-  opacity: 1;
+  opacity: 1; /* Ensure full opacity */
+  /* user-select: auto; /* Typically not needed for buttons */
 }
 
-/* Style the collapse button when disabled (locked) */
-.log-container.locked .log-button--collapse-toggle {
-  opacity: 0.6;
-  /* Make the button completely ignore pointer events when locked */
-  pointer-events: none;
-  /* cursor: not-allowed; */ /* No longer needed */
-  /* The disabled attribute in JSX handles semantic disabling */
+/* Keep header text non-selectable when locked */
+.log-container.locked .log-header {
+  /* cursor: default; already applied */
+  user-select: none;
+  /* REMOVE pointer-events: none from children (handled by container rule) */
 }
 
-/* Disable pointer events on the main content area when locked */
+/* Keep main content non-selectable when locked */
 .log-container.locked .log-main-content {
-  pointer-events: none;
-  user-select: none; /* Also prevent text selection in content */
+  user-select: none;
+  /* REMOVE pointer-events: none (handled by container rule) */
 }
+
+/* REMOVE redundant pointer-events rules for locked header buttons */
+/* .log-container.locked .log-header-right .log-button { ... } */
+/* .log-container.locked .log-button--collapse-toggle { ... } */
 
 /* Adjust header controls spacing if needed */
 .log-header-right {
