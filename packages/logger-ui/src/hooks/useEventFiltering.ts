@@ -1,6 +1,8 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { SourceTreeNode } from "../types";
 import { EventLogEntry } from "../types";
+
+const DEBUG = false;
 
 // --- Helper function (copied from TreeNode.tsx) ---
 const getAllDescendantIds = (node: SourceTreeNode): string[] => {
@@ -30,6 +32,41 @@ export const useEventFiltering = (
   const [allowedSources, setAllowedSources] = useState<Set<string>>(
     new Set(allSourceIdsFromConfig) // Initialize with IDs from config
   );
+
+  // Ref to track the previous list of all source IDs
+  const prevSourceIdsRef = useRef<string[]>(allSourceIdsFromConfig);
+
+  // Effect to automatically enable newly added dynamic sources
+  useEffect(() => {
+    // Get the current and previous sets of IDs
+    const currentIds = new Set(allSourceIdsFromConfig);
+    const previousIds = new Set(prevSourceIdsRef.current);
+
+    // Find IDs that are in the current list but not the previous one
+    const newlyAddedIds: string[] = [];
+    currentIds.forEach((id) => {
+      if (!previousIds.has(id)) {
+        newlyAddedIds.push(id);
+      }
+    });
+
+    // If there are newly added IDs, update the allowedSources state
+    if (newlyAddedIds.length > 0) {
+      DEBUG &&
+        console.log(
+          `useEventFiltering: Auto-enabling new sources:`,
+          newlyAddedIds
+        );
+      setAllowedSources((prevAllowed) => {
+        const newAllowed = new Set(prevAllowed);
+        newlyAddedIds.forEach((id) => newAllowed.add(id));
+        return newAllowed;
+      });
+    }
+
+    // Update the ref with the current IDs for the next render cycle
+    prevSourceIdsRef.current = allSourceIdsFromConfig;
+  }, [allSourceIdsFromConfig]); // Depend only on the list of all source IDs
 
   const handleSourceTreeToggle = useCallback(
     (node: SourceTreeNode, isChecked: boolean) => {
