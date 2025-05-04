@@ -145,6 +145,12 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
   );
   // Initialize isLocked state using the startsLocked prop
   const [isLocked, setIsLocked] = useState<boolean>(startsLocked);
+  // New state for adjustable locked opacity
+  const [currentLockedOpacity, setCurrentLockedOpacity] =
+    useState<number>(lockedOpacity);
+  // New state for slider visibility
+  const [isOpacitySliderVisible, setIsOpacitySliderVisible] =
+    useState<boolean>(true);
 
   // --- Memoized Calculations ---
   const initializationTime = useMemo(() => {
@@ -245,6 +251,18 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     setIsLocked((prevLocked) => !prevLocked);
   };
 
+  // New callback for locked opacity slider change
+  const handleLockedOpacityChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setCurrentLockedOpacity(parseFloat(e.target.value));
+  };
+
+  // New callback to toggle slider visibility
+  const toggleOpacitySlider = () => {
+    setIsOpacitySliderVisible((prev) => !prev);
+  };
+
   // --- JSX Rendering ---
   return (
     <Rnd
@@ -257,7 +275,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
         opacity: isCollapsed
           ? collapsedOpacity // Use prop for collapsed opacity
           : isLocked
-          ? lockedOpacity // Use prop for locked opacity
+          ? currentLockedOpacity // Use state for locked opacity
           : 1, // Default opacity when expanded and unlocked
       }}
       dragHandleClassName="drag-handle"
@@ -269,6 +287,8 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       onResizeStop={handleResizeStop} // Use handler from hook
       bounds="window"
       disableDragging={isLocked} // <-- Disable dragging when locked
+      // Prevent drag start when clicking on the slider container
+      cancel=".locked-opacity-slider-container"
     >
       <div
         className={`log-content-wrapper ${
@@ -338,6 +358,38 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                 >
                   📋
                 </button>
+
+                {/* Locked Opacity Slider - Only show when expanded */}
+                <div className="locked-opacity-slider-container">
+                  <label
+                    htmlFor="lockedOpacitySlider"
+                    className="locked-opacity-slider-label"
+                    title="Toggle locked opacity slider"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent interfering with drag/other clicks
+                      toggleOpacitySlider();
+                    }}
+                    style={{ cursor: "pointer" }} // Indicate it's clickable
+                  >
+                    👁️ {/* Eye icon */}
+                  </label>
+                  {/* Conditionally render the slider */}
+                  {isOpacitySliderVisible && (
+                    <input
+                      type="range"
+                      id="lockedOpacitySlider"
+                      min="0"
+                      max="1"
+                      step="0.05" // Adjust step as needed
+                      value={currentLockedOpacity}
+                      onChange={handleLockedOpacityChange}
+                      className="locked-opacity-slider"
+                      title={`Adjust locked opacity (${currentLockedOpacity.toFixed(
+                        2
+                      )})`}
+                    />
+                  )}
+                </div>
               </>
             )}
           </div>

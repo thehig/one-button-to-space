@@ -362,3 +362,32 @@
   padding: 5px 8px;
   cursor: pointer;
 }
+
+/* --- Slider Styles --- */
+
+.locked-opacity-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding-left: 10px; /* Add some spacing from other controls */
+}
+
+.locked-opacity-slider-label {
+  font-size: 0.8em;
+  color: #ccc;
+  white-space: nowrap;
+}
+
+.locked-opacity-slider {
+  cursor: pointer;
+  width: 80px; /* Adjust width as needed */
+  height: 8px; /* Make slider track thinner */
+  accent-color: #888; /* Optional: style slider color */
+}
+
+/* Ensure slider container is also disabled when locked */
+.log-container.locked .locked-opacity-slider-container {
+  pointer-events: none;
+  opacity: 0.6;
+  user-select: none;
+}
