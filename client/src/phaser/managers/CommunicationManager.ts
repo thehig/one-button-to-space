@@ -22,7 +22,7 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
   private constructor() {
     super();
     // TODO: Initialize subscriptions to other emitters (Game, Scenes, NetworkManager, etc.)
-    console.log("CommunicationManager initialized");
+    this.logEvent("CommunicationManager", "initialized");
   }
 
   public static getInstance(): CommunicationManager {
@@ -39,7 +39,7 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     phaserGameEvents: Phaser.Events.EventEmitter;
     // Add others as needed
   }): void {
-    console.log("CommunicationManager initializing subscriptions...");
+    this.logEvent("CommunicationManager", "initializingSubscriptions");
     this.sceneEmitter = emitters.sceneEmitter;
     this.phaserSceneEvents = emitters.phaserSceneEvents;
     this.phaserGameEvents = emitters.phaserGameEvents;
@@ -122,7 +122,7 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     this.phaserGameEvents?.off("pause");
     this.phaserGameEvents?.off("resume");
 
-    console.log("CommunicationManager subscriptions initialized.");
+    this.logEvent("CommunicationManager", "subscriptionsInitialized");
   }
 
   public logEvent(source: string, eventName: string, data?: unknown): void {
@@ -155,14 +155,14 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
   public clearLog(): void {
     this.eventLog = [];
     this.emit("log-cleared");
-    console.log("Event log cleared");
+    this.logEvent("CommunicationManager", "logCleared");
   }
 
   // TODO: Add methods to subscribe/unsubscribe specific emitters if needed dynamically
   // TODO: Add filtering methods for the log
 
   public destroy(): void {
-    console.log("CommunicationManager destroying subscriptions...");
+    this.logEvent("CommunicationManager", "destroyingSubscriptions");
     // Unsubscribe from all emitters we subscribed to
     if (this.sceneEmitter) {
       this.sceneEmitter.off("someSceneEvent");
@@ -193,6 +193,6 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     this.phaserGameEvents?.off("resume");
 
     this.removeAllListeners(); // Clear own listeners (like new-event, log-cleared)
-    console.log("CommunicationManager destroyed");
+    this.logEvent("CommunicationManager", "destroyed");
   }
 }

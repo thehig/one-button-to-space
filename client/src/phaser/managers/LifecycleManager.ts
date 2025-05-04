@@ -8,6 +8,13 @@ import UIManager from "./UIManager";
 import AudioManager from "./AudioManager";
 import { CommunicationManager } from "./CommunicationManager";
 
+// Define a type for the logger function if needed, or pass the whole manager
+type LoggerFunction = (
+  source: string,
+  eventName: string,
+  data?: unknown
+) => void;
+
 // This manager coordinates the lifecycle of all other managers
 export default class LifecycleManager {
   private scene: Phaser.Scene;
@@ -24,36 +31,58 @@ export default class LifecycleManager {
   private communicationManager!: CommunicationManager;
 
   constructor(scene: Phaser.Scene, eventEmitter: Phaser.Events.EventEmitter) {
-    console.group("LifecycleManager: Constructor"); // Start group
     this.scene = scene;
     this.eventEmitter = eventEmitter;
-    console.log("LifecycleManager: constructor called");
+    this.communicationManager = CommunicationManager.getInstance();
+    this.communicationManager.logEvent("LifecycleManager", "constructorCalled");
     this.instantiateManagers();
-    console.groupEnd(); // End group
+    this.communicationManager.logEvent(
+      "LifecycleManager",
+      "constructorComplete"
+    );
   }
 
   private instantiateManagers() {
-    console.group("LifecycleManager: Instantiate Managers"); // Start group
-    console.log("Instantiating managers...");
-    // Instantiate managers, injecting scene, eventEmitter, and other managers as needed
-    // Order matters based on dependencies for construction or later initialization
-    this.physicsManager = new PhysicsManager(this.scene);
+    this.communicationManager.logEvent(
+      "LifecycleManager",
+      "instantiatingManagersStart"
+    );
+    this.physicsManager = new PhysicsManager(
+      this.scene,
+      this.communicationManager
+    );
     this.entityManager = new EntityManager(
       this.scene,
       this.eventEmitter,
-      this.physicsManager
+      this.physicsManager,
+      this.communicationManager
     );
-    this.inputManager = new InputManager(this.scene, this.eventEmitter);
-    this.networkManager = new NetworkManager(this.scene, this.eventEmitter);
-    // CameraManager depends on EntityManager instance
+    this.inputManager = new InputManager(
+      this.scene,
+      this.eventEmitter,
+      this.communicationManager
+    );
+    this.networkManager = new NetworkManager(
+      this.scene,
+      this.eventEmitter,
+      this.communicationManager
+    );
     this.cameraManager = new CameraManager(
       this.scene,
       this.entityManager,
-      this.eventEmitter
+      this.eventEmitter,
+      this.communicationManager
     );
-    this.uiManager = new UIManager(this.scene, this.eventEmitter);
-    this.audioManager = new AudioManager(this.scene, this.eventEmitter);
-    this.communicationManager = CommunicationManager.getInstance();
+    this.uiManager = new UIManager(
+      this.scene,
+      this.eventEmitter,
+      this.communicationManager
+    );
+    this.audioManager = new AudioManager(
+      this.scene,
+      this.eventEmitter,
+      this.communicationManager
+    );
 
     // Initialize CommunicationManager subscriptions AFTER all managers are instantiated
     this.communicationManager.initialize({
@@ -63,26 +92,27 @@ export default class LifecycleManager {
       // Pass other managers/emitters if needed
     });
 
-    console.log("Managers instantiated.");
-    console.groupEnd(); // End group
+    this.communicationManager.logEvent(
+      "LifecycleManager",
+      "instantiatingManagersComplete"
+    );
   }
 
   // Called from Scene.preload
   preload() {
-    console.group("LifecycleManager: Preload Phase"); // Start group
-    console.log("Calling manager preload methods...");
+    this.communicationManager.logEvent("LifecycleManager", "preloadPhaseStart");
     this.audioManager.preload();
-    console.log("Manager preload complete.");
-    console.groupEnd(); // End group
+    this.communicationManager.logEvent(
+      "LifecycleManager",
+      "preloadPhaseComplete"
+    );
   }
 
   // Called from Scene.create, after preload is complete
   create() {
-    console.group("LifecycleManager: Create Phase"); // Start group
+    this.communicationManager.logEvent("LifecycleManager", "createPhaseStart");
 
-    console.group("LifecycleManager: Initializing Managers"); // Nested group
-    console.log("Calling manager init methods...");
-    // CommunicationManager now initialized during instantiation phase
+    this.communicationManager.logEvent("LifecycleManager", "managerInitStart");
     this.physicsManager.init();
     this.entityManager.init();
     this.inputManager.init();
@@ -90,11 +120,15 @@ export default class LifecycleManager {
     this.cameraManager.init();
     this.uiManager.init();
     this.audioManager.init();
-    console.log("Manager init complete.");
-    console.groupEnd(); // End nested group
+    this.communicationManager.logEvent(
+      "LifecycleManager",
+      "managerInitComplete"
+    );
 
-    console.group("LifecycleManager: Creating Managers"); // Nested group
-    console.log("Calling manager create methods...");
+    this.communicationManager.logEvent(
+      "LifecycleManager",
+      "managerCreateStart"
+    );
     this.physicsManager.create();
     this.entityManager.create();
     this.inputManager.create();
@@ -102,13 +136,21 @@ export default class LifecycleManager {
     this.cameraManager.create();
     this.uiManager.create();
     this.audioManager.create();
-    console.log("Manager create complete.");
-    console.groupEnd(); // End nested group
+    this.communicationManager.logEvent(
+      "LifecycleManager",
+      "managerCreateComplete"
+    );
 
-    console.log("LifecycleManager: Managers initialized and created.");
+    this.communicationManager.logEvent(
+      "LifecycleManager",
+      "managersInitializedAndCreated"
+    );
 
     // Move the example event triggers here if they are for testing manager setup
-    console.log("LifecycleManager: Triggering test events...");
+    this.communicationManager.logEvent(
+      "LifecycleManager",
+      "triggeringTestEvents"
+    );
     setTimeout(() => {
       // this.eventEmitter.emit("playAudio", "coin"); // Still commented out
       this.eventEmitter.emit("scoreUpdated", 150); // Changed score for differentiation
@@ -120,18 +162,20 @@ export default class LifecycleManager {
         y: 100,
       });
       this.eventEmitter.emit("playerEntityCreated", "player1");
-      console.log("LifecycleManager: Test events triggered.");
+      this.communicationManager.logEvent(
+        "LifecycleManager",
+        "testEventsTriggered"
+      );
     }, 2000);
 
-    console.log("LifecycleManager: Create Phase Complete.");
-    console.groupEnd(); // End group
+    this.communicationManager.logEvent(
+      "LifecycleManager",
+      "createPhaseComplete"
+    );
   }
 
   // Called from Scene.update
   update(time: number, delta: number) {
-    // Only group update logs if they become noisy, otherwise it might be too much.
-    // For now, let manager update logs appear directly.
-    // console.groupCollapsed(`LifecycleManager: Update Phase (time: ${time.toFixed(0)})`);
     this.inputManager.update(time, delta);
     this.networkManager.update(time, delta);
     this.entityManager.update(time, delta);
@@ -139,14 +183,14 @@ export default class LifecycleManager {
     this.cameraManager.update(time, delta);
     this.uiManager.update(time, delta);
     this.audioManager.update(time, delta);
-    // console.groupEnd();
   }
 
   // Called from Scene.shutdown
   shutdown() {
-    console.group("LifecycleManager: Shutdown Phase"); // Start group
-    console.log("Calling manager shutdown methods...");
-    this.communicationManager.destroy();
+    this.communicationManager.logEvent(
+      "LifecycleManager",
+      "shutdownPhaseStart"
+    );
     this.audioManager.shutdown();
     this.uiManager.shutdown();
     this.cameraManager.shutdown();
@@ -155,10 +199,11 @@ export default class LifecycleManager {
     this.entityManager.shutdown();
     this.physicsManager.shutdown();
 
-    console.log("Cleaning up event emitter...");
+    // Now destroy communication manager
+    this.communicationManager.destroy();
+
+    this.communicationManager.logEvent("LifecycleManager", "cleaningUpEmitter");
     this.eventEmitter.removeAllListeners();
-    console.log("Managers shut down and emitter cleared.");
-    console.groupEnd(); // End group
   }
 
   // Optional: Provide access to managers if needed by the scene directly (use sparingly)
