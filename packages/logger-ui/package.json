@@ -20,7 +20,9 @@
   "license": "ISC",
   "packageManager": "pnpm@10.9.0",
   "dependencies": {
-    "phaser": "^3.88.2",
-    "react": "^19.1.0"
+    "@dnd-kit/core": "catalog:",
+    "@dnd-kit/utilities": "catalog:",
+    "phaser": "catalog:",
+    "react": "catalog:"
   }
 }

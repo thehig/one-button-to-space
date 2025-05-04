@@ -1,4 +1,15 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
+// Remove react-draggable import
+// import Draggable from "react-draggable";
+// Import necessary components and hooks from dnd-kit
+import { DndContext, useDraggable, DragEndEvent } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 // Remove EventLogEntry import if context provides it implicitly or type is handled by hook
 // import { EventLogEntry } from "./types";
 // Restore context import
@@ -286,9 +297,16 @@ const TreeNode: React.FC<TreeNodeProps> = ({
 
 // --- Main GameEventLog Component ---
 export const GameEventLog: React.FC = () => {
-  // Remove props from signature
-  // Restore context hook
   const { events, clearLog } = useCommunicationContext();
+
+  // --- Draggable State ---
+  // We'll manage position manually based on dnd-kit events
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  // Define a unique ID for the draggable item
+  const draggableId = "game-event-log-draggable";
+
+  // State for collapse
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Keep other state (filters, hover, etc.)
   const [filterName, setFilterName] = useState("");
@@ -296,6 +314,23 @@ export const GameEventLog: React.FC = () => {
     new Set(getAllSourceIds(sourceTreeData))
   );
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
+  // Ref for the draggable element - Not directly needed by useDraggable in the same way,
+  // but can still be useful for other DOM manipulations if required.
+  // const nodeRef = useRef(null);
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: draggableId,
+  });
+
+  // --- Drag End Handler ---
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { delta } = event;
+    setPosition((prevPosition) => ({
+      x: prevPosition.x + delta.x,
+      y: prevPosition.y + delta.y,
+    }));
+    console.log("Drag ended, new position relative delta:", delta);
+  }, []);
 
   // Keep memos, they now depend on `events` from context
   const initializationTime = useMemo(() => {
@@ -381,190 +416,261 @@ export const GameEventLog: React.FC = () => {
     console.log("Clear log clicked");
   };
 
+  // Toggle collapse state
+  const toggleCollapse = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+
+  // Transform style for dnd-kit
+  const style = transform
+    ? {
+        transform: CSS.Translate.toString(transform),
+      }
+    : undefined;
+
   // Keep the rest of the component rendering logic (JSX)
+  // Wrap the draggable element with DndContext
   return (
-    <div
-      style={{
-        border: "1px solid #ccc",
-        padding: "10px",
-        margin: "10px",
-        maxHeight: "500px",
-        display: "flex",
-        flexDirection: "column",
-        fontSize: "0.9em",
-      }}
-    >
-      <h3 style={{ marginTop: 0, marginBottom: "10px" }}>Game Event Log</h3>
+    <DndContext onDragEnd={handleDragEnd}>
+      {/* Remove Draggable wrapper */}
+      {/* <Draggable handle=".drag-handle" nodeRef={nodeRef}> */}
+      {/* Use a class for the handle */}
       <div
+        ref={setNodeRef} // Assign the ref from useDraggable
         style={{
+          // Basic positioning styles (can be enhanced)
+          position: "absolute",
+          left: `${position.x}px`, // Use state for position
+          top: `${position.y}px`, // Use state for position
+          zIndex: 1000,
+          border: "1px solid #ccc",
+          backgroundColor: "rgba(64, 64, 64, 0.9)",
+          borderRadius: "5px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+          width: isCollapsed ? "auto" : "550px",
+          maxHeight: "600px",
           display: "flex",
-          flexDirection: "row",
-          gap: "15px",
-          flexGrow: 1,
+          flexDirection: "column",
+          fontSize: "0.9em",
+          // Remove hardcoded right/top
+          // right: "20px",
+          // top: "20px",
           overflow: "hidden",
+          ...style, // Apply the transform style from dnd-kit
         }}
+        // Spread the listeners onto the element itself if the whole div is draggable
+        // {...listeners}
+        // {...attributes}
       >
-        {/* Left Column: Filters & Controls */}
+        {/* Header for Title, Collapse Button, and Drag Handle */}
         <div
+          // className="drag-handle" // No longer needed for handle prop
           style={{
             display: "flex",
-            flexDirection: "column",
-            gap: "15px",
-            flexBasis: "250px",
-            flexShrink: 0,
-            borderRight: "1px solid #ccc",
-            paddingRight: "15px",
-            overflowY: "auto",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "5px 10px",
+            backgroundColor: "#242424",
+            borderBottom: "1px solid #242424",
+            cursor: "grab", // Change cursor to indicate draggable area
+            borderTopLeftRadius: "5px",
+            borderTopRightRadius: "5px",
+            touchAction: "none", // Recommended for better mobile dragging
           }}
+          // Spread listeners/attributes onto the handle div if only header should drag
+          {...listeners}
+          {...attributes}
         >
-          <input
-            type="text"
-            placeholder="Filter by event name..."
-            value={filterName}
-            onChange={(e) => setFilterName(e.target.value)}
-            style={{ padding: "5px", minWidth: "180px" }}
-          />
-          <div
-            style={{
-              flexGrow: 1,
-              minWidth: "200px",
-              overflowY: "auto",
-              paddingBottom: "10px",
-            }}
-          >
-            <span
-              style={{
-                fontWeight: "bold",
-                marginBottom: "5px",
-                display: "block",
-              }}
-            >
-              Filter Sources:
-            </span>
-            {sourceTreeData.map((node) => (
-              <TreeNode
-                key={node.id}
-                node={node}
-                allowedSources={allowedSources}
-                onToggle={handleSourceTreeToggle}
-                activeSourcesInLog={activeSourcesInLog}
-                eventsCountBySource={eventsCountBySource}
-              />
-            ))}
-          </div>
+          <h3 style={{ margin: 0, fontSize: "1em" }}>Game Event Log</h3>
           <button
-            onClick={handleClearLog} // Uses context clearLog
-            style={{
-              padding: "5px 10px",
-              marginTop: "auto",
-            }}
+            onClick={toggleCollapse}
+            style={{ padding: "2px 8px", cursor: "pointer" }}
+            title={isCollapsed ? "Expand" : "Collapse"}
           >
-            Clear Log
+            {isCollapsed ? "➕" : "➖"} {/* Simple icons */}
           </button>
         </div>
-        {/* Right Column: Event List Area */}
-        <div
-          style={{
-            flexGrow: 1,
-            overflowY: "auto",
-            position: "relative",
-          }}
-        >
-          <ul
+
+        {/* Collapsible Content Area */}
+        {!isCollapsed && (
+          <div
             style={{
-              listStyle: "none",
-              padding: "5px",
-              margin: 0,
+              padding: "10px", // Apply padding only when expanded
+              display: "flex",
+              flexDirection: "row",
+              gap: "15px",
+              flexGrow: 1,
+              overflow: "hidden", // For internal layout scrolling
+              maxHeight: "calc(600px - 40px)", // Adjust based on header height
             }}
           >
-            {filteredEvents.map((event, index) => (
-              <li
-                key={`${event.timestamp}-${event.source}-${event.eventName}-${index}`}
+            {/* Left Column: Filters & Controls */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "15px",
+                flexBasis: "200px", // Slightly narrower filters
+                flexShrink: 0,
+                borderRight: "1px solid #eee",
+                paddingRight: "10px",
+                overflowY: "auto",
+              }}
+            >
+              <input
+                type="text"
+                placeholder="Filter by event name..."
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                style={{ padding: "5px" }}
+              />
+              <div
                 style={{
-                  marginBottom: "3px",
-                  fontSize: "0.9em",
-                  borderBottom: "1px dotted #eee",
-                  paddingBottom: "2px",
-                  position: "relative",
-                  cursor:
-                    event.data !== undefined && event.data !== null
-                      ? "pointer"
-                      : "default",
+                  flexGrow: 1,
+                  overflowY: "auto",
                 }}
-                onMouseEnter={
-                  event.data !== undefined && event.data !== null
-                    ? () => setHoveredIndex(index)
-                    : undefined
-                }
-                onMouseLeave={
-                  event.data !== undefined && event.data !== null
-                    ? () => setHoveredIndex(null)
-                    : undefined
-                }
               >
-                <span style={{ color: "#888", marginRight: "5px" }}>
-                  {initializationTime
-                    ? formatTimeDifference(event.timestamp, initializationTime)
-                    : `[${event.timestamp}]`}
-                </span>
                 <span
-                  title={event.source}
                   style={{
-                    marginRight: "5px",
-                    display: "inline-block",
-                    minWidth: "1.5em",
-                    textAlign: "center",
+                    fontWeight: "bold",
+                    marginBottom: "5px",
+                    display: "block",
                   }}
                 >
-                  {getSymbol(event.source)}
+                  Filter Sources:
                 </span>
-                <span>
-                  {event.eventName}
-                  {event.data !== undefined && event.data !== null && (
-                    <span style={{ color: "#aaa", marginLeft: "3px" }}>*</span>
-                  )}
-                </span>
-                {hoveredIndex === index &&
-                  event.data !== undefined &&
-                  event.data !== null && (
-                    <div
+                {sourceTreeData.map((node) => (
+                  <TreeNode
+                    key={node.id}
+                    node={node}
+                    allowedSources={allowedSources}
+                    onToggle={handleSourceTreeToggle}
+                    activeSourcesInLog={activeSourcesInLog}
+                    eventsCountBySource={eventsCountBySource}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={handleClearLog}
+                style={{
+                  padding: "5px 10px",
+                  marginTop: "auto",
+                }}
+              >
+                Clear Log
+              </button>
+            </div>
+            {/* Right Column: Event List Area */}
+            <div
+              style={{
+                flexGrow: 1,
+                overflowY: "auto",
+                position: "relative",
+              }}
+            >
+              <ul
+                style={{
+                  listStyle: "none",
+                  padding: "0 5px", // Adjust padding
+                  margin: 0,
+                }}
+              >
+                {filteredEvents.map((event, index) => (
+                  <li
+                    key={`${event.timestamp}-${event.source}-${event.eventName}-${index}`}
+                    style={{
+                      marginBottom: "3px",
+                      fontSize: "0.9em",
+                      borderBottom: "1px dotted #eee",
+                      paddingBottom: "2px",
+                      position: "relative",
+                      cursor:
+                        event.data !== undefined && event.data !== null
+                          ? "pointer"
+                          : "default",
+                    }}
+                    onMouseEnter={
+                      event.data !== undefined && event.data !== null
+                        ? () => setHoveredIndex(index)
+                        : undefined
+                    }
+                    onMouseLeave={
+                      event.data !== undefined && event.data !== null
+                        ? () => setHoveredIndex(null)
+                        : undefined
+                    }
+                  >
+                    <span style={{ color: "#888", marginRight: "5px" }}>
+                      {initializationTime
+                        ? formatTimeDifference(
+                            event.timestamp,
+                            initializationTime
+                          )
+                        : `[${event.timestamp}]`}
+                    </span>
+                    <span
+                      title={event.source}
                       style={{
-                        position: "absolute",
-                        left: "10px",
-                        top: "100%",
-                        backgroundColor: "rgba(248, 248, 248, 0.95)",
-                        border: "1px solid #ccc",
-                        borderRadius: "4px",
-                        padding: "5px 8px",
-                        marginTop: "2px",
-                        fontSize: "0.9em",
-                        zIndex: 10,
-                        maxWidth: "400px",
-                        boxShadow: "2px 2px 5px rgba(0,0,0,0.1)",
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-all",
+                        marginRight: "5px",
+                        display: "inline-block",
+                        minWidth: "1.5em",
+                        textAlign: "center",
                       }}
                     >
-                      <pre
-                        style={{
-                          margin: 0,
-                          padding: 0,
-                          color: "#333",
-                        }}
-                      >
-                        {JSON.stringify(event.data, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-              </li>
-            ))}
-            {filteredEvents.length === 0 && (
-              <li style={{ color: "#888" }}>No events match filters.</li>
-            )}
-          </ul>
-        </div>
+                      {getSymbol(event.source)}
+                    </span>
+                    <span>
+                      {event.eventName}
+                      {event.data !== undefined && event.data !== null && (
+                        <span style={{ color: "#aaa", marginLeft: "3px" }}>
+                          *
+                        </span>
+                      )}
+                    </span>
+                    {hoveredIndex === index &&
+                      event.data !== undefined &&
+                      event.data !== null && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            left: "10px",
+                            top: "100%",
+                            backgroundColor: "rgba(248, 248, 248, 0.95)",
+                            border: "1px solid #ccc",
+                            borderRadius: "4px",
+                            padding: "5px 8px",
+                            marginTop: "2px",
+                            fontSize: "0.9em",
+                            zIndex: 10,
+                            maxWidth: "400px",
+                            boxShadow: "2px 2px 5px rgba(0,0,0,0.1)",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-all",
+                          }}
+                        >
+                          <pre
+                            style={{
+                              margin: 0,
+                              padding: 0,
+                              color: "#333",
+                            }}
+                          >
+                            {JSON.stringify(event.data, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                  </li>
+                ))}
+                {filteredEvents.length === 0 && (
+                  <li style={{ color: "#888" }}>No events match filters.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+      {/* </Draggable> */}
+    </DndContext>
   );
 };
 

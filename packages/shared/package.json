@@ -10,10 +10,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "matter-js": "^0.20.0"
+    "matter-js": "catalog:"
   },
   "devDependencies": {
-    "@types/matter-js": "^0.19.8",
+    "@types/matter-js": "catalog:",
     "typescript": "catalog:",
     "vitest": "^3.1.2"
   }

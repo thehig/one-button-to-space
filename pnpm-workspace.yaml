@@ -1,10 +1,21 @@
 packages:
-  # - "client"
-  # - "server"
-  # - "shared"
   - "packages/*"
 
 catalog:
-  typescript: ^5.2.2
-  nodemon: ^3.0.0
-  ts-node: ^10.9.0
+  react: "*"
+  react-dom: "*"
+  typescript: "*"
+  phaser: "*"
+  "@types/react": "*"
+  "@types/react-dom": "*"
+  "@types/node": "*"
+  "@dnd-kit/core": "*"
+  "@dnd-kit/utilities": "*"
+  "@colyseus/schema": "*"
+  colyseus: "*"
+  express: "*"
+  vite: "*"
+  nodemon: "*"
+  ts-node: "*"
+  "matter-js": "*"
+  "@types/matter-js": "*"
