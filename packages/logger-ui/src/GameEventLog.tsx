@@ -428,7 +428,7 @@ export const GameEventLog: React.FC = () => {
         x: position.x,
         y: position.y,
         width: 550, // Keep initial width consistent
-        // Height will be managed by internal content unless explicitly set/resized
+        height: 400, // Provide an initial default height
       }}
       style={{
         zIndex: 1000, // Ensure it stays on top
@@ -458,7 +458,6 @@ export const GameEventLog: React.FC = () => {
           // Basic positioning styles (can be enhanced)
           // Remove positioning/border/bg/shadow styles managed by Rnd wrapper
           width: isCollapsed ? "auto" : "100%", // Let Rnd control width, take 100% internally
-          maxHeight: "600px",
           height: "100%", // Let Rnd control height, take 100% internally
           display: "flex",
           flexDirection: "column",
@@ -511,8 +510,8 @@ export const GameEventLog: React.FC = () => {
               flexDirection: "row",
               gap: "15px",
               flexGrow: 1,
-              overflow: "hidden", // For internal layout scrolling
-              maxHeight: "calc(600px - 40px)", // Adjust based on header height
+              overflow: "hidden", // Keep hidden, inner columns will scroll
+              height: "calc(100% - 40px)", // Fill remaining height after header (adjust 40px if header height changes)
             }}
           >
             {/* Left Column: Filters & Controls */}
@@ -526,6 +525,7 @@ export const GameEventLog: React.FC = () => {
                 borderRight: "1px solid #eee",
                 paddingRight: "10px",
                 overflowY: "auto",
+                height: "100%", // Explicitly fill parent height
               }}
             >
               <input
@@ -577,6 +577,7 @@ export const GameEventLog: React.FC = () => {
                 flexGrow: 1,
                 overflowY: "auto",
                 position: "relative",
+                height: "100%", // Explicitly fill parent height
               }}
             >
               <ul
