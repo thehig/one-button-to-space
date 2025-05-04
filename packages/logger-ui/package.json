@@ -22,6 +22,7 @@
   "dependencies": {
     "phaser": "catalog:",
     "react": "catalog:",
+    "react-json-view": "^1.21.3",
     "react-rnd": "catalog:"
   }
 }

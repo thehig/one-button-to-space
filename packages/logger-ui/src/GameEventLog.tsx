@@ -16,6 +16,8 @@ import type { RndDragCallback, RndResizeCallback } from "react-rnd"; // Adjust b
 // import { EventLogEntry } from "./types";
 // Restore context import
 import { useCommunicationContext } from "./CommunicationContext";
+// Import the JSON viewer component
+import ReactJson from "react-json-view";
 
 // TODO: Define an interface for the event log entry
 // Remove the duplicate inline interface definition
@@ -630,15 +632,6 @@ export const GameEventLog: React.FC = () => {
                       overflowY: "auto",
                     }}
                   >
-                    <span
-                      style={{
-                        fontWeight: "bold",
-                        marginBottom: "5px",
-                        display: "block",
-                      }}
-                    >
-                      Filter Sources:
-                    </span>
                     {sourceTreeData.map((node) => (
                       <TreeNode
                         key={node.id}
@@ -772,22 +765,26 @@ export const GameEventLog: React.FC = () => {
               {!isDetailsCollapsed && (
                 <>
                   {selectedEventIndex !== null &&
-                  filteredEvents[selectedEventIndex]?.data !== undefined ? (
-                    <pre
-                      style={{
-                        margin: 0,
-                        padding: "5px",
-                        color: "#f0f0f0", // Light text on dark background
-                        whiteSpace: "pre-wrap",
-                        wordBreak: "break-all",
-                      }}
-                    >
-                      {JSON.stringify(
-                        filteredEvents[selectedEventIndex].data,
-                        null,
-                        2
-                      )}
-                    </pre>
+                  filteredEvents[selectedEventIndex]?.data !== undefined &&
+                  filteredEvents[selectedEventIndex]?.data !== null ? (
+                    // Wrap ReactJson to enforce alignment
+                    <div style={{ textAlign: "left" }}>
+                      {/* Replace pre with ReactJson */}
+                      <ReactJson
+                        src={filteredEvents[selectedEventIndex].data as object} // Cast data as object
+                        theme="ocean" // Dark theme
+                        collapsed={false} // Start expanded
+                        enableClipboard={true}
+                        displayDataTypes={true}
+                        displayObjectSize={true}
+                        name={false} // Hide root name
+                        style={{
+                          padding: "5px",
+                          backgroundColor: "transparent", // Use parent background
+                          fontSize: "1em", // Adjust font size if needed
+                        }}
+                      />
+                    </div>
                   ) : (
                     <div
                       style={{
