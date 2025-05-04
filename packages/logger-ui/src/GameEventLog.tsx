@@ -39,14 +39,20 @@ interface GameEventLogProps {
   startsOpen?: boolean; // New prop: Controls initial open state
   initialX?: number; // New prop: Initial X coordinate
   initialY?: number; // New prop: Initial Y coordinate
+  initialWidth?: number; // New prop: Initial width when expanded
   collapsedOpacity?: number; // New prop: Opacity when collapsed
+  startTreeOpen?: boolean; // New prop: Controls initial state of the filter tree section
+  startDataOpen?: boolean; // New prop: Controls initial state of the details data section
 }
 
 export const GameEventLog: React.FC<GameEventLogProps> = ({
   startsOpen = false,
   initialX = 20,
   initialY = 20,
+  initialWidth = 600, // Default width when expanded
   collapsedOpacity = 0.7,
+  startTreeOpen = false, // Default to closed
+  startDataOpen = false, // Default to closed
 }): React.ReactElement => {
   const { events, clearLog } = useCommunicationContext();
 
@@ -75,8 +81,11 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
   } = useComponentLayout({
     initialX,
     initialY,
+    initialWidth, // Pass initialWidth
     startsOpen,
-    // Pass other initial layout props if needed (e.g., initialWidth, initialHeight)
+    startTreeOpen, // Pass startTreeOpen
+    startDataOpen, // Pass startDataOpen
+    // Pass other initial layout props if needed (e.g., initialHeight)
   });
 
   // --- Other State --- (Selection state remains here for now)

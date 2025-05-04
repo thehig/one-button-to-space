@@ -8,6 +8,8 @@ interface UseComponentLayoutProps {
   initialWidth?: number;
   initialHeight?: number;
   startsOpen?: boolean;
+  startTreeOpen?: boolean;
+  startDataOpen?: boolean;
 }
 
 // Define the return type of the hook
@@ -33,9 +35,11 @@ interface UseComponentLayoutResult {
 export const useComponentLayout = ({
   initialX = 20,
   initialY = 20,
-  initialWidth = 550,
+  initialWidth = 600,
   initialHeight = 400,
   startsOpen = false,
+  startTreeOpen = false,
+  startDataOpen = false,
 }: UseComponentLayoutProps): UseComponentLayoutResult => {
   const [position, setPosition] = useState<Position>({
     x: initialX,
@@ -47,8 +51,8 @@ export const useComponentLayout = ({
     height: isCollapsed ? 50 : initialHeight, // Adjust initial height based on startsOpen
   });
   const [lastExpandedWidth, setLastExpandedWidth] = useState(initialWidth);
-  const [isFilterCollapsed, setIsFilterCollapsed] = useState(true);
-  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(true);
+  const [isFilterCollapsed, setIsFilterCollapsed] = useState(!startTreeOpen);
+  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(!startDataOpen);
 
   const toggleCollapse = useCallback(() => {
     const newCollapsedState = !isCollapsed;

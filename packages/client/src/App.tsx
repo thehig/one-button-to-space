@@ -13,6 +13,9 @@ function App() {
         collapsedOpacity={0.7}
         initialX={0}
         initialY={0}
+        startDataOpen={true}
+        startTreeOpen={true}
+        initialWidth={900}
       />
     </>
   );
