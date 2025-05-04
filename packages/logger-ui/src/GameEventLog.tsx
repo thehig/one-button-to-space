@@ -254,6 +254,9 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
               {isCollapsed ? "➕" : "➖"} {/* Use isCollapsed from hook */}
             </button>
             <h3 className="log-header-title">Game Event Log</h3>
+            <span className="log-header-count" style={{ marginLeft: "8px" }}>
+              ({filteredEvents.length})
+            </span>
           </div>
 
           <div className="log-header-right">
