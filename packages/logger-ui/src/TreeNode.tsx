@@ -18,7 +18,8 @@ export interface TreeNodeProps {
   allowedSources: Set<string>;
   onToggle: (node: SourceTreeNode, isChecked: boolean) => void;
   activeSourcesInLog: Set<string>; // Sources currently present in the unfiltered log
-  eventsCountBySource: Record<string, number>; // Counts per source in filtered log
+  eventsCountBySource: Record<string, number>; // Counts per source in *filtered* log
+  totalEventsCountBySource: Record<string, number>; // Counts per source in *unfiltered* log
 }
 
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -27,6 +28,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   onToggle,
   activeSourcesInLog,
   eventsCountBySource,
+  totalEventsCountBySource,
 }) => {
   const isParent = !!node.children && node.children.length > 0;
 
@@ -85,14 +87,24 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     [nodeAndDescendantIds, activeSourcesInLog]
   );
 
-  // Calculate total count for this node and its descendants
-  const totalCount = useMemo(
+  // Calculate total count for this node and its descendants based on FILTERED events (for highlighting)
+  const filteredCount = useMemo(
     () =>
       nodeAndDescendantIds.reduce(
         (sum, id) => sum + (eventsCountBySource[id] || 0),
         0
       ),
     [nodeAndDescendantIds, eventsCountBySource]
+  );
+
+  // Calculate display count for this node and its descendants based on UNFILTERED events (for display)
+  const displayCount = useMemo(
+    () =>
+      nodeAndDescendantIds.reduce(
+        (sum, id) => sum + (totalEventsCountBySource[id] || 0),
+        0
+      ),
+    [nodeAndDescendantIds, totalEventsCountBySource]
   );
 
   return (
@@ -110,7 +122,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           alignItems: "center",
           cursor: "pointer",
           marginBottom: "3px",
-          // Apply greyed-out style if node (or its children) have no active events
+          // Apply greyed-out style if node (or its children) have no FILTERED events
+          fontWeight: filteredCount > 0 ? "bold" : "normal",
           color: isNodeOrDescendantActive ? "inherit" : "#999",
           opacity: isNodeOrDescendantActive ? 1 : 0.6,
         }}
@@ -135,9 +148,9 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           {/* Folder for parents without symbol */}
         </span>
         {node.id} {/* Display ID directly since label is optional */}
-        {/* Display Count */}
+        {/* Display Count based on UNFILTERED logs */}
         <span style={{ marginLeft: "5px", fontSize: "0.9em", color: "#777" }}>
-          ({totalCount})
+          ({displayCount})
         </span>
       </label>
       {isParent && (
@@ -158,6 +171,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
               onToggle={onToggle}
               activeSourcesInLog={activeSourcesInLog}
               eventsCountBySource={eventsCountBySource} // Pass down counts
+              totalEventsCountBySource={totalEventsCountBySource} // Pass down total counts
             />
           ))}
         </div>

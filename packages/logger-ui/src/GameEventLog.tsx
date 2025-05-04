@@ -27,6 +27,16 @@ import { useEventFiltering } from "./hooks/useEventFiltering";
 import { useComponentLayout } from "./hooks/useComponentLayout";
 import { EventLogEntry } from "./types"; // Assuming types are defined here or adjust path
 
+// Helper function to calculate event counts by source
+const calculateCountsBySource = (
+  events: EventLogEntry[]
+): Record<string, number> => {
+  return events.reduce<Record<string, number>>((acc, event) => {
+    acc[event.source] = (acc[event.source] || 0) + 1;
+    return acc;
+  }, {});
+};
+
 // --- Main GameEventLog Component ---
 
 // Define props interface
@@ -97,6 +107,11 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     filteredEvents,
     eventsCountBySource,
   } = useEventFiltering(events, config.getAllSourceIds()); // Pass all known source IDs from config state
+
+  // --- NEW: Calculate total counts based on *unfiltered* events ---
+  const totalEventsCountBySource = useMemo(() => {
+    return calculateCountsBySource(events);
+  }, [events]);
 
   // --- Layout & Visibility State Hook ---
   const {
@@ -329,6 +344,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                         // Pass down necessary props needed by TreeNode and its children
                         activeSourcesInLog={activeSourcesInLog}
                         eventsCountBySource={eventsCountBySource}
+                        totalEventsCountBySource={totalEventsCountBySource}
                       />
                     ))}
                   </div>
