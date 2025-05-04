@@ -66,7 +66,7 @@ export const useComponentLayout = ({
 
     // Set new size based on collapse state
     setSize((prevSize) => ({
-      width: newCollapsedState ? 200 : lastExpandedWidth,
+      width: newCollapsedState ? 300 : lastExpandedWidth,
       height: newCollapsedState
         ? 50
         : (typeof prevSize.height === "string"

@@ -11,7 +11,9 @@ function App() {
       <PhaserGame />
       <GameEventLog
         startsOpen={true}
+        startsLocked={true}
         collapsedOpacity={0.7}
+        lockedOpacity={0.25}
         initialX={0}
         initialY={0}
         startDataOpen={true}

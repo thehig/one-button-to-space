@@ -43,10 +43,12 @@ const calculateCountsBySource = (
 interface GameEventLogProps {
   sourceConfigData?: SourceTreeNode[]; // Prop is now optional
   startsOpen?: boolean; // New prop: Controls initial open state
+  startsLocked?: boolean; // New prop: Controls initial locked state
   initialX?: number; // New prop: Initial X coordinate
   initialY?: number; // New prop: Initial Y coordinate
   initialWidth?: number; // New prop: Initial width when expanded
   collapsedOpacity?: number; // New prop: Opacity when collapsed
+  lockedOpacity?: number; // New prop: Opacity when locked (and not collapsed)
   startTreeOpen?: boolean; // New prop: Controls initial state of the filter tree section
   startDataOpen?: boolean; // New prop: Controls initial state of the details data section
 }
@@ -54,10 +56,12 @@ interface GameEventLogProps {
 export const GameEventLog: React.FC<GameEventLogProps> = ({
   sourceConfigData, // Destructure optional prop
   startsOpen = false,
+  startsLocked = false, // Destructure and default startsLocked
   initialX = 20,
   initialY = 20,
   initialWidth = 600, // Default width when expanded
   collapsedOpacity = 0.7,
+  lockedOpacity = 0.8, // Destructure and default lockedOpacity
   startTreeOpen = false, // Default to closed
   startDataOpen = false, // Default to closed
 }): React.ReactElement => {
@@ -139,6 +143,8 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
   const [selectedEventIndex, setSelectedEventIndex] = useState<number | null>(
     null
   );
+  // Initialize isLocked state using the startsLocked prop
+  const [isLocked, setIsLocked] = useState<boolean>(startsLocked);
 
   // --- Memoized Calculations ---
   const initializationTime = useMemo(() => {
@@ -234,22 +240,35 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       });
   }, [filteredEvents, initializationTime, config]);
 
+  // New callback to toggle lock state
+  const toggleLock = () => {
+    setIsLocked((prevLocked) => !prevLocked);
+  };
+
   // --- JSX Rendering ---
   return (
     <Rnd
       size={size} // Use size from hook
       position={position} // Use position from hook
-      className="log-container"
+      className={`log-container ${isCollapsed ? "collapsed" : ""} ${
+        isLocked ? "locked" : ""
+      }`} // Add locked class
       style={{
-        opacity: isCollapsed ? collapsedOpacity : 1, // Use isCollapsed from hook
+        opacity: isCollapsed
+          ? collapsedOpacity // Use prop for collapsed opacity
+          : isLocked
+          ? lockedOpacity // Use prop for locked opacity
+          : 1, // Default opacity when expanded and unlocked
       }}
       dragHandleClassName="drag-handle"
       minWidth={250}
       minHeight={isCollapsed ? 50 : 200} // Use isCollapsed from hook
-      enableResizing={!isCollapsed} // Use isCollapsed from hook
+      // Disable resizing if collapsed OR locked
+      enableResizing={!isCollapsed && !isLocked}
       onDragStop={handleDragStop} // Use handler from hook
       onResizeStop={handleResizeStop} // Use handler from hook
       bounds="window"
+      disableDragging={isLocked} // <-- Disable dragging when locked
     >
       <div
         className={`log-content-wrapper ${
@@ -262,11 +281,28 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
         <div className="log-header drag-handle">
           <div className="log-header-left">
             <button
-              onClick={toggleCollapse} // Use handler from hook
-              className="log-button log-button--collapse-toggle"
-              title={isCollapsed ? "Expand Log" : "Collapse Log"} // Use isCollapsed from hook
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent header click (if any existed) or drag initiation
+                toggleLock();
+              }}
+              className="log-button lock-button" // Keep lock-button class
+              title={isLocked ? "Unlock" : "Lock"}
             >
-              {isCollapsed ? "➕" : "➖"} {/* Use isCollapsed from hook */}
+              {isLocked ? "🔒" : "🔓"}
+            </button>
+            <button
+              onClick={!isLocked ? toggleCollapse : undefined}
+              className="log-button log-button--collapse-toggle"
+              disabled={isLocked}
+              title={
+                isLocked
+                  ? "Unlock to expand/collapse"
+                  : isCollapsed
+                  ? "Expand Log"
+                  : "Collapse Log"
+              }
+            >
+              {isCollapsed ? "➕" : "➖"}
             </button>
             <h3 className="log-header-title">Game Event Log</h3>
             <span className="log-header-count" style={{ marginLeft: "8px" }}>
@@ -275,29 +311,26 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
           </div>
 
           <div className="log-header-right">
-            {!isCollapsed && ( // Use isCollapsed from hook
+            {!isCollapsed && (
               <>
-                {/* Filter Panel Toggle */}
                 <button
-                  onClick={toggleFilterCollapse} // Use handler from hook
+                  onClick={toggleFilterCollapse}
                   className="log-button"
-                  style={{ opacity: isFilterCollapsed ? 0.6 : 1 }} // Use isFilterCollapsed from hook
-                  title={isFilterCollapsed ? "Show Filters" : "Hide Filters"} // Use isFilterCollapsed from hook
+                  style={{ opacity: isFilterCollapsed ? 0.6 : 1 }}
+                  title={isFilterCollapsed ? "Show Filters" : "Hide Filters"}
                 >
                   ☰
                 </button>
 
-                {/* Details Panel Toggle */}
                 <button
-                  onClick={toggleDetailsCollapse} // Use handler from hook
+                  onClick={toggleDetailsCollapse}
                   className="log-button"
-                  style={{ opacity: isDetailsCollapsed ? 0.6 : 1 }} // Use isDetailsCollapsed from hook
-                  title={isDetailsCollapsed ? "Show Details" : "Hide Details"} // Use isDetailsCollapsed from hook
+                  style={{ opacity: isDetailsCollapsed ? 0.6 : 1 }}
+                  title={isDetailsCollapsed ? "Show Details" : "Hide Details"}
                 >
                   ℹ️
                 </button>
 
-                {/* Copy Button */}
                 <button
                   onClick={handleCopyToClipboard}
                   className="log-button"
@@ -311,10 +344,12 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
         </div>
 
         {/* Collapsible Content Area */}
-        {!isCollapsed && ( // Use isCollapsed from hook
+        {!isCollapsed && (
           <div
             className="log-main-content"
-            style={{ height: `calc(100% - 37px)` }}
+            style={{
+              height: `calc(100% - 37px)`,
+            }}
           >
             {/* Filter Column */}
             <div
@@ -322,7 +357,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                 isFilterCollapsed ? "log-column--filter-collapsed" : ""
               }`}
             >
-              {!isFilterCollapsed && ( // Use isFilterCollapsed from hook
+              {!isFilterCollapsed && (
                 <>
                   <div className="filter-name-input">
                     <input
@@ -334,14 +369,12 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                     />
                   </div>
                   <div className="filter-source-list">
-                    {/* Map over the top-level nodes from the config */}
                     {config.getSourceTree().map((topLevelNode) => (
                       <TreeNode
-                        key={topLevelNode.id} // Use node ID as key
-                        node={topLevelNode} // Pass the individual node
+                        key={topLevelNode.id}
+                        node={topLevelNode}
                         allowedSources={allowedSources}
                         onToggle={handleSourceTreeToggle}
-                        // Pass down necessary props needed by TreeNode and its children
                         activeSourcesInLog={activeSourcesInLog}
                         eventsCountBySource={eventsCountBySource}
                         totalEventsCountBySource={totalEventsCountBySource}
@@ -363,7 +396,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
               className={`log-column log-column--list ${
                 isDetailsCollapsed ? "log-column--list-no-details" : ""
               }`}
-              style={{ flexGrow: isDetailsCollapsed ? 1 : 0 }} // Use isDetailsCollapsed from hook
+              style={{ flexGrow: isDetailsCollapsed ? 1 : 0 }}
             >
               <ul className="log-event-list">
                 {filteredEvents.map((event, index) => (
@@ -405,7 +438,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                           <span className="log-event-data-indicator">*</span>
                         )}
                       </span>
-                      {isDetailsCollapsed && // Use isDetailsCollapsed from hook
+                      {isDetailsCollapsed &&
                         event.data !== undefined &&
                         event.data !== null && (
                           <span
@@ -432,11 +465,11 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                 isDetailsCollapsed ? "log-column--details-collapsed" : ""
               }`}
               style={{
-                flexGrow: isDetailsCollapsed ? 0 : 1, // Use isDetailsCollapsed from hook
-                flexBasis: isDetailsCollapsed ? "0px" : "auto", // Use isDetailsCollapsed from hook
+                flexGrow: isDetailsCollapsed ? 0 : 1,
+                flexBasis: isDetailsCollapsed ? "0px" : "auto",
               }}
             >
-              {!isDetailsCollapsed && ( // Use isDetailsCollapsed from hook
+              {!isDetailsCollapsed && (
                 <>
                   {selectedEventIndex !== null &&
                   filteredEvents[selectedEventIndex]?.data !== undefined &&

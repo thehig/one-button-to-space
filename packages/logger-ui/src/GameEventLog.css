@@ -47,6 +47,13 @@
   flex-shrink: 0; /* Prevent header shrinking */
 }
 
+/* Change header cursor when locked and dragging is disabled */
+.log-container.locked .log-header {
+  cursor: default; /* Or 'not-allowed' if preferred */
+  /* Prevent text selection in the header when locked */
+  user-select: none;
+}
+
 .log-header-left,
 .log-header-right {
   display: flex;
@@ -308,4 +315,48 @@
   margin-left: 20px;
   border-left: 1px solid #444;
   padding-left: 10px;
+}
+
+/* Additions for Locking */
+
+/* Disable RIGHT header controls when locked */
+.log-container.locked .log-header-right .log-button {
+  pointer-events: none;
+  opacity: 0.6;
+  user-select: none;
+}
+
+/* Ensure the lock button (in left header) remains interactive */
+.log-container.locked .lock-button {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+/* Style the collapse button when disabled (locked) */
+.log-container.locked .log-button--collapse-toggle {
+  opacity: 0.6;
+  /* Make the button completely ignore pointer events when locked */
+  pointer-events: none;
+  /* cursor: not-allowed; */ /* No longer needed */
+  /* The disabled attribute in JSX handles semantic disabling */
+}
+
+/* Disable pointer events on the main content area when locked */
+.log-container.locked .log-main-content {
+  pointer-events: none;
+  user-select: none; /* Also prevent text selection in content */
+}
+
+/* Adjust header controls spacing if needed */
+.log-header-right {
+  display: flex;
+  align-items: center;
+  gap: 5px; /* Adjust gap to accommodate the new lock button */
+}
+
+.lock-button {
+  /* Add any specific styles for the lock button if desired */
+  /* For example, ensure consistent size with other buttons */
+  padding: 5px 8px;
+  cursor: pointer;
 }
