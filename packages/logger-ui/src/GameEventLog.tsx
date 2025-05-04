@@ -5,11 +5,13 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-// Remove react-draggable import
-// import Draggable from "react-draggable";
-// Import necessary components and hooks from dnd-kit
-import { DndContext, useDraggable, DragEndEvent } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
+// Import react-rnd
+import { Rnd } from "react-rnd";
+// Import types from the main module
+import type { RndDragCallback, RndResizeCallback } from "react-rnd"; // Adjust based on actual exports
+// Remove necessary components and hooks from dnd-kit
+// import { DndContext, useDraggable, DragEndEvent } from "@dnd-kit/core";
+// import { CSS } from "@dnd-kit/utilities";
 // Remove EventLogEntry import if context provides it implicitly or type is handled by hook
 // import { EventLogEntry } from "./types";
 // Restore context import
@@ -301,9 +303,9 @@ export const GameEventLog: React.FC = () => {
 
   // --- Draggable State ---
   // We'll manage position manually based on dnd-kit events
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [position, setPosition] = useState({ x: 20, y: 20 }); // Initial position for Rnd
   // Define a unique ID for the draggable item
-  const draggableId = "game-event-log-draggable";
+  // const draggableId = "game-event-log-draggable";
 
   // State for collapse
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -318,19 +320,9 @@ export const GameEventLog: React.FC = () => {
   // Ref for the draggable element - Not directly needed by useDraggable in the same way,
   // but can still be useful for other DOM manipulations if required.
   // const nodeRef = useRef(null);
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({
-    id: draggableId,
-  });
-
-  // --- Drag End Handler ---
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { delta } = event;
-    setPosition((prevPosition) => ({
-      x: prevPosition.x + delta.x,
-      y: prevPosition.y + delta.y,
-    }));
-    console.log("Drag ended, new position relative delta:", delta);
-  }, []);
+  // const { attributes, listeners, setNodeRef, transform } = useDraggable({
+  //   id: draggableId,
+  // });
 
   // Keep memos, they now depend on `events` from context
   const initializationTime = useMemo(() => {
@@ -422,33 +414,52 @@ export const GameEventLog: React.FC = () => {
   };
 
   // Transform style for dnd-kit
-  const style = transform
-    ? {
-        transform: CSS.Translate.toString(transform),
-      }
-    : undefined;
+  // const style = transform
+  //   ? {
+  //       transform: CSS.Translate.toString(transform),
+  //     }
+  //   : undefined;
 
   // Keep the rest of the component rendering logic (JSX)
   // Wrap the draggable element with DndContext
   return (
-    <DndContext onDragEnd={handleDragEnd}>
+    <Rnd
+      default={{
+        x: position.x,
+        y: position.y,
+        width: 550, // Keep initial width consistent
+        // Height will be managed by internal content unless explicitly set/resized
+      }}
+      style={{
+        zIndex: 1000, // Ensure it stays on top
+        border: "1px solid #ccc",
+        backgroundColor: "rgba(64, 64, 64, 0.9)",
+        borderRadius: "5px",
+        boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
+        // Let Rnd handle positioning, remove absolute/left/top from here
+      }}
+      dragHandleClassName="drag-handle" // Specify the class for the drag handle
+      minWidth={250} // Set a reasonable minimum width
+      minHeight={isCollapsed ? 50 : 200} // Adjust min height based on collapse state
+      enableResizing={!isCollapsed} // Disable resizing when collapsed
+      bounds="window" // Keep within viewport
+      onDragStop={(e, d) => {
+        setPosition({ x: d.x, y: d.y });
+      }}
+      // Optionally manage size state on resize stop if needed
+      // onResizeStop={(e, direction, ref, delta, position) => { setSize({ width: ref.style.width, height: ref.style.height }); }}
+    >
       {/* Remove Draggable wrapper */}
       {/* <Draggable handle=".drag-handle" nodeRef={nodeRef}> */}
       {/* Use a class for the handle */}
       <div
-        ref={setNodeRef} // Assign the ref from useDraggable
+        // ref={setNodeRef} // Remove dnd-kit ref
         style={{
           // Basic positioning styles (can be enhanced)
-          position: "absolute",
-          left: `${position.x}px`, // Use state for position
-          top: `${position.y}px`, // Use state for position
-          zIndex: 1000,
-          border: "1px solid #ccc",
-          backgroundColor: "rgba(64, 64, 64, 0.9)",
-          borderRadius: "5px",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.2)",
-          width: isCollapsed ? "auto" : "550px",
+          // Remove positioning/border/bg/shadow styles managed by Rnd wrapper
+          width: isCollapsed ? "auto" : "100%", // Let Rnd control width, take 100% internally
           maxHeight: "600px",
+          height: "100%", // Let Rnd control height, take 100% internally
           display: "flex",
           flexDirection: "column",
           fontSize: "0.9em",
@@ -456,7 +467,7 @@ export const GameEventLog: React.FC = () => {
           // right: "20px",
           // top: "20px",
           overflow: "hidden",
-          ...style, // Apply the transform style from dnd-kit
+          // ...style, // Apply the transform style from dnd-kit
         }}
         // Spread the listeners onto the element itself if the whole div is draggable
         // {...listeners}
@@ -464,7 +475,7 @@ export const GameEventLog: React.FC = () => {
       >
         {/* Header for Title, Collapse Button, and Drag Handle */}
         <div
-          // className="drag-handle" // No longer needed for handle prop
+          className="drag-handle" // Assign the handle class for Rnd
           style={{
             display: "flex",
             justifyContent: "space-between",
@@ -478,8 +489,8 @@ export const GameEventLog: React.FC = () => {
             touchAction: "none", // Recommended for better mobile dragging
           }}
           // Spread listeners/attributes onto the handle div if only header should drag
-          {...listeners}
-          {...attributes}
+          // {...listeners}
+          // {...attributes}
         >
           <h3 style={{ margin: 0, fontSize: "1em" }}>Game Event Log</h3>
           <button
@@ -670,7 +681,7 @@ export const GameEventLog: React.FC = () => {
         )}
       </div>
       {/* </Draggable> */}
-    </DndContext>
+    </Rnd>
   );
 };
 

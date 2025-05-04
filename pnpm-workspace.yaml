@@ -9,8 +9,6 @@ catalog:
   "@types/react": "*"
   "@types/react-dom": "*"
   "@types/node": "*"
-  "@dnd-kit/core": "*"
-  "@dnd-kit/utilities": "*"
   "@colyseus/schema": "*"
   colyseus: "*"
   express: "*"
@@ -19,3 +17,4 @@ catalog:
   ts-node: "*"
   "matter-js": "*"
   "@types/matter-js": "*"
+  "react-rnd": "*"
