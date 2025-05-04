@@ -1,9 +1,16 @@
-import React, { useEffect } from "react";
-import {
-  SourceTreeNode,
-  getAllSourceIds,
-  sourceSymbols,
-} from "./GameEventLogConfig"; // Adjust path if needed
+import React, { useEffect, useMemo, useRef } from "react";
+import { SourceTreeNode } from "./types"; // Only import the type
+
+// --- Helper function to get all descendant IDs (including self) ---
+const getAllDescendantIds = (node: SourceTreeNode): string[] => {
+  let ids = [node.id];
+  if (node.children) {
+    node.children.forEach((child) => {
+      ids = ids.concat(getAllDescendantIds(child));
+    });
+  }
+  return ids;
+};
 
 // --- TreeNode Component for Hierarchical Filter ---
 export interface TreeNodeProps {
@@ -11,7 +18,7 @@ export interface TreeNodeProps {
   allowedSources: Set<string>;
   onToggle: (node: SourceTreeNode, isChecked: boolean) => void;
   activeSourcesInLog: Set<string>; // Sources currently present in the unfiltered log
-  eventsCountBySource: Record<string, number>; // New prop: Counts per source in filtered log
+  eventsCountBySource: Record<string, number>; // Counts per source in filtered log
 }
 
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -19,56 +26,52 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   allowedSources,
   onToggle,
   activeSourcesInLog,
-  eventsCountBySource, // Destructure new prop
+  eventsCountBySource,
 }) => {
   const isParent = !!node.children && node.children.length > 0;
 
-  // Determine checkbox state: checked, unchecked, or indeterminate
-  const nodeAndChildrenIds = isParent ? getAllSourceIds([node]) : [node.id];
+  // Get all IDs for this node and its descendants directly from the node prop
+  const nodeAndDescendantIds = useMemo(() => getAllDescendantIds(node), [node]);
 
-  let checkboxState: "checked" | "unchecked" | "indeterminate" = "unchecked";
-  // Only consider nodes that are actual sources (exist in sourceSymbols) for determining state
-  const relevantIds = nodeAndChildrenIds.filter(
-    (id: string) => sourceSymbols[id]
+  // Filter to only include IDs that actually have events logged against them
+  // (These are the only ones relevant for filtering state)
+  const relevantIds = useMemo(
+    () =>
+      nodeAndDescendantIds.filter(
+        (id) =>
+          eventsCountBySource[id] !== undefined || activeSourcesInLog.has(id)
+      ),
+    [nodeAndDescendantIds, eventsCountBySource, activeSourcesInLog]
   );
 
-  if (relevantIds.length > 0) {
-    const checkedCount = relevantIds.filter((id: string) =>
+  // Determine checkbox state based on relevant IDs and allowedSources prop
+  const checkboxState = useMemo<
+    "checked" | "unchecked" | "indeterminate"
+  >(() => {
+    if (relevantIds.length === 0) {
+      // If no relevant descendants (or self), it cannot be checked or indeterminate
+      return "unchecked";
+    }
+
+    const checkedCount = relevantIds.filter((id) =>
       allowedSources.has(id)
     ).length;
+
     if (checkedCount === relevantIds.length) {
-      checkboxState = "checked";
+      return "checked";
     } else if (checkedCount > 0) {
-      checkboxState = "indeterminate";
+      return "indeterminate";
     } else {
-      checkboxState = "unchecked";
+      return "unchecked";
     }
-  } else if (isParent) {
-    // Handle parent nodes like "Scenes" or "Managers" which don't have direct sourceSymbols mapping
-    // Their state depends entirely on children
-    const childSourceIds = getAllSourceIds(node.children || []);
-    const checkedChildCount = childSourceIds.filter((id: string) =>
-      allowedSources.has(id)
-    ).length;
-    if (childSourceIds.length > 0) {
-      if (checkedChildCount === childSourceIds.length) {
-        checkboxState = "checked";
-      } else if (checkedChildCount > 0) {
-        checkboxState = "indeterminate";
-      }
-    }
-    // else remains 'unchecked' if no children or no checkable children
-  } else {
-    // Leaf node that is not in sourceSymbols (should not happen with current logic, but safety check)
-    checkboxState = allowedSources.has(node.id) ? "checked" : "unchecked";
-  }
+  }, [relevantIds, allowedSources]);
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onToggle(node, e.target.checked);
   };
 
   // Ref for indeterminate state
-  const checkboxRef = React.useRef<HTMLInputElement>(null);
+  const checkboxRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (checkboxRef.current) {
       checkboxRef.current.checked = checkboxState === "checked";
@@ -76,9 +79,20 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
     }
   }, [checkboxState]);
 
-  // Determine if the node should be greyed out
-  const isNodeActive = nodeAndChildrenIds.some((id: string) =>
-    activeSourcesInLog.has(id)
+  // Determine if the node (or any descendant) is active in the log
+  const isNodeOrDescendantActive = useMemo(
+    () => nodeAndDescendantIds.some((id) => activeSourcesInLog.has(id)),
+    [nodeAndDescendantIds, activeSourcesInLog]
+  );
+
+  // Calculate total count for this node and its descendants
+  const totalCount = useMemo(
+    () =>
+      nodeAndDescendantIds.reduce(
+        (sum, id) => sum + (eventsCountBySource[id] || 0),
+        0
+      ),
+    [nodeAndDescendantIds, eventsCountBySource]
   );
 
   return (
@@ -97,18 +111,17 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           cursor: "pointer",
           marginBottom: "3px",
           // Apply greyed-out style if node (or its children) have no active events
-          color: isNodeActive ? "inherit" : "#999",
-          opacity: isNodeActive ? 1 : 0.6,
+          color: isNodeOrDescendantActive ? "inherit" : "#999",
+          opacity: isNodeOrDescendantActive ? 1 : 0.6,
         }}
         title={node.id} // Show ID on hover for clarity if needed
       >
         <input
           ref={checkboxRef}
           type="checkbox"
-          // checked={checkboxState === 'checked'} // Handled by useEffect and ref
-          // indeterminate={checkboxState === 'indeterminate'} // Handled by useEffect and ref
           onChange={handleCheckboxChange}
           style={{ marginRight: "5px" }}
+          disabled={relevantIds.length === 0} // Disable checkbox if no relevant sources
         />
         <span
           style={{
@@ -121,18 +134,10 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
           {node.symbol || (isParent ? "📁" : "")}{" "}
           {/* Folder for parents without symbol */}
         </span>
-        {node.label}
+        {node.id} {/* Display ID directly since label is optional */}
         {/* Display Count */}
         <span style={{ marginLeft: "5px", fontSize: "0.9em", color: "#777" }}>
-          (
-          {isParent
-            ? getAllSourceIds([node]).reduce(
-                (sum: number, id: string) =>
-                  sum + (eventsCountBySource[id] || 0),
-                0
-              )
-            : eventsCountBySource[node.id] || 0}
-          )
+          ({totalCount})
         </span>
       </label>
       {isParent && (

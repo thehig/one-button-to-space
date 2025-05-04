@@ -15,14 +15,9 @@ import { useCommunicationContext } from "./CommunicationContext";
 import ReactJson from "react-json-view";
 // Import the CSS file
 import "./GameEventLog.css";
-// Import configuration
-import {
-  sourceSymbols, // Keep this for preamble
-  sourceTreeData,
-  getSymbol,
-  getAllSourceIds,
-  SourceTreeNode,
-} from "./GameEventLogConfig"; // Adjust path if needed
+// Import configuration CLASS and TYPE
+import { GameEventLogConfig } from "./GameEventLogConfig"; // Adjust path if needed
+import { SourceTreeNode } from "./types"; // Keep type for prop
 // Import the TreeNode component
 import { TreeNode } from "./TreeNode";
 // Import helper functions
@@ -36,6 +31,7 @@ import { EventLogEntry } from "./types"; // Assuming types are defined here or a
 
 // Define props interface
 interface GameEventLogProps {
+  sourceConfigData: SourceTreeNode[]; // New prop: Source tree config
   startsOpen?: boolean; // New prop: Controls initial open state
   initialX?: number; // New prop: Initial X coordinate
   initialY?: number; // New prop: Initial Y coordinate
@@ -46,6 +42,7 @@ interface GameEventLogProps {
 }
 
 export const GameEventLog: React.FC<GameEventLogProps> = ({
+  sourceConfigData, // Destructure new prop
   startsOpen = false,
   initialX = 20,
   initialY = 20,
@@ -56,6 +53,12 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
 }): React.ReactElement => {
   const { events, clearLog } = useCommunicationContext();
 
+  // Instantiate the config based on the prop
+  const config = useMemo(
+    () => new GameEventLogConfig(sourceConfigData),
+    [sourceConfigData]
+  );
+
   // --- Filtering State & Logic Hook ---
   const {
     filterName,
@@ -64,7 +67,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     handleSourceTreeToggle,
     filteredEvents,
     eventsCountBySource,
-  } = useEventFiltering(events);
+  } = useEventFiltering(events, config.getAllSourceIds());
 
   // --- Layout & Visibility State Hook ---
   const {
@@ -139,9 +142,9 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       return;
     }
 
-    const preambleLines = Object.entries(sourceSymbols).map(
-      ([source, symbol]) => `${symbol}: ${source}`
-    );
+    const preambleLines = config
+      .getAllSourceIds()
+      .map((sourceId) => `${config.getSymbol(sourceId)}: ${sourceId}`);
     const preamble = `Emoji Legend:\n${preambleLines.join("\n")}\n---\n\n`;
 
     const logLines = filteredEvents
@@ -150,7 +153,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
           event.timestamp,
           initializationTime
         );
-        const symbol = getSymbol(event.source);
+        const symbol = config.getSymbol(event.source);
         const eventName = event.eventName;
         let line = `${timestamp} ${symbol} ${eventName}`;
         if (event.data !== undefined && event.data !== null) {
@@ -171,7 +174,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       .catch((err) => {
         console.error("Failed to copy log to clipboard:", err);
       });
-  }, [filteredEvents, initializationTime]);
+  }, [filteredEvents, initializationTime, config]);
 
   // --- JSX Rendering ---
   return (
@@ -260,21 +263,24 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
             >
               {!isFilterCollapsed && ( // Use isFilterCollapsed from hook
                 <>
-                  <input
-                    type="text"
-                    placeholder="Filter by event name..."
-                    value={filterName}
-                    onChange={(e) => setFilterName(e.target.value)}
-                    className="log-filter-input"
-                  />
-                  <div className="log-filter-tree">
-                    {/* FIX: Add type annotation for map parameter */}
-                    {sourceTreeData.map((node: SourceTreeNode) => (
+                  <div className="filter-name-input">
+                    <input
+                      type="text"
+                      placeholder="Filter by event name..."
+                      value={filterName}
+                      onChange={(e) => setFilterName(e.target.value)}
+                      className="log-filter-input"
+                    />
+                  </div>
+                  <div className="filter-source-list">
+                    {/* Map over the top-level nodes from the config */}
+                    {config.getSourceTree().map((topLevelNode) => (
                       <TreeNode
-                        key={node.id}
-                        node={node}
+                        key={topLevelNode.id} // Use node ID as key
+                        node={topLevelNode} // Pass the individual node
                         allowedSources={allowedSources}
                         onToggle={handleSourceTreeToggle}
+                        // Pass down necessary props needed by TreeNode and its children
                         activeSourcesInLog={activeSourcesInLog}
                         eventsCountBySource={eventsCountBySource}
                       />
@@ -319,7 +325,6 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                         : undefined
                     }
                   >
-                    {/* ... (event item content remains the same) ... */}
                     <div className="log-event-item-content">
                       <span className="log-event-timestamp">
                         {initializationTime
@@ -330,7 +335,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                           : `[${event.timestamp}]`}
                       </span>
                       <span title={event.source} className="log-event-symbol">
-                        {getSymbol(event.source)}
+                        {config.getSymbol(event.source)}
                       </span>
                       <span className="log-event-name">
                         {event.eventName}

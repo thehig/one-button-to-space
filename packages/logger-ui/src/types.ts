@@ -36,7 +36,7 @@ export type MainWindowMessage =
 
 export interface SourceTreeNode {
   id: string; // Unique identifier (usually the source name)
-  label: string; // Display name (usually the source name)
+  label?: string; // Display name (now optional)
   symbol?: string; // Emoji/Symbol
   children?: SourceTreeNode[];
 }

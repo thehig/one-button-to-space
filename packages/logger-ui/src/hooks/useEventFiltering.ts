@@ -1,11 +1,17 @@
 import { useState, useMemo, useCallback } from "react";
-import {
-  SourceTreeNode,
-  getAllSourceIds,
-  sourceTreeData,
-  sourceSymbols,
-} from "../GameEventLogConfig";
-import { EventLogEntry } from "../types"; // Assuming types are defined here or adjust path
+import { SourceTreeNode } from "../types";
+import { EventLogEntry } from "../types";
+
+// --- Helper function (copied from TreeNode.tsx) ---
+const getAllDescendantIds = (node: SourceTreeNode): string[] => {
+  let ids = [node.id];
+  if (node.children) {
+    node.children.forEach((child) => {
+      ids = ids.concat(getAllDescendantIds(child));
+    });
+  }
+  return ids;
+};
 
 interface UseEventFilteringResult {
   filterName: string;
@@ -17,44 +23,29 @@ interface UseEventFilteringResult {
 }
 
 export const useEventFiltering = (
-  events: EventLogEntry[]
+  events: EventLogEntry[],
+  allSourceIdsFromConfig: string[] // New argument
 ): UseEventFilteringResult => {
   const [filterName, setFilterName] = useState("");
   const [allowedSources, setAllowedSources] = useState<Set<string>>(
-    new Set(getAllSourceIds(sourceTreeData)) // Initialize with all sources allowed
+    new Set(allSourceIdsFromConfig) // Initialize with IDs from config
   );
 
   const handleSourceTreeToggle = useCallback(
     (node: SourceTreeNode, isChecked: boolean) => {
       setAllowedSources((prevAllowed) => {
         const newAllowed = new Set(prevAllowed);
-        const idsToUpdate = getAllSourceIds([node]);
+        // Use the local helper to get all descendant IDs
+        const idsToUpdate = getAllDescendantIds(node);
 
-        // Update direct node and its potential children that are actual sources
+        // Update all descendant IDs based on the checkbox state
         idsToUpdate.forEach((id: string) => {
-          if (sourceSymbols[id]) {
-            // Only modify known source types
-            if (isChecked) {
-              newAllowed.add(id);
-            } else {
-              newAllowed.delete(id);
-            }
+          if (isChecked) {
+            newAllowed.add(id);
+          } else {
+            newAllowed.delete(id);
           }
         });
-
-        // Explicitly handle children if the toggled node is a parent
-        if (node.children && node.children.length > 0) {
-          const childSourceIds = getAllSourceIds(node.children);
-          childSourceIds.forEach((childId: string) => {
-            if (sourceSymbols[childId]) {
-              if (isChecked) {
-                newAllowed.add(childId);
-              } else {
-                newAllowed.delete(childId);
-              }
-            }
-          });
-        }
 
         return newAllowed;
       });
@@ -76,8 +67,15 @@ export const useEventFiltering = (
     filteredEvents.forEach((event) => {
       counts[event.source] = (counts[event.source] || 0) + 1;
     });
+    // Also include counts for allowed sources that might have 0 events after filtering
+    allSourceIdsFromConfig.forEach((id) => {
+      if (!counts[id]) {
+        counts[id] = 0;
+      }
+    });
     return counts;
-  }, [filteredEvents]);
+    // Dependency on allSourceIdsFromConfig added
+  }, [filteredEvents, allSourceIdsFromConfig]);
 
   return {
     filterName,

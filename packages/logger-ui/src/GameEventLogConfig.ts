@@ -100,6 +100,14 @@ export class GameEventLogConfig {
   }
 
   /**
+   * Gets the internal source tree structure.
+   * @returns The array of SourceTreeNode objects.
+   */
+  public getSourceTree(): SourceTreeNode[] {
+    return this.sourceTree;
+  }
+
+  /**
    * Gets the symbol for a given source ID.
    * @param sourceId The ID of the source.
    * @returns The corresponding symbol or a fallback '❓'.
