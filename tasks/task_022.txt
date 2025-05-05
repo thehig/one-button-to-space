@@ -119,7 +119,7 @@ The implementation will be verified through the following approach:
    - Use mock functions to verify context and manager interactions
 
 # Subtasks:
-## 1. Implement CommunicationManager Test Suite [pending]
+## 1. Implement CommunicationManager Test Suite [in-progress]
 ### Dependencies: None
 ### Description: Create a comprehensive test suite for the CommunicationManager singleton class to achieve full coverage of its functionality.
 ### Details:
@@ -139,6 +139,62 @@ Testing approach:
 - Test edge cases like empty logs, max size boundaries
 - Verify event structure and timestamps
 - Ensure 100% coverage of this critical class
+
+<info added on 2025-05-05T20:48:25.645Z>
+# Implementation Plan for Task 22.1: CommunicationManager Test Suite
+
+**File:** `packages\logger-ui\src\CommunicationManager.test.ts`
+
+**Testing Framework:** Vitest (based on `vitest.config.ts` in the package)
+
+**Setup:**
+1.  Import `CommunicationManager`, `EventLogEntry`, and necessary Vitest functions (`describe`, `it`, `expect`, `beforeEach`, `afterEach`, `vi`).
+2.  Use `beforeEach` and `afterEach` to manage the singleton instance:
+    *   `beforeEach`: Reset Vitest mocks (`vi.resetModules()`), dynamically import `CommunicationManager` to get a fresh module scope, get the instance. Mock `Date.now()` for consistent timestamps. Mock `window` and `window.__console_log_original`.
+    *   `afterEach`: Call `CommunicationManager.getInstance().destroy()` to clean up listeners, explicitly delete the static instance (`delete (CommunicationManager as any).instance;`) to ensure isolation. Restore mocks (`vi.restoreAllMocks()`).
+
+**Test Cases:**
+
+1.  **Singleton Pattern (`getInstance`)**:
+    *   `it('should return the same instance')`: Call `getInstance()` multiple times and assert the returned objects are strictly equal.
+    *   `it('should create a new instance if none exists')`: Verify instance creation on first call.
+
+2.  **`logEvent` Method**:
+    *   `it('should add a log entry with correct structure')`: Call `logEvent`, then `getEventLog`, check array length and the structure/content of the added entry (timestamp, source, eventName, data).
+    *   `it('should emit "new-event" with the log entry')`: Spy on `emit`, call `logEvent`, verify `emit` was called with `'new-event'` and the correct entry.
+    *   `it('should handle different data types (object, array, primitive, null)')`: Test `logEvent` with various data types and verify they are stored correctly.
+    *   `it('should trim the log when maxLogSize is exceeded')`: Set `maxLogSize` low, add more events than the limit, verify `getEventLog` returns only the last N entries. Check trimming behavior (should keep *last* N).
+    *   `it('should redirect to original console.log when enabled')`: Set `redirectEventsToConsole(true)`, mock `window.__console_log_original`, spy on it, call `logEvent`, verify the mock was called with correct formatting.
+    *   `it('should not redirect to console when disabled')`: Set `redirectEventsToConsole(false)`, spy on mock `window.__console_log_original`, verify it was NOT called.
+
+3.  **`clearLog` Method**:
+    *   `it('should clear the event log')`: Add events, call `clearLog`, verify `getEventLog` returns an empty array.
+    *   `it('should emit "log-cleared" event')`: Spy on `emit`, call `clearLog`, verify `emit` was called with `'log-cleared'`. 
+
+4.  **Event Listeners (`on`, `off`, `emit`)**:
+    *   `it('should register and trigger event listeners using "on"')`: Register a listener using `on`, `emit` the event, verify the listener callback was executed.
+    *   `it('should remove event listeners using "off"')`: Register a listener, remove it using `off`, emit the event, verify the listener was NOT called.
+
+5.  **Configuration (`setMaxLogSize`, `setRedirectEventsToConsole`)**:
+    *   `it('should update maxLogSize')`: Call `setMaxLogSize`, check the internal `_maxLogSize` (or use the getter `maxLogSize`) and verify it trims the log immediately if needed. Test with valid and invalid (negative, zero) inputs, ensuring validation works.
+    *   `it('should log the maxLogSize change')`: Spy on `logEvent`, call `setMaxLogSize`, verify `logEvent` was called with appropriate details.
+    *   `it('should update redirectEventsToConsole flag')`: Call `setRedirectEventsToConsole`, check internal `_redirectEventsToConsole` state.
+    *   `it('should log the redirect change only when value changes')`: Spy on `logEvent`, call `setRedirectEventsToConsole` multiple times (true -> false -> false -> true), verify `logEvent` is called only when the state actually changes.
+
+6.  **`getEventLog` Method**:
+    *   `it('should return a copy of the event log array')`: Get the log, modify the returned array, get the log again, verify the internal log wasn't changed (defensive copy).
+    *   `it('should return the current log entries')`: Add events, call `getEventLog`, verify the contents match expected.
+
+7.  **`destroy` Method**:
+    *   `it('should remove all listeners')`: Add listeners, call `destroy`, emit events, verify listeners are not called. (Check `listenerCount` goes to 0).
+    *   `it('should potentially clean up other resources (if any added later)')` - Placeholder if needed.
+
+**Mocks:**
+*   `vi.spyOn(CommunicationManager.prototype, 'emit')`
+*   `vi.spyOn(console, 'log')` / `window.__console_log_original` (mock implementation)
+*   `vi.useFakeTimers()` and `vi.setSystemTime()` for consistent timestamps in `Date.now()`.
+*   Mock `window` object as needed for console redirection tests.
+</info added on 2025-05-05T20:48:25.645Z>
 
 ## 2. Create GameEventLogConfig Test Suite [pending]
 ### Dependencies: None
