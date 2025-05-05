@@ -5,14 +5,21 @@
   "type": "module",
   "description": "A physics-based rocket game with minimal controls.",
   "scripts": {
-    "client": "pnpm --filter client dev",
-    "server": "pnpm --filter server dev",
-    "shared": "pnpm --filter @one-button-to-space/shared dev",
-    "logger": "pnpm --filter @one-button-to-space/logger-ui dev",
-    "dev": "concurrently \"pnpm run server\" \"pnpm run client\"",
+    "dev:client": "pnpm --filter client dev",
+    "test:client": "pnpm --filter client test",
+    "lint:client": "pnpm --filter client lint",
+    "dev:server": "pnpm --filter server dev",
+    "test:server": "pnpm --filter server test",
+    "lint:server": "pnpm --filter server lint",
+    "lint:logger": "pnpm --filter logger-ui lint",
+    "test:logger": "pnpm --filter logger-ui test",
+    "verify:logger": "pnpm run test:logger && pnpm run lint:logger",
+    "lint:shared": "pnpm --filter shared lint",
+    "test:shared": "pnpm --filter shared test",
     "build": "pnpm -r build",
     "test": "vitest run --coverage",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "dev": "concurrently \"pnpm run dev:server\" \"pnpm run dev:client\""
   },
   "keywords": [
     "phaser",
