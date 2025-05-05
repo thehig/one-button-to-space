@@ -78,7 +78,8 @@ const setupMockContext = (mockValues: {
   });
 };
 
-describe("GameEventLog", () => {
+// --- Use .sequential to avoid potential parallel test interference ---
+describe.sequential("GameEventLog", () => {
   // Reset the mock hook before each test
   beforeEach(() => {
     // Reset the mock implementation and call history
@@ -542,6 +543,161 @@ describe("GameEventLog", () => {
     // Cleanup
     unmount();
     // No manual restoration check needed here, unmount should handle it.
+  });
+
+  // --- Test startsOpen Prop ---
+  it("should render expanded initially when startsOpen is true", () => {
+    render(<GameEventLog startsOpen={true} />);
+    const rndContainer = screen.getByTestId("rnd-container");
+    const contentWrapper = screen.getByTestId("log-content-wrapper");
+    expect(rndContainer).not.toHaveClass("collapsed");
+    expect(contentWrapper).toHaveClass("log-content-wrapper--expanded");
+    expect(screen.getByRole("button", { name: "➖" })).toBeInTheDocument(); // Collapse button
+  });
+
+  it("should render collapsed initially when startsOpen is false", () => {
+    render(<GameEventLog startsOpen={false} />); // Explicitly false
+    const rndContainer = screen.getByTestId("rnd-container");
+    expect(rndContainer).toHaveClass("collapsed");
+    expect(screen.getByRole("button", { name: "➕" })).toBeInTheDocument(); // Expand button
+  });
+
+  it("should render collapsed initially by default", () => {
+    render(<GameEventLog />); // Default
+    const rndContainerDefault = screen.getByTestId("rnd-container");
+    expect(rndContainerDefault).toHaveClass("collapsed");
+    expect(screen.getByRole("button", { name: "➕" })).toBeInTheDocument(); // Expand button
+  });
+
+  // --- Test startsLocked Prop ---
+  it("should render locked initially when startsLocked is true", () => {
+    render(<GameEventLog startsLocked={true} />);
+    const rndContainer = screen.getByTestId("rnd-container");
+    expect(rndContainer).toHaveClass("locked");
+    expect(screen.getByRole("button", { name: "🔒" })).toBeInTheDocument(); // Lock button
+    // Collapse/Expand button should be disabled
+    expect(screen.getByRole("button", { name: "➕" })).toBeDisabled();
+  });
+
+  it("should render unlocked initially when startsLocked is false", () => {
+    render(<GameEventLog startsLocked={false} />); // Explicitly false
+    const rndContainer = screen.getByTestId("rnd-container");
+    expect(rndContainer).not.toHaveClass("locked");
+    expect(screen.getByRole("button", { name: "🔓" })).toBeInTheDocument(); // Unlock button
+    expect(screen.getByRole("button", { name: "➕" })).toBeEnabled();
+  });
+
+  it("should render unlocked initially by default", () => {
+    render(<GameEventLog />); // Default
+    const rndContainerDefault = screen.getByTestId("rnd-container");
+    expect(rndContainerDefault).not.toHaveClass("locked");
+    expect(screen.getByRole("button", { name: "🔓" })).toBeInTheDocument(); // Unlock button
+    expect(screen.getByRole("button", { name: "➕" })).toBeEnabled();
+  });
+
+  // --- Test startTreeOpen Prop ---
+  it("should render with filter tree open initially when startTreeOpen is true", () => {
+    // Needs startsOpen=true for the filter tree to be potentially visible
+    render(<GameEventLog startsOpen={true} startTreeOpen={true} />);
+    const filterColumn = screen.getByTestId("log-filter-column");
+    expect(filterColumn).not.toHaveClass("log-column--filter-collapsed");
+    // Check button title
+    expect(screen.getByRole("button", { name: "☰" })).toHaveAttribute(
+      "title",
+      "Hide Filters"
+    );
+  });
+
+  it("should render with filter tree closed initially when startTreeOpen is false", () => {
+    // Needs startsOpen=true
+    render(<GameEventLog startsOpen={true} startTreeOpen={false} />); // Explicitly false
+    const filterColumn = screen.getByTestId("log-filter-column");
+    expect(filterColumn).toHaveClass("log-column--filter-collapsed");
+    expect(screen.getByRole("button", { name: "☰" })).toHaveAttribute(
+      "title",
+      "Show Filters"
+    );
+  });
+
+  it("should render with filter tree closed initially by default", () => {
+    render(<GameEventLog startsOpen={true} />); // Default
+    const filterColumnDefault = screen.getByTestId("log-filter-column");
+    expect(filterColumnDefault).toHaveClass("log-column--filter-collapsed");
+    expect(screen.getByRole("button", { name: "☰" })).toHaveAttribute(
+      "title",
+      "Show Filters"
+    );
+  });
+
+  // --- Test startDataOpen Prop ---
+  it("should render with details panel open initially when startDataOpen is true", () => {
+    // Needs startsOpen=true
+    render(<GameEventLog startsOpen={true} startDataOpen={true} />);
+    const detailsPanel = screen.getByTestId("log-details-panel");
+    expect(detailsPanel).not.toHaveClass("log-column--details-collapsed");
+    // Check button title
+    expect(screen.getByRole("button", { name: "ℹ️" })).toHaveAttribute(
+      "title",
+      "Hide Details"
+    );
+  });
+
+  it("should render with details panel closed initially when startDataOpen is false", () => {
+    // Needs startsOpen=true
+    render(<GameEventLog startsOpen={true} startDataOpen={false} />); // Explicitly false
+    const detailsPanel = screen.getByTestId("log-details-panel");
+    expect(detailsPanel).toHaveClass("log-column--details-collapsed");
+    expect(screen.getByRole("button", { name: "ℹ️" })).toHaveAttribute(
+      "title",
+      "Show Details"
+    );
+  });
+
+  it("should render with details panel closed initially by default", () => {
+    render(<GameEventLog startsOpen={true} />); // Default
+    const detailsPanelDefault = screen.getByTestId("log-details-panel");
+    expect(detailsPanelDefault).toHaveClass("log-column--details-collapsed");
+    expect(screen.getByRole("button", { name: "ℹ️" })).toHaveAttribute(
+      "title",
+      "Show Details"
+    );
+  });
+
+  // --- Test initial layout and opacity props ---
+  it("should apply collapsedOpacity when initially collapsed", () => {
+    const collapsedOpacity = 0.65;
+    render(
+      <GameEventLog startsOpen={false} collapsedOpacity={collapsedOpacity} />
+    );
+
+    const rndContainer = screen.getByTestId("rnd-container");
+    expect(rndContainer).toHaveClass("collapsed");
+    expect(rndContainer).toHaveStyle(`opacity: ${collapsedOpacity}`);
+  });
+
+  it("should apply lockedOpacity when initially locked and expanded", () => {
+    const lockedOpacity = 0.75;
+    render(
+      <GameEventLog
+        startsOpen={true}
+        startsLocked={true}
+        lockedOpacity={lockedOpacity}
+      />
+    );
+
+    const rndContainer = screen.getByTestId("rnd-container");
+    expect(rndContainer).not.toHaveClass("collapsed");
+    expect(rndContainer).toHaveClass("locked");
+    expect(rndContainer).toHaveStyle(`opacity: ${lockedOpacity}`);
+  });
+
+  it("should apply opacity 1 when initially expanded and unlocked", () => {
+    render(<GameEventLog startsOpen={true} startsLocked={false} />);
+
+    const rndContainer = screen.getByTestId("rnd-container");
+    expect(rndContainer).not.toHaveClass("collapsed");
+    expect(rndContainer).not.toHaveClass("locked");
+    expect(rndContainer).toHaveStyle("opacity: 1");
   });
 
   // Add more tests here...
