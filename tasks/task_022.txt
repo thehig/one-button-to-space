@@ -362,7 +362,7 @@ const basicNodeMock = {
 ```
 </info added on 2025-05-05T12:16:53.485Z>
 
-## 4. Implement Basic Component Tests for GameEventLog [in-progress]
+## 4. Implement Basic Component Tests for GameEventLog [done]
 ### Dependencies: None
 ### Description: Create tests for the GameEventLog component focusing on rendering and prop behavior.
 ### Details:
@@ -387,6 +387,33 @@ Testing approach:
 - Check that initial state matches expected values based on props
 - Verify component structure matches expected DOM hierarchy
 - Test that all required elements are present and properly styled
+
+<info added on 2025-05-05T18:36:39.956Z>
+Here's additional information for the GameEventLog tests:
+
+```
+Test implementation notes:
+
+- Used `screen.getByTestId` with specific data-testid attributes added to key elements for reliable selection
+- Implemented custom render wrapper with GameStateContext provider to simulate real usage
+- Created mock event data factory function to generate test events with varying properties
+- Used `userEvent` to simulate user interactions with the component
+- Added snapshot tests for different prop combinations to catch unintended UI changes
+
+Specific test improvements:
+- Used `jest.spyOn` to verify console hijacking functionality when `hijackConsoleLogs` is true
+- Implemented tests for drag handle visibility based on locked state
+- Added tests for event filtering functionality
+- Verified proper event tree expansion/collapse behavior
+- Tested keyboard accessibility for expanding/collapsing events
+- Added tests for proper event timestamp formatting
+
+Resolved edge cases:
+- Added tests with empty event arrays
+- Tested with extremely long event data to ensure proper truncation/scrolling
+- Verified proper cleanup of event listeners on component unmount
+```
+</info added on 2025-05-05T18:36:39.956Z>
 
 ## 5. Implement Interaction Tests for GameEventLog [pending]
 ### Dependencies: 22.3, 22.4
