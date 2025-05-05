@@ -35,4 +35,4 @@ pnpm-lock.yaml
 /scripts/task-complexity-report.json
 
 # testing
-/coverage/
+coverage/
