@@ -24,6 +24,32 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     return this._maxLogSize;
   }
 
+  // New setter method for maxLogSize
+  public setMaxLogSize(newSize: number): void {
+    const validatedSize = Math.max(1, Math.floor(newSize)); // Ensure positive integer >= 1
+    const oldSize = this._maxLogSize;
+    this._maxLogSize = validatedSize;
+
+    // Trim the log if the new size is smaller than the current log length
+    if (this.eventLog.length > this._maxLogSize) {
+      this.eventLog = this.eventLog.slice(
+        this.eventLog.length - this._maxLogSize
+      );
+    }
+
+    // Optionally log this change
+    this.logEvent("CommunicationManager", "maxLogSizeSet", {
+      newSize: this._maxLogSize,
+      oldSize: oldSize,
+      trimmedLog: this.eventLog.length > this._maxLogSize, // Indicate if trimming occurred due to this call
+    });
+
+    // We might need to emit an event if the UI needs to react immediately
+    // to a potentially smaller log, but the current setup updates on "new-event"
+    // or "log-cleared", which should suffice. If the log was trimmed here,
+    // the next call to getEventLog() will return the shorter log.
+  }
+
   private constructor() {
     super();
     // TODO: Initialize subscriptions to other emitters (Game, Scenes, NetworkManager, etc.)
@@ -138,8 +164,14 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     const logEntry: EventLogEntry = { timestamp, source, eventName, data }; // Use the interface
 
     this.eventLog.push(logEntry);
+    // Ensure log does not exceed the maximum size
     if (this.eventLog.length > this._maxLogSize) {
-      this.eventLog.shift(); // Keep the log size manageable (FIFO)
+      // Keep only the most recent entries by slicing from the end
+      this.eventLog = this.eventLog.slice(-this._maxLogSize);
+      // Note: The previous shift() implementation was correct for FIFO trimming,
+      // but slice() is slightly more direct for "keep last N".
+      // Let's stick to slice() for clarity. If performance becomes an issue
+      // with very large logs and frequent additions, shift() might be revisited.
     }
 
     // Emit an event specifically for the React context provider

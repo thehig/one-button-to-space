@@ -6,7 +6,7 @@ import { CommunicationProvider } from "@one-button-to-space/logger-ui";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <CommunicationProvider>
+    <CommunicationProvider maxLogSize={1000}>
       <App />
     </CommunicationProvider>
   </StrictMode>

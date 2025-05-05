@@ -8,6 +8,11 @@ import React, {
 import { CommunicationManager } from "./CommunicationManager";
 import { EventLogEntry } from "./types";
 
+// Define props interface
+interface CommunicationProviderProps {
+  maxLogSize?: number;
+}
+
 interface CommunicationContextType {
   events: EventLogEntry[];
   clearLog: () => void;
@@ -19,29 +24,45 @@ const CommunicationContext = createContext<
   CommunicationContextType | undefined
 >(undefined);
 
-export const CommunicationProvider: React.FC<PropsWithChildren> = ({
+export const CommunicationProvider: React.FC<
+  PropsWithChildren<CommunicationProviderProps>
+> = ({
   children,
+  maxLogSize = 100, // Destructure prop with default value
 }) => {
   const [events, setEvents] = useState<EventLogEntry[]>([]);
   const commManager = CommunicationManager.getInstance(); // Get singleton instance
 
+  // NEW: Effect to set the max log size on the manager
   useEffect(() => {
-    const handleNewEvent = (event: EventLogEntry) => {
-      // Update state by adding the new event to the start of the array
-      // console.log("CommunicationContext: Received new-event", event);
-      setEvents((prevEvents) =>
-        [event, ...prevEvents].slice(0, commManager.maxLogSize || 100)
-      ); // Use the public getter
+    if (maxLogSize !== undefined) {
+      // console.log(`CommunicationContext: Setting maxLogSize to ${maxLogSize}`);
+      commManager.setMaxLogSize(maxLogSize);
+      // Refresh the log state in case the manager trimmed it
+      setEvents(commManager.getEventLog());
+    }
+  }, [maxLogSize, commManager]);
+
+  // Effect to handle events from the manager
+  useEffect(() => {
+    // Initial load - Get the log from the manager
+    setEvents(commManager.getEventLog());
+
+    // Handler for new events - Get the updated log from the manager
+    const handleNewEvent = (/* event: EventLogEntry - No longer needed */) => {
+      // Get the latest log directly from the manager,
+      // which is already responsible for trimming.
+      // console.log("CommunicationContext: Received new-event, updating log from manager");
+      setEvents(commManager.getEventLog());
     };
 
+    // Handler for log cleared - Clear local state
     const handleLogCleared = () => {
+      // console.log("CommunicationContext: Received log-cleared");
       setEvents([]);
     };
 
-    // Initial load
-    setEvents(commManager.getEventLog());
-
-    // Subscribe to events
+    // Subscribe to manager events
     commManager.on("new-event", handleNewEvent);
     commManager.on("log-cleared", handleLogCleared);
 
@@ -50,7 +71,8 @@ export const CommunicationProvider: React.FC<PropsWithChildren> = ({
       commManager.off("new-event", handleNewEvent);
       commManager.off("log-cleared", handleLogCleared);
     };
-  }, [commManager]); // Dependency array includes the manager instance
+    // Dependency array: only depends on the manager instance
+  }, [commManager]);
 
   const clearLog = () => {
     commManager.clearLog();
