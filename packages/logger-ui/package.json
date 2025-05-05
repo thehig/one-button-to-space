@@ -15,7 +15,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
-    "test": "vitest run --coverage --coverage.reportsDirectory ./coverage"
+    "test": "vitest run --coverage"
   },
   "keywords": [],
   "author": "",
