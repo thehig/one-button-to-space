@@ -255,7 +255,7 @@ Testing approach:
 - Ensure timing-sensitive tests are reliable
 - Aim for 100% coverage of utility functions
 
-## 4. Enhance GameEventLog Component Test Coverage [pending]
+## 4. Enhance GameEventLog Component Test Coverage [in-progress]
 ### Dependencies: 22.1, 22.2, 22.3
 ### Description: Improve test coverage for the GameEventLog component by testing additional UI states, event handlers, and rendering edge cases.
 ### Details:
@@ -287,6 +287,58 @@ Testing approach:
 - Verify DOM structure and state changes
 - Focus on uncovered code paths identified in coverage report
 - Use test coverage reports to identify specific uncovered lines
+
+<info added on 2025-05-05T22:14:06.883Z>
+Here's additional information to enhance the subtask:
+
+```
+Test implementation details:
+
+For Rnd event handlers:
+- Mock the Rnd component's onDragStop/onResizeStop callbacks with jest.fn()
+- Use fireEvent.mouseDown/mouseMove/mouseUp to simulate drag operations
+- Assert position state updates with expect(setState).toHaveBeenCalledWith({x: expect.any(Number), y: expect.any(Number)})
+- Test boundary conditions (e.g., dragging to screen edges)
+
+For large event logs testing:
+- Create test fixtures with 1000+ log entries to test performance
+- Verify virtualization works correctly by checking only visible items are rendered
+- Test scroll behavior using scrollTo and checking visible content changes
+
+For filter combinations:
+- Create test matrix covering all filter permutations (log level × source × search term)
+- Test regex search functionality with special characters and edge patterns
+- Verify filter state persistence between component re-renders
+
+For console hijacking:
+- Use jest.spyOn(console, 'log') to verify interception
+- Test error handling when console methods throw exceptions
+- Verify correct message formatting and metadata capture
+
+Mock implementation examples:
+```jsx
+// Mock for testing Rnd callbacks
+const mockSetPosition = jest.fn();
+React.useState = jest.fn().mockReturnValue([{x: 0, y: 0}, mockSetPosition]);
+
+// For testing console hijacking
+const originalConsoleLog = console.log;
+const mockLogCapture = jest.fn();
+beforeEach(() => {
+  console.log = jest.fn();
+});
+afterEach(() => {
+  console.log = originalConsoleLog;
+});
+```
+
+Specific test scenarios to implement:
+- Test keyboard shortcuts for showing/hiding the component
+- Test persistence of position/size between component unmount/remount
+- Test auto-scrolling behavior when new logs arrive
+- Test search highlighting in log entries
+- Test proper cleanup of event listeners on unmount
+</info added on 2025-05-05T22:14:06.883Z>
 
 ## 5. Fix Linting Errors and Improve useEventFiltering Coverage [pending]
 ### Dependencies: 22.1, 22.2, 22.3, 22.4
