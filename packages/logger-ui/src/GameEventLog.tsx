@@ -711,58 +711,80 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
               style={{ flexGrow: isDetailsCollapsed ? 1 : 0 }}
             >
               <ul className="log-event-list">
-                {filteredEvents.map((event, index) => (
-                  <li
-                    key={`${event.timestamp}-${event.source}-${event.eventName}-${index}`}
-                    className={`log-event-item ${
-                      index === selectedEventIndex
-                        ? "log-event-item--selected"
-                        : ""
-                    } ${
-                      event.data === undefined || event.data === null
-                        ? "log-event-item--no-data"
-                        : ""
-                    }`}
-                    onClick={
-                      event.data !== undefined && event.data !== null
-                        ? () =>
-                            setSelectedEventIndex(
-                              index === selectedEventIndex ? null : index
-                            )
-                        : undefined
-                    }
-                  >
-                    <div className="log-event-item-content">
-                      <span className="log-event-timestamp">
-                        {initializationTime
-                          ? formatTimeDifference(
-                              event.timestamp,
-                              initializationTime
-                            )
-                          : `[${event.timestamp}]`}
-                      </span>
-                      <span title={event.source} className="log-event-symbol">
-                        {config.getSymbol(event.source)}
-                      </span>
-                      <span className="log-event-name">
-                        {event.eventName}
-                        {event.data !== undefined && event.data !== null && (
-                          <span className="log-event-data-indicator">*</span>
-                        )}
-                      </span>
-                      {isDetailsCollapsed &&
-                        event.data !== undefined &&
-                        event.data !== null && (
-                          <span
-                            className="log-event-inline-preview"
-                            title={JSON.stringify(event.data)}
-                          >
-                            {JSON.stringify(event.data, null, 0)}{" "}
+                {/* Reverse the array before mapping to show newest first */}
+                {filteredEvents
+                  .slice() // Create a shallow copy to avoid mutating the original
+                  .reverse() // Reverse the copy
+                  .map((event, index) => {
+                    // Calculate the original index if needed for selection (tricky)
+                    // For selection, it might be better to use a unique event ID if available
+                    // or rethink how selection works if order is reversed.
+                    // For now, let's assume selection might be slightly off if relying on reversed index.
+                    const originalIndex = filteredEvents.length - 1 - index; // Example: Approximate original index
+
+                    return (
+                      <li
+                        key={`${event.timestamp}-${event.source}-${event.eventName}-${originalIndex}`}
+                        className={`log-event-item ${
+                          // Use originalIndex for selection check if required, but ID is safer
+                          originalIndex === selectedEventIndex
+                            ? "log-event-item--selected"
+                            : ""
+                        } ${
+                          event.data === undefined || event.data === null
+                            ? "log-event-item--no-data"
+                            : ""
+                        }`}
+                        onClick={
+                          event.data !== undefined && event.data !== null
+                            ? () =>
+                                setSelectedEventIndex(
+                                  // Use originalIndex if selection relies on it
+                                  originalIndex === selectedEventIndex
+                                    ? null
+                                    : originalIndex
+                                )
+                            : undefined
+                        }
+                      >
+                        <div className="log-event-item-content">
+                          <span className="log-event-timestamp">
+                            {initializationTime
+                              ? formatTimeDifference(
+                                  event.timestamp,
+                                  initializationTime
+                                )
+                              : `[${event.timestamp}]`}
                           </span>
-                        )}
-                    </div>
-                  </li>
-                ))}
+                          <span
+                            title={event.source}
+                            className="log-event-symbol"
+                          >
+                            {config.getSymbol(event.source)}
+                          </span>
+                          <span className="log-event-name">
+                            {event.eventName}
+                            {event.data !== undefined &&
+                              event.data !== null && (
+                                <span className="log-event-data-indicator">
+                                  *
+                                </span>
+                              )}
+                          </span>
+                          {isDetailsCollapsed &&
+                            event.data !== undefined &&
+                            event.data !== null && (
+                              <span
+                                className="log-event-inline-preview"
+                                title={JSON.stringify(event.data)}
+                              >
+                                {JSON.stringify(event.data, null, 0)}{" "}
+                              </span>
+                            )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 {filteredEvents.length === 0 && (
                   <li className="log-event-item log-event-item--no-data">
                     No events match filters.

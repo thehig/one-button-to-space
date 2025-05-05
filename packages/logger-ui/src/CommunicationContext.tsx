@@ -11,6 +11,7 @@ import { EventLogEntry } from "./types";
 // Define props interface
 interface CommunicationProviderProps {
   maxLogSize?: number;
+  redirectEventsToConsole?: boolean;
 }
 
 interface CommunicationContextType {
@@ -29,6 +30,7 @@ export const CommunicationProvider: React.FC<
 > = ({
   children,
   maxLogSize = 100, // Destructure prop with default value
+  redirectEventsToConsole = false, // <-- Destructure new prop
 }) => {
   const [events, setEvents] = useState<EventLogEntry[]>([]);
   const commManager = CommunicationManager.getInstance(); // Get singleton instance
@@ -42,6 +44,13 @@ export const CommunicationProvider: React.FC<
       setEvents(commManager.getEventLog());
     }
   }, [maxLogSize, commManager]);
+
+  // NEW: Effect to set the console redirection flag on the manager
+  useEffect(() => {
+    if (redirectEventsToConsole !== undefined) {
+      commManager.setRedirectEventsToConsole(redirectEventsToConsole);
+    }
+  }, [redirectEventsToConsole, commManager]);
 
   // Effect to handle events from the manager
   useEffect(() => {

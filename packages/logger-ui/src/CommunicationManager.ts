@@ -11,6 +11,7 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
   private static instance: CommunicationManager;
   private eventLog: EventLogEntry[] = []; // Use the imported interface
   private _maxLogSize = 100; // Rename private property
+  private _redirectEventsToConsole: boolean = false; // <-- Add flag for redirection
 
   // Keep track of emitters for potential cleanup
   private sceneEmitter: Phaser.Events.EventEmitter | null = null;
@@ -48,6 +49,17 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     // to a potentially smaller log, but the current setup updates on "new-event"
     // or "log-cleared", which should suffice. If the log was trimmed here,
     // the next call to getEventLog() will return the shorter log.
+  }
+
+  // <-- Add setter for the redirection flag -->
+  public setRedirectEventsToConsole(redirect: boolean): void {
+    const changed = this._redirectEventsToConsole !== redirect;
+    this._redirectEventsToConsole = redirect;
+    if (changed) {
+      this.logEvent("CommunicationManager", "setRedirectEventsToConsole", {
+        enabled: redirect,
+      });
+    }
   }
 
   private constructor() {
@@ -176,6 +188,38 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
 
     // Emit an event specifically for the React context provider
     this.emit("new-event", logEntry);
+
+    // <-- Add redirection logic here -->
+    if (this._redirectEventsToConsole) {
+      // Attempt to get the *original* console.log method saved by the hijacker
+      const originalConsoleLog = (window as any).__console_log_original;
+
+      if (typeof originalConsoleLog === "function") {
+        // Format args for console: Prefix with source/event, include data if present
+        const consoleArgs = [
+          `[${source}] ${eventName}:`,
+          ...(data !== undefined ? [data] : []),
+        ];
+        try {
+          // Use apply to call the original function with the correct context and args
+          originalConsoleLog.apply(window.console, consoleArgs);
+        } catch (e) {
+          // Fallback or error handling if calling the original fails
+          console.error(
+            "[CommunicationManager] Error calling original console.log:",
+            e
+          );
+        }
+      } else {
+        // Log a warning if the original wasn't found (hijack might not be active?)
+        // Avoid using console.log directly here to prevent potential loops if something is wrong
+        console.warn(
+          "[CommunicationManager] Could not find original console.log for redirection."
+        );
+      }
+    }
+    // <-- End redirection logic -->
+
     // Optionally emit the original event if needed for other Phaser systems
     // this.emit(eventName, data);
 
