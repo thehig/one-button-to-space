@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true, // Explicitly enable globals just in case
+    setupFiles: ["./src/setupTests.ts"],
   },
 });

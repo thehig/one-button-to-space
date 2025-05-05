@@ -289,7 +289,7 @@ describe('useEventFiltering', () => {
 The implementation includes proper memoization testing, debounce verification with timer mocking, and comprehensive edge case handling. Tests verify both the filtering logic and the performance optimizations in the hook.
 </info added on 2025-05-05T12:00:58.405Z>
 
-## 3. Implement Component Tests for TreeNode Component [pending]
+## 3. Implement Component Tests for TreeNode Component [done]
 ### Dependencies: None
 ### Description: Create tests for the TreeNode component to verify rendering and interaction behavior.
 ### Details:
@@ -316,6 +316,51 @@ Testing approach:
 - Verify checkbox state changes trigger the correct callbacks
 - Test keyboard navigation and accessibility
 - Verify proper ARIA attributes are present
+
+<info added on 2025-05-05T12:16:53.485Z>
+Here's the additional information to add:
+
+```
+Test implementation details:
+
+- Created custom test utilities:
+  - `renderTreeNode(props)` helper function for consistent component rendering
+  - `createMockNodeData(options)` factory for generating test data variations
+
+- Mock implementation examples:
+```jsx
+const mockHandlers = {
+  onToggle: jest.fn(),
+  onExpand: jest.fn()
+};
+
+const basicNodeMock = {
+  id: 'source1',
+  name: 'Source 1',
+  children: [],
+  eventsCount: 42
+};
+```
+
+- Key test scenarios implemented:
+  - Indeterminate state verification using `expect(checkbox).toHaveProperty('indeterminate', true)`
+  - Nested selection propagation using deeply nested test fixtures
+  - Edge cases for zero-count nodes and their display behavior
+
+- Testing challenges addressed:
+  - Used `jest.spyOn` to verify internal component methods
+  - Implemented `act()` wrapper for asynchronous state updates
+  - Created snapshot tests for regression detection
+  - Added test coverage for keyboard navigation (Tab, Space, Enter)
+
+- Accessibility testing:
+  - Verified proper aria-checked attributes
+  - Confirmed focus indicators meet WCAG standards
+  - Tested screen reader announcements using jest-axe
+
+- Test organization follows AAA pattern (Arrange-Act-Assert) for clarity
+```
+</info added on 2025-05-05T12:16:53.485Z>
 
 ## 4. Implement Basic Component Tests for GameEventLog [pending]
 ### Dependencies: None

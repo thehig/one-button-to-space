@@ -24,7 +24,9 @@
   "author": "Gemini",
   "license": "ISC",
   "devDependencies": {
+    "@testing-library/jest-dom": "catalog:",
     "@testing-library/react": "catalog:",
+    "@testing-library/user-event": "catalog:",
     "@types/node": "^22.15.3",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.3",
