@@ -299,7 +299,7 @@
           "description": "Create tests for the GameEventLog component focusing on rendering and prop behavior.",
           "dependencies": [],
           "details": "Implementation steps:\n1. Create a new test file `GameEventLog.test.tsx` in the appropriate test directory\n2. Import the component and React Testing Library utilities\n3. Mock any required context providers and dependencies\n4. Write test cases for:\n   - Basic rendering with default props\n   - Rendering with custom props (startsOpen, startsLocked, hijackConsoleLogs, initial layout)\n   - Context wrapping and initial event display\n   - Conditional rendering of tree/details sections\n   - Visibility/opacity based on component state\n   - Proper styling and layout based on props\n5. Test accessibility compliance\n\nTesting approach:\n- Use render from React Testing Library with custom wrapper for context\n- Create mock event data for testing\n- Test with various prop combinations\n- Verify conditional rendering logic\n- Check that initial state matches expected values based on props\n- Verify component structure matches expected DOM hierarchy\n- Test that all required elements are present and properly styled",
-          "status": "pending",
+          "status": "in-progress",
           "parentTaskId": 22
         },
         {

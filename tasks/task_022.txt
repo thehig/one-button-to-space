@@ -362,7 +362,7 @@ const basicNodeMock = {
 ```
 </info added on 2025-05-05T12:16:53.485Z>
 
-## 4. Implement Basic Component Tests for GameEventLog [pending]
+## 4. Implement Basic Component Tests for GameEventLog [in-progress]
 ### Dependencies: None
 ### Description: Create tests for the GameEventLog component focusing on rendering and prop behavior.
 ### Details:
