@@ -323,9 +323,12 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     layout, // Destructure layout object instead of position/size
     isCollapsed,
     isDetailsCollapsed,
+    isLocked, // <<< Get isLocked from the hook
     toggleCollapse,
     toggleDetailsCollapse,
+    toggleLock, // <<< Get toggleLock from the hook
     handleDragStop,
+    handleResize,
     handleResizeStop,
   } = useComponentLayout({
     initialX,
@@ -334,16 +337,13 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     initialHeight, // Pass initialHeight (Added)
     initialCollapsed: !startsOpen, // Pass initialCollapsed based on startsOpen
     initialDetailsCollapsed: !startDataOpen, // Pass initialDetailsCollapsed based on startDataOpen
-    initialLocked: startsLocked, // Pass initialLocked based on startsLocked
-    // Pass other initial layout props if needed (e.g., initialHeight)
+    initialLocked: startsLocked, // <<< Pass the prop to the hook correctly
   });
 
   // --- Other State --- (Selection state remains here for now)
   const [selectedEventIndex, setSelectedEventIndex] = useState<number | null>(
     null
   );
-  // Initialize isLocked state using the startsLocked prop
-  const [isLocked, setIsLocked] = useState<boolean>(startsLocked);
   // New state for adjustable locked opacity
   const [currentLockedOpacity, setCurrentLockedOpacity] =
     useState<number>(lockedOpacity);
@@ -445,11 +445,6 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       });
   }, [filteredEvents, initializationTime, config]);
 
-  // New callback to toggle lock state
-  const toggleLock = () => {
-    setIsLocked((prevLocked) => !prevLocked);
-  };
-
   // New callback for locked opacity slider change
   const handleLockedOpacityChange = (
     e: React.ChangeEvent<HTMLInputElement>
@@ -528,9 +523,10 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       // Disable resizing if collapsed OR locked
       enableResizing={!isCollapsed && !isLocked}
       onDragStop={handleDragStop} // Use handler from hook
+      onResize={handleResize} // <<< Add the onResize handler
       onResizeStop={handleResizeStop} // Use handler from hook
       bounds="window"
-      disableDragging={isLocked} // <-- Disable dragging when locked
+      disableDragging={isLocked} // <<< This now correctly uses the hook's isLocked
       // Prevent drag start when clicking on the slider container
       cancel=".locked-opacity-slider-container"
     >
@@ -546,8 +542,8 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
           <div className="log-header-left">
             <button
               onClick={(e) => {
-                e.stopPropagation(); // Prevent header click (if any existed) or drag initiation
-                toggleLock();
+                e.stopPropagation(); // Prevent drag initiation
+                toggleLock(); // <<< Use the hook's toggleLock
               }}
               className="log-button lock-button" // Keep lock-button class
               title={isLocked ? "Unlock" : "Lock"}

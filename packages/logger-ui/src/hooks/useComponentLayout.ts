@@ -1,5 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 // import type { Position, DraggableData } from "react-rnd"; // Removed unused Rnd specific types
+
+// --- NEW: Define a constant for collapsed height ---
+const COLLAPSED_HEIGHT = 50; // Or your desired collapsed height in pixels
 
 // Define an interface for the layout state
 // Export the interface
@@ -34,16 +37,24 @@ export const useComponentLayout = ({
   initialCollapsed = false,
   initialDetailsCollapsed = false,
 }: UseComponentLayoutProps = {}) => {
+  // Initialize height based on initialCollapsed state
   const [layout, setLayout] = useState<LayoutState>(() => ({
     x: initialX,
     y: initialY,
     width: initialWidth,
-    height: initialHeight,
+    // Set initial height correctly based on collapsed state
+    height: initialCollapsed ? COLLAPSED_HEIGHT : initialHeight,
     isLocked: initialLocked,
     isCollapsed: initialCollapsed,
     isDetailsCollapsed: initialDetailsCollapsed,
-    zIndex: 1000, // Default zIndex
+    zIndex: 1000,
   }));
+
+  // --- NEW: Ref to store height before collapsing ---
+  // Use useRef to store the pre-collapse height without causing re-renders on its own change
+  const expandedHeightRef = useRef<number>(
+    initialCollapsed ? initialHeight : layout.height // Store the intended expanded height initially
+  );
 
   const updateLayout = useCallback((updates: Partial<LayoutState>) => {
     setLayout((prev) => ({ ...prev, ...updates }));
@@ -63,8 +74,26 @@ export const useComponentLayout = ({
 
   // Toggle collapse state
   const toggleCollapse = useCallback(() => {
-    setLayout((prev) => ({ ...prev, isCollapsed: !prev.isCollapsed }));
-  }, []);
+    setLayout((prev) => {
+      const nextIsCollapsed = !prev.isCollapsed;
+      let nextHeight: number;
+
+      if (nextIsCollapsed) {
+        // Collapsing: Store current height and set to collapsed height
+        expandedHeightRef.current = prev.height; // Store the current height
+        nextHeight = COLLAPSED_HEIGHT;
+      } else {
+        // Expanding: Restore the stored height
+        nextHeight = expandedHeightRef.current; // Restore the stored expanded height
+      }
+
+      return {
+        ...prev,
+        isCollapsed: nextIsCollapsed,
+        height: nextHeight, // Set the new height
+      };
+    });
+  }, []); // No dependencies needed as it only uses the previous state and ref
 
   // Toggle details collapse state
   const toggleDetailsCollapse = useCallback(() => {
@@ -96,17 +125,26 @@ export const useComponentLayout = ({
       delta: unknown, // Type this based on react-rnd specifics
       position: { x: number; y: number }
     ) => {
-      if (!layout.isLocked) {
+      // --- MODIFICATION: Only update if not collapsed ---
+      if (!layout.isLocked && !layout.isCollapsed) {
+        const newWidth = parseInt(ref.style.width, 10);
+        const newHeight = parseInt(ref.style.height, 10);
+
         setLayout((prev) => ({
           ...prev,
-          width: parseInt(ref.style.width, 10),
-          height: parseInt(ref.style.height, 10),
-          ...position, // Update position based on resize result
+          width: newWidth,
+          height: newHeight,
+          ...position,
         }));
+
+        // --- NEW: Update the stored expanded height if resizing when expanded ---
+        expandedHeightRef.current = newHeight;
+
         bringToFront();
       }
+      // If it's collapsed, resizing is disabled by <Rnd> anyway, but this adds safety
     },
-    [layout.isLocked, bringToFront]
+    [layout.isLocked, layout.isCollapsed, bringToFront] // Add isCollapsed dependency
   );
 
   return {

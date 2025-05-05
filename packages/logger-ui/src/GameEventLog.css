@@ -419,3 +419,13 @@
   align-items: center;
   gap: 5px; /* Add some space between input and button */
 }
+
+/* --- Collapsed Width --- */
+.log-container.collapsed {
+  width: fit-content !important; /* Force width based on content */
+}
+
+/* Add a min-width to the header's left side to prevent excessive shrinking */
+.log-container.collapsed .log-header-left {
+  min-width: 150px; /* Adjust as needed */
+}
