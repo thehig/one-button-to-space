@@ -3,7 +3,6 @@ import { render, screen, within } from "@testing-library/react";
 import { GameEventLog } from "./GameEventLog";
 // Remove CommunicationProvider import, we won't use the real one
 // import { CommunicationProvider } from "./CommunicationContext";
-import { useCommunicationContext } from "./CommunicationContext";
 import { vi } from "vitest";
 import { EventLogEntry, SourceTreeNode } from "./types"; // Import the type and SourceTreeNode
 import { fireEvent } from "@testing-library/react";
@@ -50,6 +49,7 @@ vi.mock("./CommunicationManager", () => {
 });
 // --- End CommunicationManager Mock ---
 
+/* // Remove this - we will mock the manager instance instead
 // --- Mock useCommunicationContext Hook ---
 vi.mock("./CommunicationContext", async (importOriginal) => {
   // Import the original module to get access to its exports if needed
@@ -64,8 +64,10 @@ vi.mock("./CommunicationContext", async (importOriginal) => {
   };
 });
 // --- End Mock ---
+*/
 
-// Helper to setup mock return values for the hook
+// Helper to setup mock return values for the hook -- REMOVED as we mock manager now
+/*
 const setupMockContext = (mockValues: {
   events?: EventLogEntry[];
   clearLog?: () => void;
@@ -77,31 +79,48 @@ const setupMockContext = (mockValues: {
     logEvent: mockValues.logEvent ?? vi.fn(),
   });
 };
+*/
+
+// Get the mocked manager instance for test manipulation
+import { CommunicationManager } from "./CommunicationManager";
+const mockManagerInstance = CommunicationManager.getInstance();
+
+// Import the real CommunicationProvider
+import { CommunicationProvider } from "./CommunicationContext";
+
+// Helper to render with the real provider
+const renderWithProvider = (ui: React.ReactElement) => {
+  return render(<CommunicationProvider>{ui}</CommunicationProvider>);
+};
 
 // --- Use .sequential to avoid potential parallel test interference ---
 describe.sequential("GameEventLog", () => {
-  // Reset the mock hook before each test
+  // Reset the mock manager's methods before each test
   beforeEach(() => {
-    // Reset the mock implementation and call history
-    (useCommunicationContext as ReturnType<typeof vi.fn>).mockClear();
-    // Set default return values for a clean slate
-    setupMockContext({});
+    // Reset calls and mock implementations
+    vi.clearAllMocks(); // Clears call history and resets implementations for *all* mocks
+    // Set default return value for getEventLog using spyOn
+    vi.spyOn(mockManagerInstance, "getEventLog").mockReturnValue([]);
+    // Ensure clearLog and logEvent are also mocked if needed globally
+    // If their default behavior is no-op, spying might be enough,
+    // but explicit mocks are safer if tests rely on them being functions.
+    vi.spyOn(mockManagerInstance, "clearLog").mockImplementation(() => {});
+    vi.spyOn(mockManagerInstance, "logEvent").mockImplementation(() => {});
   });
 
   it("should render without crashing", () => {
-    // Setup default context values (empty events, mock functions)
-    setupMockContext({});
-
-    // Render GameEventLog directly, no Provider needed
-    render(<GameEventLog />);
+    // Setup default manager return values (done in beforeEach)
+    // Render GameEventLog with the real provider
+    renderWithProvider(<GameEventLog />);
 
     // Check for a key element to confirm rendering
     expect(screen.getByText("Game Event Log")).toBeInTheDocument();
+    expect(mockManagerInstance.logEvent).not.toHaveBeenCalled();
   });
 
   // --- Test Event Display ---
   it("should display events from the context", () => {
-    // 1. Arrange: Setup mock context AND config data
+    // 1. Arrange: Setup mock manager AND config data
     const mockEvents: EventLogEntry[] = [
       {
         timestamp: new Date().toISOString(),
@@ -121,10 +140,11 @@ describe.sequential("GameEventLog", () => {
       { id: "TestSource1", children: [] },
       { id: "TestSource2", children: [] },
     ];
-    setupMockContext({ events: mockEvents });
+    // Use spyOn to set the mock return value
+    vi.spyOn(mockManagerInstance, "getEventLog").mockReturnValue(mockEvents);
 
-    // 2. Act: Render the component, providing the config data
-    render(
+    // 2. Act: Render the component using the provider, providing the config data
+    renderWithProvider(
       <GameEventLog startsOpen={true} sourceConfigData={mockSourceConfigData} />
     );
 
@@ -145,12 +165,13 @@ describe.sequential("GameEventLog", () => {
 
   // --- New Test ---
   it('should call clearLog from context when "Clear Log" button is clicked', () => {
-    // 1. Arrange: Setup mock context with a spy for clearLog
+    // 1. Arrange: Setup mock manager with a spy for clearLog
     const mockClearLog = vi.fn();
-    setupMockContext({ clearLog: mockClearLog });
+    // Spy on the method and provide the mock implementation
+    vi.spyOn(mockManagerInstance, "clearLog").mockImplementation(mockClearLog);
 
     // Render expanded AND with the filter tree open so the button is visible
-    render(<GameEventLog startsOpen={true} startTreeOpen={true} />);
+    renderWithProvider(<GameEventLog startsOpen={true} startTreeOpen={true} />);
 
     // 2. Act: Find and click the "Clear Log" button
     const clearButton = screen.getByRole("button", { name: /clear log/i });
@@ -162,7 +183,7 @@ describe.sequential("GameEventLog", () => {
 
   // --- New Test ---
   it("should filter events based on event name input", () => {
-    // 1. Arrange: Setup context with events and matching config
+    // 1. Arrange: Setup manager with events and matching config
     const mockEvents: EventLogEntry[] = [
       {
         timestamp: "2023-01-01T10:00:00Z",
@@ -187,10 +208,11 @@ describe.sequential("GameEventLog", () => {
       { id: "SourceA", children: [] },
       { id: "SourceB", children: [] },
     ];
-    setupMockContext({ events: mockEvents });
+    // Use spyOn
+    vi.spyOn(mockManagerInstance, "getEventLog").mockReturnValue(mockEvents);
 
-    // Render expanded with filter tree open
-    render(
+    // Render expanded with filter tree open using provider
+    renderWithProvider(
       <GameEventLog
         startsOpen={true}
         startTreeOpen={true}
@@ -223,7 +245,7 @@ describe.sequential("GameEventLog", () => {
 
   // --- New Test ---
   it("should display event data in details panel when an event is clicked", () => {
-    // 1. Arrange: Setup context with events (one with data) and config
+    // 1. Arrange: Setup manager with events (one with data) and config
     const eventWithData = {
       timestamp: "2023-01-01T10:00:00Z",
       source: "SourceA",
@@ -241,10 +263,11 @@ describe.sequential("GameEventLog", () => {
       { id: "SourceA", children: [] },
       { id: "SourceB", children: [] },
     ];
-    setupMockContext({ events: mockEvents });
+    // Use spyOn
+    vi.spyOn(mockManagerInstance, "getEventLog").mockReturnValue(mockEvents);
 
-    // Render with all panels open
-    render(
+    // Render with all panels open using provider
+    renderWithProvider(
       <GameEventLog
         startsOpen={true}
         startTreeOpen={true}
@@ -283,7 +306,7 @@ describe.sequential("GameEventLog", () => {
 
   // --- New Test ---
   it("should filter events based on source tree selection", () => {
-    // 1. Arrange: Setup context with events and matching config
+    // 1. Arrange: Setup manager with events and matching config
     const eventA = {
       timestamp: "2023-01-01T10:00:00Z",
       source: "SourceA",
@@ -301,10 +324,11 @@ describe.sequential("GameEventLog", () => {
       { id: "SourceA", children: [] },
       { id: "SourceB", children: [] },
     ];
-    setupMockContext({ events: mockEvents });
+    // Use spyOn
+    vi.spyOn(mockManagerInstance, "getEventLog").mockReturnValue(mockEvents);
 
-    // Render expanded with filter tree open
-    render(
+    // Render expanded with filter tree open using provider
+    renderWithProvider(
       <GameEventLog
         startsOpen={true}
         startTreeOpen={true}
@@ -345,10 +369,80 @@ describe.sequential("GameEventLog", () => {
     expect(sourceACheckbox).toBeChecked();
   });
 
-  // --- New Test ---
+  // --- Test interaction: Source Tree Filtering leads to List Update ---
+  it("should update the displayed event list when a source is toggled in the tree", () => {
+    // 1. Arrange: Setup manager with events and config
+    const eventA = {
+      timestamp: "2023-01-01T10:00:00Z",
+      source: "SourceA",
+      eventName: "EventFromA",
+      data: null,
+    };
+    const eventB = {
+      timestamp: "2023-01-01T10:01:00Z",
+      source: "SourceB",
+      eventName: "EventFromB",
+      data: { value: true },
+    };
+    const mockEvents: EventLogEntry[] = [eventA, eventB];
+    const mockSourceConfigData: SourceTreeNode[] = [
+      { id: "SourceA", children: [] },
+      { id: "SourceB", children: [] },
+    ];
+    // Use spyOn
+    vi.spyOn(mockManagerInstance, "getEventLog").mockReturnValue(mockEvents);
+
+    // Render expanded with filter tree open using provider
+    renderWithProvider(
+      <GameEventLog
+        startsOpen={true}
+        startTreeOpen={true}
+        sourceConfigData={mockSourceConfigData}
+      />
+    );
+
+    // Verify initial state: both events visible
+    expect(screen.getByText("EventFromA")).toBeInTheDocument();
+    expect(screen.getByText("EventFromB")).toBeInTheDocument();
+
+    // 2. Act: Find and click the checkbox for SourceA
+    const sourceALabel = screen.getByText(/SourceA/).closest("label");
+    const sourceACheckbox = within(sourceALabel!).getByRole(
+      "checkbox"
+    ) as HTMLInputElement;
+    fireEvent.click(sourceACheckbox); // Uncheck SourceA
+
+    // 3. Assert: List updates - EventFromA is gone, EventFromB remains
+    expect(screen.queryByText("EventFromA")).not.toBeInTheDocument();
+    expect(screen.getByText("EventFromB")).toBeInTheDocument();
+
+    // 4. Act: Click the checkbox for SourceB
+    const sourceBLabel = screen.getByText(/SourceB/).closest("label");
+    const sourceBCheckbox = within(sourceBLabel!).getByRole(
+      "checkbox"
+    ) as HTMLInputElement;
+    fireEvent.click(sourceBCheckbox); // Uncheck SourceB
+
+    // 5. Assert: List updates - Both events gone, placeholder appears
+    expect(screen.queryByText("EventFromA")).not.toBeInTheDocument();
+    expect(screen.queryByText("EventFromB")).not.toBeInTheDocument();
+    expect(screen.getByText("No events match filters.")).toBeInTheDocument();
+
+    // 6. Act: Click SourceA checkbox again to re-enable
+    fireEvent.click(sourceACheckbox);
+
+    // 7. Assert: List updates - EventFromA reappears
+    expect(screen.getByText("EventFromA")).toBeInTheDocument();
+    expect(screen.queryByText("EventFromB")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("No events match filters.")
+    ).not.toBeInTheDocument();
+  });
+
+  // --- Test collapse/expand when the toggle button is clicked ---
   it("should collapse and expand when the toggle button is clicked", () => {
     // 1. Arrange: Render in default (collapsed) state
-    render(<GameEventLog />);
+    renderWithProvider(<GameEventLog />); // <<< Use helper
 
     // Find the main content wrapper to check visibility/class
     // The parent Rnd component gets the 'collapsed' class
@@ -388,10 +482,10 @@ describe.sequential("GameEventLog", () => {
     ).not.toBeInTheDocument();
   });
 
-  // --- New Test ---
+  // --- Test toggle lock state ---
   it("should toggle lock state when the lock/unlock button is clicked", () => {
     // 1. Arrange: Render in default (unlocked) state
-    render(<GameEventLog />);
+    renderWithProvider(<GameEventLog />); // <<< Use helper
 
     const rndContainer = screen.getByTestId("rnd-container");
 
@@ -429,10 +523,10 @@ describe.sequential("GameEventLog", () => {
     expect(screen.getByRole("button", { name: "➕" })).toBeEnabled();
   });
 
-  // --- New Test ---
+  // --- Test collapse/expand filter tree toggle ---
   it("should collapse and expand the filter tree when the filter toggle button is clicked", () => {
     // 1. Arrange: Render with main panel and filter tree open
-    render(<GameEventLog startsOpen={true} startTreeOpen={true} />);
+    renderWithProvider(<GameEventLog startsOpen={true} startTreeOpen={true} />); // <<< FIX: Use helper
 
     // Find the filter column to check its class
     const filterColumn = screen.getByTestId("log-filter-column"); // Needs data-testid
@@ -469,13 +563,14 @@ describe.sequential("GameEventLog", () => {
 
   // --- New Test ---
   it("should hijack console.log and call logEvent when hijackConsoleLogs is true", () => {
-    // 1. Arrange: Setup mock context with a spy for logEvent
+    // 1. Arrange: Setup mock manager with a spy for logEvent
     const mockLogEvent = vi.fn();
-    setupMockContext({ logEvent: mockLogEvent });
+    // Spy on the method and provide the mock implementation
+    vi.spyOn(mockManagerInstance, "logEvent").mockImplementation(mockLogEvent);
 
-    // Render with default hijackConsoleLogs=true
+    // Render with default hijackConsoleLogs=true using provider
     // Use unmount to test cleanup
-    const { unmount } = render(<GameEventLog startsOpen={true} />);
+    const { unmount } = renderWithProvider(<GameEventLog startsOpen={true} />);
 
     // Store original console.log to restore it later (belt and suspenders)
     const originalConsoleLog = window.console.log;
@@ -524,14 +619,17 @@ describe.sequential("GameEventLog", () => {
 
   // --- New Test ---
   it("should NOT hijack console.log when hijackConsoleLogs is false", () => {
-    // 1. Arrange: Setup mock context with a spy for logEvent
+    // 1. Arrange: Setup mock manager with a spy for logEvent
     const mockLogEvent = vi.fn();
-    setupMockContext({ logEvent: mockLogEvent });
+    // Spy on the method and provide the mock implementation
+    vi.spyOn(mockManagerInstance, "logEvent").mockImplementation(mockLogEvent);
 
     // No need to store originalConsoleLog here
 
-    // Render with hijackConsoleLogs explicitly set to false
-    const { unmount } = render(<GameEventLog hijackConsoleLogs={false} />);
+    // Render with hijackConsoleLogs explicitly set to false using provider
+    const { unmount } = renderWithProvider(
+      <GameEventLog hijackConsoleLogs={false} />
+    );
 
     // 2. Act: Call console.log
     const testMessage = "This should go to the real console";
@@ -547,7 +645,7 @@ describe.sequential("GameEventLog", () => {
 
   // --- Test startsOpen Prop ---
   it("should render expanded initially when startsOpen is true", () => {
-    render(<GameEventLog startsOpen={true} />);
+    renderWithProvider(<GameEventLog startsOpen={true} />);
     const rndContainer = screen.getByTestId("rnd-container");
     const contentWrapper = screen.getByTestId("log-content-wrapper");
     expect(rndContainer).not.toHaveClass("collapsed");
@@ -556,14 +654,14 @@ describe.sequential("GameEventLog", () => {
   });
 
   it("should render collapsed initially when startsOpen is false", () => {
-    render(<GameEventLog startsOpen={false} />); // Explicitly false
+    renderWithProvider(<GameEventLog startsOpen={false} />);
     const rndContainer = screen.getByTestId("rnd-container");
     expect(rndContainer).toHaveClass("collapsed");
     expect(screen.getByRole("button", { name: "➕" })).toBeInTheDocument(); // Expand button
   });
 
   it("should render collapsed initially by default", () => {
-    render(<GameEventLog />); // Default
+    renderWithProvider(<GameEventLog />);
     const rndContainerDefault = screen.getByTestId("rnd-container");
     expect(rndContainerDefault).toHaveClass("collapsed");
     expect(screen.getByRole("button", { name: "➕" })).toBeInTheDocument(); // Expand button
@@ -571,7 +669,7 @@ describe.sequential("GameEventLog", () => {
 
   // --- Test startsLocked Prop ---
   it("should render locked initially when startsLocked is true", () => {
-    render(<GameEventLog startsLocked={true} />);
+    renderWithProvider(<GameEventLog startsLocked={true} />);
     const rndContainer = screen.getByTestId("rnd-container");
     expect(rndContainer).toHaveClass("locked");
     expect(screen.getByRole("button", { name: "🔒" })).toBeInTheDocument(); // Lock button
@@ -580,7 +678,7 @@ describe.sequential("GameEventLog", () => {
   });
 
   it("should render unlocked initially when startsLocked is false", () => {
-    render(<GameEventLog startsLocked={false} />); // Explicitly false
+    renderWithProvider(<GameEventLog startsLocked={false} />);
     const rndContainer = screen.getByTestId("rnd-container");
     expect(rndContainer).not.toHaveClass("locked");
     expect(screen.getByRole("button", { name: "🔓" })).toBeInTheDocument(); // Unlock button
@@ -588,7 +686,7 @@ describe.sequential("GameEventLog", () => {
   });
 
   it("should render unlocked initially by default", () => {
-    render(<GameEventLog />); // Default
+    renderWithProvider(<GameEventLog />);
     const rndContainerDefault = screen.getByTestId("rnd-container");
     expect(rndContainerDefault).not.toHaveClass("locked");
     expect(screen.getByRole("button", { name: "🔓" })).toBeInTheDocument(); // Unlock button
@@ -598,7 +696,7 @@ describe.sequential("GameEventLog", () => {
   // --- Test startTreeOpen Prop ---
   it("should render with filter tree open initially when startTreeOpen is true", () => {
     // Needs startsOpen=true for the filter tree to be potentially visible
-    render(<GameEventLog startsOpen={true} startTreeOpen={true} />);
+    renderWithProvider(<GameEventLog startsOpen={true} startTreeOpen={true} />);
     const filterColumn = screen.getByTestId("log-filter-column");
     expect(filterColumn).not.toHaveClass("log-column--filter-collapsed");
     // Check button title
@@ -610,7 +708,9 @@ describe.sequential("GameEventLog", () => {
 
   it("should render with filter tree closed initially when startTreeOpen is false", () => {
     // Needs startsOpen=true
-    render(<GameEventLog startsOpen={true} startTreeOpen={false} />); // Explicitly false
+    renderWithProvider(
+      <GameEventLog startsOpen={true} startTreeOpen={false} />
+    );
     const filterColumn = screen.getByTestId("log-filter-column");
     expect(filterColumn).toHaveClass("log-column--filter-collapsed");
     expect(screen.getByRole("button", { name: "☰" })).toHaveAttribute(
@@ -620,7 +720,7 @@ describe.sequential("GameEventLog", () => {
   });
 
   it("should render with filter tree closed initially by default", () => {
-    render(<GameEventLog startsOpen={true} />); // Default
+    renderWithProvider(<GameEventLog startsOpen={true} />);
     const filterColumnDefault = screen.getByTestId("log-filter-column");
     expect(filterColumnDefault).toHaveClass("log-column--filter-collapsed");
     expect(screen.getByRole("button", { name: "☰" })).toHaveAttribute(
@@ -632,7 +732,7 @@ describe.sequential("GameEventLog", () => {
   // --- Test startDataOpen Prop ---
   it("should render with details panel open initially when startDataOpen is true", () => {
     // Needs startsOpen=true
-    render(<GameEventLog startsOpen={true} startDataOpen={true} />);
+    renderWithProvider(<GameEventLog startsOpen={true} startDataOpen={true} />);
     const detailsPanel = screen.getByTestId("log-details-panel");
     expect(detailsPanel).not.toHaveClass("log-column--details-collapsed");
     // Check button title
@@ -644,7 +744,9 @@ describe.sequential("GameEventLog", () => {
 
   it("should render with details panel closed initially when startDataOpen is false", () => {
     // Needs startsOpen=true
-    render(<GameEventLog startsOpen={true} startDataOpen={false} />); // Explicitly false
+    renderWithProvider(
+      <GameEventLog startsOpen={true} startDataOpen={false} />
+    );
     const detailsPanel = screen.getByTestId("log-details-panel");
     expect(detailsPanel).toHaveClass("log-column--details-collapsed");
     expect(screen.getByRole("button", { name: "ℹ️" })).toHaveAttribute(
@@ -654,7 +756,7 @@ describe.sequential("GameEventLog", () => {
   });
 
   it("should render with details panel closed initially by default", () => {
-    render(<GameEventLog startsOpen={true} />); // Default
+    renderWithProvider(<GameEventLog startsOpen={true} />);
     const detailsPanelDefault = screen.getByTestId("log-details-panel");
     expect(detailsPanelDefault).toHaveClass("log-column--details-collapsed");
     expect(screen.getByRole("button", { name: "ℹ️" })).toHaveAttribute(
@@ -666,7 +768,7 @@ describe.sequential("GameEventLog", () => {
   // --- Test initial layout and opacity props ---
   it("should apply collapsedOpacity when initially collapsed", () => {
     const collapsedOpacity = 0.65;
-    render(
+    renderWithProvider(
       <GameEventLog startsOpen={false} collapsedOpacity={collapsedOpacity} />
     );
 
@@ -677,7 +779,7 @@ describe.sequential("GameEventLog", () => {
 
   it("should apply lockedOpacity when initially locked and expanded", () => {
     const lockedOpacity = 0.75;
-    render(
+    renderWithProvider(
       <GameEventLog
         startsOpen={true}
         startsLocked={true}
@@ -692,7 +794,7 @@ describe.sequential("GameEventLog", () => {
   });
 
   it("should apply opacity 1 when initially expanded and unlocked", () => {
-    render(<GameEventLog startsOpen={true} startsLocked={false} />);
+    renderWithProvider(<GameEventLog startsOpen={true} startsLocked={false} />);
 
     const rndContainer = screen.getByTestId("rnd-container");
     expect(rndContainer).not.toHaveClass("collapsed");

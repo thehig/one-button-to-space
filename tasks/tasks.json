@@ -311,7 +311,7 @@
             4
           ],
           "details": "Implementation steps:\n1. Extend the GameEventLog test file or create a new integration test file\n2. Mock the logger manager to simulate events and verify interactions\n3. Write test cases for:\n   - Event handling (new-event from manager, console.log hijacking)\n   - Filtering interactions:\n     - Text input filtering\n     - TreeNode checkbox interactions\n     - Parent/child checkbox logic\n   - UI control interactions:\n     - Clear button functionality\n     - Toggle visibility button\n     - Lock/unlock button\n     - Toggle tree/details sections\n   - Window management:\n     - Drag simulation\n     - Resize simulation\n4. Verify state updates after each interaction\n\nTesting approach:\n- Use render from React Testing Library with context providers\n- Use userEvent to simulate complex user interactions\n- Mock the logger manager to emit events and verify handlers\n- Test the full interaction flow from user action to UI update\n- Verify that component state changes correctly after interactions\n- Test keyboard shortcuts and accessibility interactions\n- Simulate window drag/resize events and verify layout updates",
-          "status": "pending",
+          "status": "done",
           "parentTaskId": 22
         },
         {
