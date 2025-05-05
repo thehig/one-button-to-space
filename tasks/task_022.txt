@@ -226,7 +226,7 @@ Testing approach:
 - Verify tree integrity after operations
 - Aim for 100% coverage of this module
 
-## 3. Implement Utility Functions Test Suite [pending]
+## 3. Implement Utility Functions Test Suite [done]
 ### Dependencies: None
 ### Description: Create tests for utility functions in utils.ts to ensure proper behavior of helper functions used throughout the package.
 ### Details:

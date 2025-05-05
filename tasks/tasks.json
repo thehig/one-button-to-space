@@ -290,7 +290,7 @@
           "description": "Create tests for utility functions in utils.ts to ensure proper behavior of helper functions used throughout the package.",
           "dependencies": [],
           "details": "Implementation steps:\n1. Create or extend utils.test.ts file\n2. Test getContrastColor function\n   - Test with various background colors (light, dark, edge cases)\n   - Verify correct contrast color returned (black or white)\n   - Test with invalid inputs if applicable\n3. Test formatTimestamp function\n   - Test with various date inputs\n   - Verify correct formatting with expected output\n   - Test with edge cases (null, invalid dates)\n4. Test debounce function\n   - Use jest.useFakeTimers() to control timing\n   - Test function called after delay\n   - Test function not called before delay\n   - Test multiple rapid calls only execute once\n   - Test with different delay values\n   - Test cancellation functionality if implemented\n\nTesting approach:\n- Use precise assertions for expected outputs\n- For debounce, use jest timer mocks to avoid actual waiting\n- Test edge cases thoroughly\n- Ensure timing-sensitive tests are reliable\n- Aim for 100% coverage of utility functions",
-          "status": "pending",
+          "status": "done",
           "parentTaskId": 22
         },
         {
