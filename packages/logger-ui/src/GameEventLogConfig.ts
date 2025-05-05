@@ -109,6 +109,7 @@ export class GameEventLogConfig {
           if (uncategorizedParent?.children) {
             uncategorizedParent.children.push(node);
           }
+          // eslint-disable-next-line @typescript-eslint/no-unused-expressions
           DEBUG &&
             console.warn(
               `Node ${node.id} provided without symbol, assigned fallback.`
@@ -183,6 +184,7 @@ export class GameEventLogConfig {
     let parentNode = this.findNodeById(this.sourceTree, UNCATEGORIZED_ID);
 
     if (!parentNode) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       DEBUG && console.log("Creating Uncategorized parent node dynamically.");
       parentNode = {
         id: UNCATEGORIZED_ID,
@@ -214,18 +216,21 @@ export class GameEventLogConfig {
       !parentNode.children.some((child) => child.id === sourceId)
     ) {
       parentNode.children.push(newNode);
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       DEBUG &&
         console.log(
           `Dynamically added source: ${sourceId} (${symbol}) under ${UNCATEGORIZED_ID}`
         );
     } else if (parentNode) {
       // Add null check
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       DEBUG &&
         console.warn(
           `Attempted to dynamically re-add source: ${sourceId} under ${UNCATEGORIZED_ID}`
         );
     } else {
       // This case should ideally not happen if logic above is correct
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       DEBUG &&
         console.error(
           `Could not find or create parent node ${UNCATEGORIZED_ID} for dynamic source ${sourceId}`
@@ -267,6 +272,7 @@ export class GameEventLogConfig {
    * @param parentId Optional ID of the parent node.
    */
   public addSource(sourceId: string, symbol: string, parentId?: string): void {
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     DEBUG &&
       console.warn(
         "addSource is deprecated for dynamic use. Use constructor or ensureSourceExists."
@@ -309,6 +315,7 @@ export class GameEventLogConfig {
    * @param treeData An array of SourceTreeNode objects to add.
    */
   public addSourceTree(treeData: SourceTreeNode[]): void {
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
     DEBUG &&
       console.warn(
         "addSourceTree is deprecated. Provide the full tree structure via the constructor."

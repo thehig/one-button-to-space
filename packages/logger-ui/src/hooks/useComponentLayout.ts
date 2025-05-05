@@ -1,129 +1,125 @@
 import { useState, useCallback } from "react";
-import type { Position, DraggableData } from "react-rnd"; // Import Rnd specific types
+// import type { Position, DraggableData } from "react-rnd"; // Removed unused Rnd specific types
 
-// Define the props the hook accepts
+// Define an interface for the layout state
+interface LayoutState {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  isLocked: boolean;
+  isCollapsed: boolean;
+  isDetailsCollapsed: boolean;
+  zIndex: number;
+}
+
+// Define interface for initial props
 interface UseComponentLayoutProps {
   initialX?: number;
   initialY?: number;
   initialWidth?: number;
   initialHeight?: number;
-  startsOpen?: boolean;
-  startTreeOpen?: boolean;
-  startDataOpen?: boolean;
-}
-
-// Define the return type of the hook
-interface UseComponentLayoutResult {
-  position: Position;
-  size: { width: number | string; height: number | string }; // Rnd uses number | string
-  isCollapsed: boolean;
-  isFilterCollapsed: boolean;
-  isDetailsCollapsed: boolean;
-  toggleCollapse: () => void;
-  toggleFilterCollapse: () => void;
-  toggleDetailsCollapse: () => void;
-  handleDragStop: (e: any, d: DraggableData) => void; // Use DraggableData type
-  handleResizeStop: (
-    e: any,
-    direction: any,
-    ref: HTMLElement,
-    delta: any,
-    newPosition: Position
-  ) => void;
+  initialLocked?: boolean;
+  initialCollapsed?: boolean;
+  initialDetailsCollapsed?: boolean;
 }
 
 export const useComponentLayout = ({
-  initialX = 20,
-  initialY = 20,
-  initialWidth = 600,
-  initialHeight = 400,
-  startsOpen = false,
-  startTreeOpen = false,
-  startDataOpen = false,
-}: UseComponentLayoutProps): UseComponentLayoutResult => {
-  const [position, setPosition] = useState<Position>({
+  initialX = 10,
+  initialY = 10,
+  initialWidth = 300, // Default width
+  initialHeight = 200, // Default height
+  initialLocked = false,
+  initialCollapsed = false,
+  initialDetailsCollapsed = false,
+}: UseComponentLayoutProps = {}) => {
+  const [layout, setLayout] = useState<LayoutState>(() => ({
     x: initialX,
     y: initialY,
-  });
-  const [isCollapsed, setIsCollapsed] = useState(!startsOpen);
-  const [size, setSize] = useState({
-    width: !startsOpen ? 300 : initialWidth,
-    height: isCollapsed ? 50 : initialHeight, // Adjust initial height based on startsOpen
-  });
-  const [lastExpandedWidth, setLastExpandedWidth] = useState(initialWidth);
-  const [isFilterCollapsed, setIsFilterCollapsed] = useState(!startTreeOpen);
-  const [isDetailsCollapsed, setIsDetailsCollapsed] = useState(!startDataOpen);
+    width: initialWidth,
+    height: initialHeight,
+    isLocked: initialLocked,
+    isCollapsed: initialCollapsed,
+    isDetailsCollapsed: initialDetailsCollapsed,
+    zIndex: 1000, // Default zIndex
+  }));
 
+  const updateLayout = useCallback((updates: Partial<LayoutState>) => {
+    setLayout((prev) => ({ ...prev, ...updates }));
+  }, []);
+
+  // Bring to front logic
+  const bringToFront = useCallback(() => {
+    // Example: Find max zIndex among other components (needs external state access or context)
+    // For now, just incrementing a high number
+    setLayout((prev) => ({ ...prev, zIndex: Date.now() })); // Simple way to get a high number
+  }, []);
+
+  // Toggle lock state
+  const toggleLock = useCallback(() => {
+    setLayout((prev) => ({ ...prev, isLocked: !prev.isLocked }));
+  }, []);
+
+  // Toggle collapse state
   const toggleCollapse = useCallback(() => {
-    const newCollapsedState = !isCollapsed;
-
-    if (newCollapsedState) {
-      // Store current width before collapsing
-      setLastExpandedWidth(
-        typeof size.width === "string" ? parseInt(size.width, 10) : size.width
-      );
-    }
-
-    // Set new size based on collapse state
-    setSize((prevSize) => ({
-      width: newCollapsedState ? 300 : lastExpandedWidth,
-      height: newCollapsedState
-        ? 50
-        : (typeof prevSize.height === "string"
-            ? parseInt(prevSize.height, 10)
-            : prevSize.height) < 200
-        ? initialHeight // Expand back to initial height if it was too small
-        : prevSize.height,
-    }));
-    setIsCollapsed(newCollapsedState);
-  }, [isCollapsed, size.width, lastExpandedWidth, initialHeight]);
-
-  const toggleFilterCollapse = useCallback(() => {
-    setIsFilterCollapsed((prev) => !prev);
+    setLayout((prev) => ({ ...prev, isCollapsed: !prev.isCollapsed }));
   }, []);
 
+  // Toggle details collapse state
   const toggleDetailsCollapse = useCallback(() => {
-    setIsDetailsCollapsed((prev) => !prev);
+    setLayout((prev) => ({
+      ...prev,
+      isDetailsCollapsed: !prev.isDetailsCollapsed,
+    }));
   }, []);
 
-  const handleDragStop = useCallback((e: any, d: DraggableData) => {
-    setPosition({ x: d.x, y: d.y });
-  }, []);
+  // Handle drag stop from react-rnd
+  // Define types for react-rnd event handlers if possible
+  // Using unknown for now as specific DraggableEvent/Data might be complex
+  const handleDragStop = useCallback(
+    (e: unknown, d: { x: number; y: number }) => {
+      if (!layout.isLocked) {
+        setLayout((prev) => ({ ...prev, x: d.x, y: d.y }));
+        bringToFront();
+      }
+    },
+    [layout.isLocked, bringToFront]
+  );
 
+  // Handle resize stop from react-rnd
   const handleResizeStop = useCallback(
     (
-      e: any,
-      direction: any,
-      ref: HTMLElement,
-      delta: any,
-      newPosition: Position
+      e: unknown,
+      direction: unknown, // Type this based on react-rnd specifics
+      ref: { style: { width: string; height: string } },
+      delta: unknown, // Type this based on react-rnd specifics
+      position: { x: number; y: number }
     ) => {
-      const newWidth = parseInt(ref.style.width, 10);
-      const newHeight = parseInt(ref.style.height, 10);
-      setSize({
-        width: newWidth,
-        height: newHeight,
-      });
-      // Also update the remembered expanded width if resizing while expanded
-      if (!isCollapsed) {
-        setLastExpandedWidth(newWidth);
+      if (!layout.isLocked) {
+        setLayout((prev) => ({
+          ...prev,
+          width: parseInt(ref.style.width, 10),
+          height: parseInt(ref.style.height, 10),
+          ...position, // Update position based on resize result
+        }));
+        bringToFront();
       }
-      // Also update position as resizing can change it
-      setPosition(newPosition);
     },
-    [isCollapsed] // Dependency on isCollapsed to update lastExpandedWidth correctly
+    [layout.isLocked, bringToFront]
   );
 
   return {
-    position,
-    size,
-    isCollapsed,
-    isFilterCollapsed,
-    isDetailsCollapsed,
+    layout,
+    setLayout: updateLayout, // Expose the specific update function
+    bringToFront,
+    toggleLock,
     toggleCollapse,
-    toggleFilterCollapse,
     toggleDetailsCollapse,
     handleDragStop,
     handleResizeStop,
+    // Expose individual states for easier consumption if needed
+    isLocked: layout.isLocked,
+    isCollapsed: layout.isCollapsed,
+    isDetailsCollapsed: layout.isDetailsCollapsed,
   };
 };

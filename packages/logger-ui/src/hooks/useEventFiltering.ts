@@ -1,4 +1,10 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import React, {
+  useState,
+  useMemo,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import { SourceTreeNode } from "../types";
 import { EventLogEntry } from "../types";
 
@@ -52,6 +58,7 @@ export const useEventFiltering = (
 
     // If there are newly added IDs, update the allowedSources state
     if (newlyAddedIds.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-expressions
       DEBUG &&
         console.log(
           `useEventFiltering: Auto-enabling new sources:`,

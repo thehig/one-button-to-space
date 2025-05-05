@@ -168,11 +168,21 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     this.logEvent("CommunicationManager", "subscriptionsInitialized");
   }
 
-  public logEvent(source: string, eventName: string, data?: unknown): void {
-    // console.log(
-    //   `CommunicationManager: logEvent called - Source: ${source}, Event: ${eventName}`
-    // );
-    const timestamp = new Date().toISOString();
+  public logEvent(
+    source: string,
+    eventName: string,
+    data?:
+      | Record<string, unknown>
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null
+  ): void {
+    // Allow structured data, arrays, or primitives. Avoid 'any'.
+    if (!this.config.enabled) return;
+
+    const timestamp = Date.now();
     const logEntry: EventLogEntry = { timestamp, source, eventName, data }; // Use the interface
 
     this.eventLog.push(logEntry);
@@ -203,12 +213,17 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
         try {
           // Use apply to call the original function with the correct context and args
           originalConsoleLog.apply(window.console, consoleArgs);
-        } catch (e) {
-          // Fallback or error handling if calling the original fails
-          console.error(
-            "[CommunicationManager] Error calling original console.log:",
-            e
-          );
+        } catch (error: unknown) {
+          // Type guard for Error object
+          let errorMessage = "Unknown error";
+          if (error instanceof Error) {
+            errorMessage = error.message;
+          }
+          this.logEvent("CommunicationManager", "error", {
+            message: "Error calling original console.log",
+            error: errorMessage,
+            eventData: JSON.stringify(data).substring(0, 100), // Log truncated data
+          });
         }
       } else {
         // Log a warning if the original wasn't found (hijack might not be active?)
@@ -276,4 +291,58 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     this.removeAllListeners(); // Clear own listeners (like new-event, log-cleared)
     this.logEvent("CommunicationManager", "destroyed");
   }
+
+  // Prefix with _ if data is intentionally unused in this specific implementation
+  private processEvent(source: string, eventName: string, _data: unknown) {
+    if (this.isProcessing) return; // Prevent recursive processing
+    this.isProcessing = true;
+    try {
+      // Process the event data here
+      this.logEvent(source, eventName, _data);
+    } catch (error: unknown) {
+      // Type guard for Error object
+      let errorMessage = "Unknown error";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      this.logEvent("CommunicationManager", "error", {
+        message: "Error processing event",
+        error: errorMessage,
+        eventData: JSON.stringify(_data).substring(0, 100), // Log truncated data
+      });
+    } finally {
+      this.isProcessing = false;
+    }
+  }
+
+  // Remove the disable comment as _data is now used
+  private logToConsole(source: string, eventName: string, _data: unknown) {
+    // Keep _data unused if console logging is simple
+    if (this.config.logLevel === "debug" || this.config.logLevel === "info") {
+      console.groupCollapsed(`[${source}] ${eventName}`);
+      console.log(_data);
+      console.groupEnd();
+    }
+  }
+
+  private handleMessage = (event: MessageEvent) => {
+    // Perform type checking on event.data
+    if (
+      event.data &&
+      typeof event.data === "object" &&
+      "type" in event.data &&
+      "payload" in event.data
+    ) {
+      const { type, payload } = event.data as {
+        type: string;
+        payload: unknown;
+      }; // Assert structure after check
+      this.processEvent("Message", type, payload);
+    } else {
+      this.logEvent("CommunicationManager", "warning", {
+        message: "Received malformed message",
+        data: event.data,
+      });
+    }
+  };
 }

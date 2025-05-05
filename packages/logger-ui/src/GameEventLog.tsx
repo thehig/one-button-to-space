@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useMemo,
-  useEffect,
-  useCallback,
-  useRef,
-} from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 // Import react-rnd
 import { Rnd } from "react-rnd";
 // Import types from the main module
@@ -104,7 +98,7 @@ interface GameEventLogProps {
   initialX?: number; // New prop: Initial X coordinate
   initialY?: number; // New prop: Initial Y coordinate
   initialWidth?: number; // New prop: Initial width when expanded
-  initialHeight?: number; // New prop: Initial height when expanded
+  initialHeight?: number; // New prop: Initial height when expanded (Added)
   collapsedOpacity?: number; // New prop: Opacity when collapsed
   lockedOpacity?: number; // New prop: Opacity when locked (and not collapsed)
   startTreeOpen?: boolean; // New prop: Controls initial state of the filter tree section
