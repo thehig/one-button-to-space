@@ -28,7 +28,61 @@ import { useComponentLayout } from "./hooks/useComponentLayout";
 import { EventLogEntry } from "./types"; // Assuming types are defined here or adjust path
 
 // --- Constants ---
-const CONSOLE_SOURCE_ID = "Console"; // Source ID for hijacked logs
+const CONSOLE_SOURCE_ID = "Console"; // Default Source ID for hijacked logs
+
+// --- NEW Helper Function to attempt parsing caller info ---
+// Returns filename and line number if possible
+interface CallerInfo {
+  fileName: string;
+  lineNumber: string | null;
+}
+
+const getCallerInfo = (): CallerInfo => {
+  try {
+    const err = new Error();
+    const stack = err.stack;
+    if (!stack) return { fileName: CONSOLE_SOURCE_ID, lineNumber: null };
+
+    const lines = stack.split("\n").slice(3); // Adjust slice index if needed
+
+    for (const line of lines) {
+      if (
+        line.includes("GameEventLog.tsx") ||
+        line.includes("getCallerInfo") ||
+        line.includes("createInterceptor")
+      ) {
+        continue;
+      }
+
+      // Chrome/V8: "at func (path/file.js:123:45)" or "at path/file.js:123:45"
+      let match = line.match(/\(?([^\s\(]+):(\d+):\d+\)?$/);
+      if (match) {
+        const filePath = match[1];
+        const fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
+        return {
+          fileName: fileName || CONSOLE_SOURCE_ID,
+          lineNumber: match[2],
+        };
+      }
+
+      // Firefox: "func@path/file.js:123:45" or "@path/file.js:123:45"
+      match = line.match(/@([^\s]+):(\d+):\d+$/);
+      if (match) {
+        const filePath = match[1];
+        const fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
+        return {
+          fileName: fileName || CONSOLE_SOURCE_ID,
+          lineNumber: match[2],
+        };
+      }
+    }
+
+    return { fileName: CONSOLE_SOURCE_ID, lineNumber: null }; // Fallback
+  } catch (e) {
+    console.error("[getCallerInfo] Error parsing stack: ", e);
+    return { fileName: CONSOLE_SOURCE_ID, lineNumber: null }; // Fallback on error
+  }
+};
 
 // Helper function to calculate event counts by source
 const calculateCountsBySource = (
@@ -164,11 +218,31 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       originalMethod: (...args: any[]) => void
     ) => {
       return (...args: any[]) => {
-        // 1. Log the event to our system
+        // --- MODIFICATION: Get caller info object ---
+        const { fileName, lineNumber } = getCallerInfo(); // Line number is now ignored
+
+        // --- REVERT: Remove line number prepending ---
+        // const processedArgs = [...args]; // Create a copy to modify
+        // if (lineNumber && processedArgs.length > 0) {
+        //     if (typeof processedArgs[0] === 'string') {
+        //         processedArgs[0] = `[L${lineNumber}] ${processedArgs[0]}`;
+        //     } else {
+        //         // If first arg isn't a string, insert line number as a new first arg
+        //         processedArgs.unshift(`[L${lineNumber}]`);
+        //     }
+        // }
+
+        // --- NEW: Construct eventName with filename and optional line number ---
+        const eventNameForLog = lineNumber
+          ? `${fileName}:${lineNumber}`
+          : fileName;
+
+        // 1. Log the event to our system using method as source, file:line as eventName
         try {
-          // Format arguments for logging - simple array for now
-          const dataPayload = { messages: args };
-          logEvent(CONSOLE_SOURCE_ID, methodName, dataPayload);
+          // Log the ORIGINAL arguments
+          const dataPayload = { messages: args }; // Use original args
+          // --- SWAP: Use methodName as source, constructed name as eventName ---
+          logEvent(methodName, eventNameForLog, dataPayload);
         } catch (e) {
           // --- FIX: Use the original method to report logging errors ---
           const errorArgs = ["Error logging intercepted console message:", e];
@@ -181,14 +255,14 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
           // --- END FIX ---
         }
 
-        // 2. Call the original console method (handling IE compatibility)
+        // 2. Call the original console method with ORIGINAL arguments
         if (originalMethod) {
           if (originalMethod.apply) {
             // Normal browsers
-            originalMethod.apply(window.console, args);
+            originalMethod.apply(window.console, args); // Use original args
           } else {
             // IE fallback (may join args - less ideal but functional)
-            const message = args.map(String).join(" ");
+            const message = args.map(String).join(" "); // Use original args
             originalMethod(message);
           }
         }
