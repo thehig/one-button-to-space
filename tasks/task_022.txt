@@ -119,633 +119,145 @@ The implementation will be verified through the following approach:
    - Use mock functions to verify context and manager interactions
 
 # Subtasks:
-## 1. Implement Unit Tests for useComponentLayout Hook [done]
+## 1. Implement CommunicationManager Test Suite [pending]
 ### Dependencies: None
-### Description: Create comprehensive unit tests for the useComponentLayout hook to verify layout state management functionality.
+### Description: Create a comprehensive test suite for the CommunicationManager singleton class to achieve full coverage of its functionality.
 ### Details:
 Implementation steps:
-1. Create a new test file `useComponentLayout.test.tsx` in the appropriate test directory
-2. Import the hook and React Testing Library utilities
-3. Write test cases for:
-   - Initial state verification with default and custom parameters
-   - Toggle visibility functionality (verify state changes)
-   - Position update simulation (test drag events)
-   - Size update simulation (test resize events)
-   - Boundary checks for position and size
-   - Lock/unlock functionality
-4. Use React Testing Library's renderHook utility to test the hook in isolation
-5. Mock any required dependencies
-6. Verify state updates after each action
+1. Create CommunicationManager.test.ts file in the appropriate test directory
+2. Test singleton pattern implementation (getInstance returns same instance)
+3. Test logEvent method (verify event addition, max size trimming, and event emission)
+4. Test clearLog method (verify events cleared and clear event emitted)
+5. Test event listener methods (on, off) with various event types
+6. Test configuration methods (setMaxLogSize, setRedirectEventsToConsole)
+7. Test getEventLog method returns correct event array
+8. Use jest.spyOn for emission verification and mock timers if needed
 
 Testing approach:
-- Use renderHook to test the hook directly
-- Create test fixtures for different initial states
-- Simulate state changes by calling the returned functions
-- Assert on the returned state values after each operation
-- Test edge cases like minimum/maximum sizes and boundary positions
+- Use isolated unit tests with proper setup/teardown to reset singleton between tests
+- Mock EventEmitter functionality where needed
+- Test edge cases like empty logs, max size boundaries
+- Verify event structure and timestamps
+- Ensure 100% coverage of this critical class
 
-<info added on 2025-05-05T11:52:40.459Z>
-Based on your implementation progress, here's additional information to add to the subtask:
-
-```
-Test implementation details:
-
-- Environment setup:
-  - Configured Vitest with jsdom environment to properly simulate DOM events
-  - Added necessary pattern to include hook tests in test runs
-  - Resolved dependency issues with @testing-library/react-hooks and @testing-library/react
-
-- Test fixtures:
-  - Created mockProps object with common test values
-  - Implemented mockEvent factory for simulating drag/resize events with proper coordinates
-
-- Implementation notes:
-  - Used act() to properly handle state updates within tests
-  - Implemented fireEvent for simulating user interactions
-  - Created helper functions to reduce test boilerplate for common assertions
-
-- Test coverage specifics:
-  - Verified that toggleCollapse correctly inverts the isOpen state
-  - Confirmed toggleFilterCollapse properly manages filterOpen state
-  - Validated toggleDetailsCollapse correctly toggles detailsOpen state
-  - Tested handleDragStop updates x/y coordinates based on event data
-  - Verified handleResizeStop correctly calculates and updates width/height
-  - Confirmed state persistence between operations
-
-- Removed tests for locking feature as it's not in the current implementation
-  - Added TODOs for future implementation if feature is added back
-
-- Added snapshot tests for initial state configurations
-```
-</info added on 2025-05-05T11:52:40.459Z>
-
-## 2. Implement Unit Tests for useEventFiltering Hook [done]
+## 2. Create GameEventLogConfig Test Suite [pending]
 ### Dependencies: None
-### Description: Create comprehensive unit tests for the useEventFiltering hook to verify log filtering functionality.
+### Description: Develop tests for the GameEventLogConfig module focusing on tree manipulation functions and configuration state management.
 ### Details:
 Implementation steps:
-1. Create a new test file `useEventFiltering.test.tsx` in the appropriate test directory
-2. Import the hook and React Testing Library utilities
-3. Create mock log event data with various sources, levels, and messages
-4. Write test cases for:
-   - Initial state verification (no filters applied)
-   - Text filtering functionality (case sensitive and insensitive)
-   - Source filtering (single and multiple sources)
-   - Level filtering (verify events filtered by log level)
-   - Combined filters (text + source + level)
-   - Filter clearing functionality
-   - Input debouncing (if implemented)
-5. Test with empty log arrays and edge cases
+1. Create GameEventLogConfig.test.ts file if not exists or extend existing file
+2. Test buildTreeFromConfig function with various input configurations
+   - Test with empty config
+   - Test with single level sources
+   - Test with nested source hierarchies
+   - Test with custom labels and IDs
+3. Test findNodeById function
+   - Test finding nodes at different levels
+   - Test with non-existent IDs
+   - Test with empty trees
+4. Test updateNodeState function
+   - Test enabling/disabling nodes
+   - Test parent/child relationship updates
+   - Test state propagation through the tree
+5. Test getAllSourceIds function
+   - Test with various tree structures
+   - Verify all IDs are collected correctly
 
 Testing approach:
-- Use renderHook to test the hook directly
-- Create comprehensive test fixtures with varied log events
-- Test each filtering mechanism independently and in combination
-- Verify filtered results match expected output
-- Test performance with large arrays of log events
-- Verify filter state is properly maintained between renders
+- Create sample tree configurations for testing
+- Use snapshot testing for complex tree structures
+- Test edge cases and boundary conditions
+- Verify tree integrity after operations
+- Aim for 100% coverage of this module
 
-<info added on 2025-05-05T12:00:58.405Z>
-Here's additional information for the completed tests:
-
-```typescript
-// Sample test implementation details:
-import { renderHook, act } from '@testing-library/react-hooks';
-import { useEventFiltering } from '../hooks/useEventFiltering';
-
-describe('useEventFiltering', () => {
-  const mockEvents: EventLogEntry[] = [
-    { id: '1', timestamp: '2023-01-01T12:00:00Z', level: 'INFO', source: 'api/users', message: 'User login successful' },
-    { id: '2', timestamp: '2023-01-01T12:01:00Z', level: 'ERROR', source: 'api/auth', message: 'Authentication failed' },
-    { id: '3', timestamp: '2023-01-01T12:02:00Z', level: 'WARN', source: 'api/users/profile', message: 'Profile update incomplete' }
-  ];
-
-  const mockSourceTree: SourceTreeNode[] = [
-    { 
-      id: 'api', 
-      name: 'api', 
-      children: [
-        { id: 'api/users', name: 'users', children: [
-          { id: 'api/users/profile', name: 'profile', children: [] }
-        ]},
-        { id: 'api/auth', name: 'auth', children: [] }
-      ]
-    }
-  ];
-
-  test('parent node toggling affects all descendants', () => {
-    const { result } = renderHook(() => useEventFiltering(mockEvents, mockSourceTree));
-    
-    // Toggle parent node off
-    act(() => {
-      result.current.handleSourceTreeToggle('api');
-    });
-    
-    // Verify all child sources are filtered out
-    expect(result.current.filteredEvents).toHaveLength(0);
-    expect(result.current.allowedSources).not.toContain('api/users');
-    expect(result.current.allowedSources).not.toContain('api/users/profile');
-    expect(result.current.allowedSources).not.toContain('api/auth');
-  });
-
-  test('debounces text filter input', async () => {
-    jest.useFakeTimers();
-    const { result } = renderHook(() => useEventFiltering(mockEvents, mockSourceTree));
-    
-    act(() => {
-      result.current.setFilterName('user');
-    });
-    
-    // Before debounce timeout
-    expect(result.current.filterName).toBe('user');
-    expect(result.current.filteredEvents).toEqual(mockEvents); // Still showing all events
-    
-    // After debounce timeout
-    act(() => {
-      jest.advanceTimersByTime(300); // Assuming 300ms debounce
-    });
-    
-    expect(result.current.filteredEvents).toHaveLength(2); // Only user-related events
-    jest.useRealTimers();
-  });
-
-  test('handles empty event array gracefully', () => {
-    const { result } = renderHook(() => useEventFiltering([], mockSourceTree));
-    
-    expect(result.current.filteredEvents).toHaveLength(0);
-    expect(result.current.eventsCountBySource).toEqual({});
-    
-    // Should not throw when filtering empty array
-    act(() => {
-      result.current.setFilterName('test');
-      result.current.handleSourceTreeToggle('api');
-    });
-    
-    expect(result.current.filteredEvents).toHaveLength(0);
-  });
-}
-```
-
-The implementation includes proper memoization testing, debounce verification with timer mocking, and comprehensive edge case handling. Tests verify both the filtering logic and the performance optimizations in the hook.
-</info added on 2025-05-05T12:00:58.405Z>
-
-## 3. Implement Component Tests for TreeNode Component [done]
+## 3. Implement Utility Functions Test Suite [pending]
 ### Dependencies: None
-### Description: Create tests for the TreeNode component to verify rendering and interaction behavior.
+### Description: Create tests for utility functions in utils.ts to ensure proper behavior of helper functions used throughout the package.
 ### Details:
 Implementation steps:
-1. Create a new test file `TreeNode.test.tsx` in the appropriate test directory
-2. Import the component and React Testing Library utilities
-3. Create mock data for different node structures (simple, nested, with counts)
-4. Write test cases for:
-   - Basic rendering with various props
-   - Rendering with different allowedSources configurations
-   - Rendering with different activeSourcesInLog configurations
-   - Proper styling based on active/inactive states
-   - Count display accuracy
-   - Disabled state rendering
-   - Checkbox interaction and state changes
-   - Parent/child node relationships and cascading selections
-5. Test accessibility compliance
+1. Create or extend utils.test.ts file
+2. Test getContrastColor function
+   - Test with various background colors (light, dark, edge cases)
+   - Verify correct contrast color returned (black or white)
+   - Test with invalid inputs if applicable
+3. Test formatTimestamp function
+   - Test with various date inputs
+   - Verify correct formatting with expected output
+   - Test with edge cases (null, invalid dates)
+4. Test debounce function
+   - Use jest.useFakeTimers() to control timing
+   - Test function called after delay
+   - Test function not called before delay
+   - Test multiple rapid calls only execute once
+   - Test with different delay values
+   - Test cancellation functionality if implemented
 
 Testing approach:
-- Use render from React Testing Library
-- Use screen queries to verify rendered elements
-- Use userEvent to simulate user interactions
-- Test with various prop combinations
-- Verify checkbox state changes trigger the correct callbacks
-- Test keyboard navigation and accessibility
-- Verify proper ARIA attributes are present
+- Use precise assertions for expected outputs
+- For debounce, use jest timer mocks to avoid actual waiting
+- Test edge cases thoroughly
+- Ensure timing-sensitive tests are reliable
+- Aim for 100% coverage of utility functions
 
-<info added on 2025-05-05T12:16:53.485Z>
-Here's the additional information to add:
-
-```
-Test implementation details:
-
-- Created custom test utilities:
-  - `renderTreeNode(props)` helper function for consistent component rendering
-  - `createMockNodeData(options)` factory for generating test data variations
-
-- Mock implementation examples:
-```jsx
-const mockHandlers = {
-  onToggle: jest.fn(),
-  onExpand: jest.fn()
-};
-
-const basicNodeMock = {
-  id: 'source1',
-  name: 'Source 1',
-  children: [],
-  eventsCount: 42
-};
-```
-
-- Key test scenarios implemented:
-  - Indeterminate state verification using `expect(checkbox).toHaveProperty('indeterminate', true)`
-  - Nested selection propagation using deeply nested test fixtures
-  - Edge cases for zero-count nodes and their display behavior
-
-- Testing challenges addressed:
-  - Used `jest.spyOn` to verify internal component methods
-  - Implemented `act()` wrapper for asynchronous state updates
-  - Created snapshot tests for regression detection
-  - Added test coverage for keyboard navigation (Tab, Space, Enter)
-
-- Accessibility testing:
-  - Verified proper aria-checked attributes
-  - Confirmed focus indicators meet WCAG standards
-  - Tested screen reader announcements using jest-axe
-
-- Test organization follows AAA pattern (Arrange-Act-Assert) for clarity
-```
-</info added on 2025-05-05T12:16:53.485Z>
-
-## 4. Implement Basic Component Tests for GameEventLog [done]
-### Dependencies: None
-### Description: Create tests for the GameEventLog component focusing on rendering and prop behavior.
+## 4. Enhance GameEventLog Component Test Coverage [pending]
+### Dependencies: 22.1, 22.2, 22.3
+### Description: Improve test coverage for the GameEventLog component by testing additional UI states, event handlers, and rendering edge cases.
 ### Details:
 Implementation steps:
-1. Create a new test file `GameEventLog.test.tsx` in the appropriate test directory
-2. Import the component and React Testing Library utilities
-3. Mock any required context providers and dependencies
-4. Write test cases for:
-   - Basic rendering with default props
-   - Rendering with custom props (startsOpen, startsLocked, hijackConsoleLogs, initial layout)
-   - Context wrapping and initial event display
-   - Conditional rendering of tree/details sections
-   - Visibility/opacity based on component state
-   - Proper styling and layout based on props
-5. Test accessibility compliance
+1. Extend existing GameEventLog.test.tsx file
+2. Test Rnd event handlers
+   - Test handleDragStop with various position values
+   - Test handleResizeStop with different size values
+   - Verify layout state updates correctly
+3. Test UI state combinations not yet covered
+   - Test with empty event logs
+   - Test with very large event logs
+   - Test with various filter combinations active
+4. Test data panel and tree rendering edge cases
+   - Test with no sources configured
+   - Test with all sources disabled
+   - Test with mixed enabled/disabled sources
+5. Test console log hijacking functionality
+   - Verify console.log calls are captured when enabled
+   - Verify original console.log behavior when disabled
+6. Test window visibility and opacity states
+   - Test transitions between visible/hidden states
+   - Test locked/unlocked state effects on Rnd component
 
 Testing approach:
-- Use render from React Testing Library with custom wrapper for context
-- Create mock event data for testing
-- Test with various prop combinations
-- Verify conditional rendering logic
-- Check that initial state matches expected values based on props
-- Verify component structure matches expected DOM hierarchy
-- Test that all required elements are present and properly styled
+- Use React Testing Library for component rendering and interaction
+- Mock CommunicationManager where needed
+- Use screen queries and user-event for interactions
+- Verify DOM structure and state changes
+- Focus on uncovered code paths identified in coverage report
+- Use test coverage reports to identify specific uncovered lines
 
-<info added on 2025-05-05T18:36:39.956Z>
-Here's additional information for the GameEventLog tests:
-
-```
-Test implementation notes:
-
-- Used `screen.getByTestId` with specific data-testid attributes added to key elements for reliable selection
-- Implemented custom render wrapper with GameStateContext provider to simulate real usage
-- Created mock event data factory function to generate test events with varying properties
-- Used `userEvent` to simulate user interactions with the component
-- Added snapshot tests for different prop combinations to catch unintended UI changes
-
-Specific test improvements:
-- Used `jest.spyOn` to verify console hijacking functionality when `hijackConsoleLogs` is true
-- Implemented tests for drag handle visibility based on locked state
-- Added tests for event filtering functionality
-- Verified proper event tree expansion/collapse behavior
-- Tested keyboard accessibility for expanding/collapsing events
-- Added tests for proper event timestamp formatting
-
-Resolved edge cases:
-- Added tests with empty event arrays
-- Tested with extremely long event data to ensure proper truncation/scrolling
-- Verified proper cleanup of event listeners on component unmount
-```
-</info added on 2025-05-05T18:36:39.956Z>
-
-## 5. Implement Interaction Tests for GameEventLog [done]
-### Dependencies: 22.3, 22.4
-### Description: Create integration tests for GameEventLog focusing on user interactions, event handling, and filtering.
+## 5. Fix Linting Errors and Improve useEventFiltering Coverage [pending]
+### Dependencies: 22.1, 22.2, 22.3, 22.4
+### Description: Address linting errors in test files and improve test coverage for useEventFiltering hook to reach coverage targets.
 ### Details:
 Implementation steps:
-1. Extend the GameEventLog test file or create a new integration test file
-2. Mock the logger manager to simulate events and verify interactions
-3. Write test cases for:
-   - Event handling (new-event from manager, console.log hijacking)
-   - Filtering interactions:
-     - Text input filtering
-     - TreeNode checkbox interactions
-     - Parent/child checkbox logic
-   - UI control interactions:
-     - Clear button functionality
-     - Toggle visibility button
-     - Lock/unlock button
-     - Toggle tree/details sections
-   - Window management:
-     - Drag simulation
-     - Resize simulation
-4. Verify state updates after each interaction
+1. Fix linting errors in CommunicationContext.test.tsx
+   - Address the two @typescript-eslint/no-explicit-any errors on lines 183 and 195
+   - Replace 'as any' with proper type definitions for mockImplementation
+   - Create proper type definitions for the spy functions if needed
+   - Ensure tests still pass after fixing lint errors
+2. Enhance useEventFiltering.test.tsx
+   - Add tests for uncovered lines 55-56 (likely related to specific filter conditions)
+   - Add tests for uncovered lines 62-72 (likely effect branches or specific filter/count logic)
+   - Test edge cases like empty event lists with filters applied
+   - Test filter combinations not yet covered
+3. Run final coverage report
+   - Verify overall coverage exceeds 80%
+   - Address any remaining small gaps
+4. Run linting on all test files
+   - Fix any additional linting issues discovered
 
 Testing approach:
-- Use render from React Testing Library with context providers
-- Use userEvent to simulate complex user interactions
-- Mock the logger manager to emit events and verify handlers
-- Test the full interaction flow from user action to UI update
-- Verify that component state changes correctly after interactions
-- Test keyboard shortcuts and accessibility interactions
-- Simulate window drag/resize events and verify layout updates
-
-## 6. Implement Context Tests for LoggerContext [done]
-### Dependencies: 22.4, 22.5
-### Description: Create tests for the LoggerContext provider and consumer behavior.
-### Details:
-Implementation steps:
-1. Create a new test file `LoggerContext.test.tsx` in the appropriate test directory
-2. Import the context, provider, and React Testing Library utilities
-3. Create a mock logger manager for testing
-4. Write test cases for:
-   - Provider initialization with default and custom props
-   - Context value verification (events, clearLog, logEvent functions)
-   - Provider props behavior (maxLogSize, redirectEventsToConsole)
-   - Event emission from manager and context state updates
-   - clearLog functionality
-   - Context consumer behavior
-   - Integration with components that use the context
-5. Test error handling and edge cases
-
-Testing approach:
-- Create test components that consume the context
-- Render the provider with various props and verify context values
-- Mock the logger manager to simulate events and verify context updates
-- Test the full flow from manager events to context updates to component renders
-- Verify that context functions properly call manager methods
-- Test with empty event arrays and maximum size limits
-- Verify proper error handling for missing providers or invalid context usage
-
-<info added on 2025-05-05T18:52:15.226Z>
-Here's additional information for your implementation plan:
-
-## Testing Implementation Details
-
-### Mock Setup
-```tsx
-// Sample mock implementation
-const mockManager = {
-  getEventLog: jest.fn().mockReturnValue([]),
-  setMaxLogSize: jest.fn(),
-  setRedirectEventsToConsole: jest.fn(),
-  on: jest.fn(),
-  off: jest.fn(),
-  clearLog: jest.fn(),
-  logEvent: jest.fn()
-};
-
-// Event emission testing helper
-function emitMockEvent(event: LogEvent) {
-  // Get the callback registered with mockManager.on
-  const [[_, callback]] = mockManager.on.mock.calls;
-  // Call the callback with the event
-  callback(event);
-}
-```
-
-### Advanced Test Cases
-1. **Event Emission Tests**:
-   ```tsx
-   test('updates context when manager emits events', () => {
-     const { result } = renderHook(() => useCommunicationContext(), {
-       wrapper: ({ children }) => (
-         <CommunicationProvider manager={mockManager as any}>
-           {children}
-         </CommunicationProvider>
-       )
-     });
-     
-     // Initial state check
-     expect(result.current.events).toEqual([]);
-     
-     // Emit mock event
-     const mockEvent = { id: '1', type: 'test', timestamp: Date.now() };
-     emitMockEvent(mockEvent);
-     
-     // Verify state update
-     expect(result.current.events).toEqual([mockEvent]);
-   });
-   ```
-
-2. **MaxLogSize Behavior**:
-   ```tsx
-   test('respects maxLogSize when set', () => {
-     // Setup with maxLogSize=2
-     renderWithProvider({ maxLogSize: 2 });
-     
-     // Verify maxLogSize was set on manager
-     expect(mockManager.setMaxLogSize).toHaveBeenCalledWith(2);
-     
-     // Test with multiple events to verify truncation
-     // ...
-   });
-   ```
-
-3. **Cleanup Testing**:
-   ```tsx
-   test('unregisters event listeners on unmount', () => {
-     const { unmount } = render(
-       <CommunicationProvider manager={mockManager as any} />
-     );
-     
-     unmount();
-     expect(mockManager.off).toHaveBeenCalled();
-   });
-   ```
-
-### Integration Testing
-```tsx
-test('consumer components re-render when events are added', async () => {
-  // Create a consumer component that displays event count
-  const ConsumerComponent = () => {
-    const { events } = useCommunicationContext();
-    return <div data-testid="event-count">{events.length}</div>;
-  };
-  
-  const { getByTestId } = render(
-    <CommunicationProvider manager={mockManager as any}>
-      <ConsumerComponent />
-    </CommunicationProvider>
-  );
-  
-  // Initial state
-  expect(getByTestId('event-count').textContent).toBe('0');
-  
-  // Emit event and verify update
-  emitMockEvent({ id: '1', type: 'test', timestamp: Date.now() });
-  await waitFor(() => {
-    expect(getByTestId('event-count').textContent).toBe('1');
-  });
-});
-```
-
-### Performance Considerations
-- Add tests with large numbers of events to verify performance
-- Test memoization behavior to ensure components don't re-render unnecessarily
-- Verify that context updates are batched appropriately when multiple events arrive simultaneously
-</info added on 2025-05-05T18:52:15.226Z>
-
-<info added on 2025-05-05T18:53:38.463Z>
-<info added on 2025-05-06T09:15:32.123Z>
-## Test Implementation Progress Details
-
-### Mock Event Emission Helpers
-```tsx
-// Helper functions for simulating manager events
-function emitNewEventFromManager(mockManager, newEvent) {
-  // Find the registered 'new-event' callback
-  const newEventCallback = mockManager.on.mock.calls.find(call => call[0] === 'new-event')[1];
-  // Call it to simulate event emission
-  newEventCallback(newEvent);
-}
-
-function emitLogClearedFromManager(mockManager) {
-  // Find the registered 'log-cleared' callback
-  const logClearedCallback = mockManager.on.mock.calls.find(call => call[0] === 'log-cleared')[1];
-  // Call it to simulate log cleared event
-  logClearedCallback();
-}
-```
-
-### Props Change Tests
-```tsx
-test('updates manager when maxLogSize prop changes', async () => {
-  const { rerender } = render(
-    <LoggerProvider manager={mockManager} maxLogSize={5} />
-  );
-  
-  expect(mockManager.setMaxLogSize).toHaveBeenCalledWith(5);
-  
-  // Reset mock to check for new calls
-  mockManager.setMaxLogSize.mockClear();
-  
-  // Rerender with new prop value
-  rerender(<LoggerProvider manager={mockManager} maxLogSize={10} />);
-  
-  expect(mockManager.setMaxLogSize).toHaveBeenCalledWith(10);
-});
-
-test('updates manager when redirectEventsToConsole prop changes', async () => {
-  const { rerender } = render(
-    <LoggerProvider manager={mockManager} redirectEventsToConsole={false} />
-  );
-  
-  expect(mockManager.setRedirectEventsToConsole).toHaveBeenCalledWith(false);
-  
-  // Reset mock to check for new calls
-  mockManager.setRedirectEventsToConsole.mockClear();
-  
-  // Rerender with new prop value
-  rerender(<LoggerProvider manager={mockManager} redirectEventsToConsole={true} />);
-  
-  expect(mockManager.setRedirectEventsToConsole).toHaveBeenCalledWith(true);
-});
-```
-
-### Event Handling Tests
-```tsx
-test('context clearLog function calls manager clearLog', async () => {
-  const TestConsumer = () => {
-    const { clearLog } = useLoggerContext();
-    return <button data-testid="clear-button" onClick={clearLog}>Clear</button>;
-  };
-
-  const { getByTestId } = render(
-    <LoggerProvider manager={mockManager}>
-      <TestConsumer />
-    </LoggerProvider>
-  );
-  
-  fireEvent.click(getByTestId('clear-button'));
-  expect(mockManager.clearLog).toHaveBeenCalledTimes(1);
-});
-
-test('context updates when log-cleared event is emitted', async () => {
-  // Setup mock to return events initially
-  mockManager.getEventLog.mockReturnValue([
-    { id: '1', type: 'test', timestamp: Date.now() }
-  ]);
-  
-  const TestConsumer = () => {
-    const { events } = useLoggerContext();
-    return <div data-testid="event-count">{events.length}</div>;
-  };
-
-  const { getByTestId } = render(
-    <LoggerProvider manager={mockManager}>
-      <TestConsumer />
-    </LoggerProvider>
-  );
-  
-  // Initial state should show 1 event
-  expect(getByTestId('event-count').textContent).toBe('1');
-  
-  // Update mock to return empty array after clear
-  mockManager.getEventLog.mockReturnValue([]);
-  
-  // Simulate log-cleared event
-  emitLogClearedFromManager(mockManager);
-  
-  // Context should update with empty events array
-  await waitFor(() => {
-    expect(getByTestId('event-count').textContent).toBe('0');
-  });
-});
-```
-
-### Cleanup Tests
-```tsx
-test('unregisters event listeners on unmount', () => {
-  const { unmount } = render(
-    <LoggerProvider manager={mockManager} />
-  );
-  
-  unmount();
-  
-  // Should unregister both event types
-  expect(mockManager.off).toHaveBeenCalledWith('new-event', expect.any(Function));
-  expect(mockManager.off).toHaveBeenCalledWith('log-cleared', expect.any(Function));
-});
-```
-
-### Edge Cases
-```tsx
-test('handles empty event log gracefully', () => {
-  mockManager.getEventLog.mockReturnValue([]);
-  
-  const TestConsumer = () => {
-    const { events } = useLoggerContext();
-    return (
-      <div data-testid="empty-state">
-        {events.length === 0 ? 'No events' : 'Has events'}
-      </div>
-    );
-  };
-
-  const { getByTestId } = render(
-    <LoggerProvider manager={mockManager}>
-      <TestConsumer />
-    </LoggerProvider>
-  );
-  
-  expect(getByTestId('empty-state').textContent).toBe('No events');
-});
-
-test('throws error when useLoggerContext is used outside provider', () => {
-  // Silence expected error logs
-  const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-  
-  const TestConsumer = () => {
-    // This should throw
-    useLoggerContext();
-    return null;
-  };
-
-  expect(() => {
-    render(<TestConsumer />);
-  }).toThrow('useLoggerContext must be used within a LoggerProvider');
-  
-  consoleSpy.mockRestore();
-});
-```
-</info added on 2025-05-06T09:15:32.123Z>
-</info added on 2025-05-05T18:53:38.463Z>
+- Use React Testing Library's renderHook for testing hooks
+- Create comprehensive test fixtures with various event types
+- Test all filter combinations thoroughly
+- Verify filter state and filtered results match expectations
+- Use coverage reports to target specific uncovered lines
+- Ensure all tests pass linting checks
 
