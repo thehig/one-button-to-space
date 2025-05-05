@@ -4,11 +4,13 @@
   "private": true,
   "description": "A physics-based rocket game with minimal controls.",
   "scripts": {
+    "client": "pnpm --filter client dev",
+    "server": "pnpm --filter server dev",
+    "shared": "pnpm --filter @one-button-to-space/shared dev",
+    "logger": "pnpm --filter @one-button-to-space/logger-ui dev",
+    "dev": "concurrently \"pnpm run server\" \"pnpm run client\"",
     "build": "pnpm -r build",
-    "dev": "pnpm -r --parallel dev",
-    "start:server": "pnpm --filter server start",
-    "start:client": "pnpm --filter client dev",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "pnpm -r test"
   },
   "keywords": [
     "phaser",

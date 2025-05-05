@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
-    "test": "vitest run"
+    "test": "vitest run --coverage --coverage.reportsDirectory ./coverage"
   },
   "dependencies": {
     "matter-js": "catalog:"
@@ -15,6 +15,7 @@
   "devDependencies": {
     "@types/matter-js": "catalog:",
     "typescript": "catalog:",
-    "vitest": "^3.1.2"
+    "vitest": "catalog:",
+    "@vitest/coverage-v8": "catalog:"
   }
 }

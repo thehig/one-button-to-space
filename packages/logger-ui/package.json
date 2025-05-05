@@ -13,7 +13,9 @@
     }
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "dev": "tsc -w",
+    "test": "vitest run --coverage --coverage.reportsDirectory ./coverage"
   },
   "keywords": [],
   "author": "",
@@ -24,5 +26,9 @@
     "react": "catalog:",
     "react-json-view": "^1.21.3",
     "react-rnd": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:",
+    "@vitest/coverage-v8": "catalog:"
   }
 }

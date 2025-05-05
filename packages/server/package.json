@@ -5,12 +5,15 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "nodemon src/index.ts"
+    "dev": "nodemon src/index.ts",
+    "test": "vitest run --coverage --coverage.reportsDirectory ./coverage"
   },
   "dependencies": {},
   "devDependencies": {
     "typescript": "catalog:",
     "nodemon": "catalog:",
-    "ts-node": "catalog:"
+    "ts-node": "catalog:",
+    "vitest": "catalog:",
+    "@vitest/coverage-v8": "catalog:"
   }
 }

@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "preview": "vite preview",
+    "test": "vitest run --coverage --coverage.reportsDirectory ./coverage"
   },
   "dependencies": {
     "phaser": "catalog:",
@@ -26,6 +27,8 @@
     "typescript": "catalog:",
     "typescript-eslint": "^8.26.1",
     "vite": "catalog:",
-    "@one-button-to-space/logger-ui": "workspace:*"
+    "@one-button-to-space/logger-ui": "workspace:*",
+    "vitest": "catalog:",
+    "@vitest/coverage-v8": "catalog:"
   }
 }
