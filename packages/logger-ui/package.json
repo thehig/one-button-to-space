@@ -16,7 +16,7 @@
     "build": "tsc",
     "dev": "tsc -w",
     "test": "vitest run --coverage",
-    "lint": "eslint . --ext .ts,.tsx"
+    "lint": "tsc --noEmit && eslint . --ext .ts,.tsx"
   },
   "keywords": [],
   "author": "",
