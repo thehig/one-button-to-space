@@ -10,16 +10,18 @@ function App() {
       <h1>One Button To Space</h1>
       <PhaserGame />
       <GameEventLog
+        sourceConfigData={sourceTreeData}
+        initialX={-938}
+        initialY={-248}
+        initialWidth={2530}
+        initialHeight={200}
         startsOpen={true}
         startsLocked={true}
-        lockedOpacity={0.5}
-        // collapsedOpacity={0.7}
-        // initialX={0}
-        // initialY={0}
-        // startDataOpen={true}
-        startTreeOpen={true}
-        initialWidth={900}
-        sourceConfigData={sourceTreeData}
+        startTreeOpen={false}
+        startDataOpen={false}
+        collapsedOpacity={0.7}
+        lockedOpacity={0.75}
+        hijackConsoleLogs={true}
       />
     </>
   );

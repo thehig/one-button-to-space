@@ -104,6 +104,7 @@ interface GameEventLogProps {
   initialX?: number; // New prop: Initial X coordinate
   initialY?: number; // New prop: Initial Y coordinate
   initialWidth?: number; // New prop: Initial width when expanded
+  initialHeight?: number; // New prop: Initial height when expanded
   collapsedOpacity?: number; // New prop: Opacity when collapsed
   lockedOpacity?: number; // New prop: Opacity when locked (and not collapsed)
   startTreeOpen?: boolean; // New prop: Controls initial state of the filter tree section
@@ -118,6 +119,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
   initialX = 20,
   initialY = 20,
   initialWidth = 600, // Default width when expanded
+  initialHeight = 400, // Default height when expanded (Added)
   collapsedOpacity = 0.7,
   lockedOpacity = 0.8, // Destructure and default lockedOpacity
   startTreeOpen = false, // Default to closed
@@ -332,6 +334,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     initialX,
     initialY,
     initialWidth, // Pass initialWidth
+    initialHeight, // Pass initialHeight (Added)
     startsOpen,
     startTreeOpen, // Pass startTreeOpen
     startDataOpen, // Pass startDataOpen
@@ -462,6 +465,51 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     setIsOpacitySliderVisible((prev) => !prev);
   };
 
+  // --- NEW: Callback to save current settings to console ---
+  const handleSaveSettings = useCallback(() => {
+    // Explicitly build lines to ensure literal curly braces
+    const settingsLines = [
+      `initialX={${Math.round(position.x)}}`,
+      `initialY={${Math.round(position.y)}}`,
+      `initialWidth={${Math.round(Number(size.width))}}`, // Ensure width is treated as a number
+      `initialHeight={${Math.round(Number(size.height))}}`, // Added initialHeight
+      `startsOpen={${!isCollapsed}}`,
+      `startsLocked={${isLocked}}`,
+      `startTreeOpen={${!isFilterCollapsed}}`,
+      `startDataOpen={${!isDetailsCollapsed}}`,
+      `collapsedOpacity={${collapsedOpacity}}`,
+      `lockedOpacity={${currentLockedOpacity.toFixed(2)}}`,
+      `hijackConsoleLogs={${hijackConsoleLogs}}`,
+    ];
+    // Join with newline and add padding for direct pasting
+    const settingsString = `\n  ${settingsLines.join("\n  ")}\n`;
+
+    navigator.clipboard
+      .writeText(settingsString)
+      .then(() => {
+        // Log success to the internal event log
+        logEvent("GameEventLog", "settingsCopiedToClipboard");
+      })
+      .catch((err) => {
+        // Log error to the internal event log and console
+        console.error("Failed to copy settings to clipboard:", err);
+        logEvent("GameEventLog", "settingsCopyFailed", { error: String(err) });
+      });
+  }, [
+    position.x,
+    position.y,
+    size.width,
+    size.height, // Added size.height dependency
+    isCollapsed,
+    isLocked,
+    isFilterCollapsed,
+    isDetailsCollapsed,
+    collapsedOpacity,
+    currentLockedOpacity,
+    hijackConsoleLogs,
+    logEvent,
+  ]);
+
   // --- JSX Rendering ---
   return (
     <Rnd
@@ -556,6 +604,18 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                   title="Copy filtered log to clipboard"
                 >
                   📋
+                </button>
+
+                {/* NEW Settings Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent drag
+                    handleSaveSettings();
+                  }}
+                  className="log-button"
+                  title="Save Current Settings to Console"
+                >
+                  ⚙️
                 </button>
 
                 {/* Locked Opacity Slider - Only show when expanded */}
