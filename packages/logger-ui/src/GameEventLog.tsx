@@ -164,19 +164,16 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     if (!hijackConsoleLogs) {
       // If hijacking is disabled, ensure originals are restored (if they were ever replaced)
       // This part handles toggling the prop *off* during component lifetime
-      // @ts-expect-error We are assigning methods here
+
       if (window.__console_log_original) {
-        // @ts-expect-error We are assigning methods here
         window.console.log = window.__console_log_original;
       }
-      // @ts-expect-error We are assigning methods here
+
       if (window.__console_warn_original) {
-        // @ts-expect-error We are assigning methods here
         window.console.warn = window.__console_warn_original;
       }
-      // @ts-expect-error We are assigning methods here
+
       if (window.__console_error_original) {
-        // @ts-expect-error We are assigning methods here
         window.console.error = window.__console_error_original;
       }
       return; // Exit effect early
@@ -184,28 +181,25 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
 
     // Store originals if they haven't been stored yet
     // Use a temporary property on window to avoid conflicts and allow cleanup checks
-    // @ts-expect-error We are assigning methods here
+
     if (!window.__console_log_original) {
-      // @ts-expect-error We are assigning methods here
       window.__console_log_original = window.console.log;
     }
-    // @ts-expect-error We are assigning methods here
+
     if (!window.__console_warn_original) {
-      // @ts-expect-error We are assigning methods here
       window.__console_warn_original = window.console.warn;
     }
-    // @ts-expect-error We are assigning methods here
+
     if (!window.__console_error_original) {
-      // @ts-expect-error We are assigning methods here
       window.__console_error_original = window.console.error;
     }
 
     // Get stored originals
-    // @ts-expect-error We are assigning methods here
+
     const originalLog = window.__console_log_original;
-    // @ts-expect-error We are assigning methods here
+
     const originalWarn = window.__console_warn_original;
-    // @ts-expect-error We are assigning methods here
+
     const originalError = window.__console_error_original;
 
     // Function to create the interceptor
@@ -272,25 +266,21 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
 
     // Cleanup function to restore originals on unmount or when prop changes to false
     return () => {
-      // @ts-expect-error We are assigning methods here
       if (window.__console_log_original) {
-        // @ts-expect-error We are assigning methods here
         window.console.log = window.__console_log_original;
-        // @ts-expect-error We are assigning methods here
+
         delete window.__console_log_original; // Clean up temporary storage
       }
-      // @ts-expect-error We are assigning methods here
+
       if (window.__console_warn_original) {
-        // @ts-expect-error We are assigning methods here
         window.console.warn = window.__console_warn_original;
-        // @ts-expect-error We are assigning methods here
+
         delete window.__console_warn_original;
       }
-      // @ts-expect-error We are assigning methods here
+
       if (window.__console_error_original) {
-        // @ts-expect-error We are assigning methods here
         window.console.error = window.__console_error_original;
-        // @ts-expect-error We are assigning methods here
+
         delete window.__console_error_original;
       }
     };
