@@ -12,6 +12,7 @@ interface CommunicationContextType {
   events: EventLogEntry[];
   clearLog: () => void;
   // Potentially add filters state and setters here if context should manage them
+  logEvent: (source: string, eventName: string, data?: unknown) => void;
 }
 
 const CommunicationContext = createContext<
@@ -58,6 +59,7 @@ export const CommunicationProvider: React.FC<PropsWithChildren> = ({
   const value = {
     events,
     clearLog,
+    logEvent: commManager.logEvent.bind(commManager),
   };
 
   return (

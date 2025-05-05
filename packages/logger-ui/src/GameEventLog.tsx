@@ -27,6 +27,9 @@ import { useEventFiltering } from "./hooks/useEventFiltering";
 import { useComponentLayout } from "./hooks/useComponentLayout";
 import { EventLogEntry } from "./types"; // Assuming types are defined here or adjust path
 
+// --- Constants ---
+const CONSOLE_SOURCE_ID = "Console"; // Source ID for hijacked logs
+
 // Helper function to calculate event counts by source
 const calculateCountsBySource = (
   events: EventLogEntry[]
@@ -51,6 +54,7 @@ interface GameEventLogProps {
   lockedOpacity?: number; // New prop: Opacity when locked (and not collapsed)
   startTreeOpen?: boolean; // New prop: Controls initial state of the filter tree section
   startDataOpen?: boolean; // New prop: Controls initial state of the details data section
+  hijackConsoleLogs?: boolean; // New prop: Capture console.log/warn/error
 }
 
 export const GameEventLog: React.FC<GameEventLogProps> = ({
@@ -64,8 +68,11 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
   lockedOpacity = 0.8, // Destructure and default lockedOpacity
   startTreeOpen = false, // Default to closed
   startDataOpen = false, // Default to closed
+  hijackConsoleLogs = true, // Destructure and default hijackConsoleLogs
 }): React.ReactElement => {
   const { events, clearLog } = useCommunicationContext();
+  // --- NEW: Get logEvent function from context ---
+  const { logEvent } = useCommunicationContext(); // Assuming logEvent is provided by the context
 
   // --- State for Config --- (Managed in state now)
   const [config, setConfig] = useState<GameEventLogConfig>(() => {
@@ -101,6 +108,124 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     // Relying on the config instance ensures this runs if the config object identity changes
     // (e.g., if a new one is created). Relying on events ensures it runs when new events arrive.
   }, [events, config]);
+
+  // --- NEW: Effect to Hijack Console Logs ---
+  useEffect(() => {
+    if (!hijackConsoleLogs) {
+      // If hijacking is disabled, ensure originals are restored (if they were ever replaced)
+      // This part handles toggling the prop *off* during component lifetime
+      // @ts-expect-error We are assigning methods here
+      if (window.__console_log_original) {
+        // @ts-expect-error We are assigning methods here
+        window.console.log = window.__console_log_original;
+      }
+      // @ts-expect-error We are assigning methods here
+      if (window.__console_warn_original) {
+        // @ts-expect-error We are assigning methods here
+        window.console.warn = window.__console_warn_original;
+      }
+      // @ts-expect-error We are assigning methods here
+      if (window.__console_error_original) {
+        // @ts-expect-error We are assigning methods here
+        window.console.error = window.__console_error_original;
+      }
+      return; // Exit effect early
+    }
+
+    // Store originals if they haven't been stored yet
+    // Use a temporary property on window to avoid conflicts and allow cleanup checks
+    // @ts-expect-error We are assigning methods here
+    if (!window.__console_log_original) {
+      // @ts-expect-error We are assigning methods here
+      window.__console_log_original = window.console.log;
+    }
+    // @ts-expect-error We are assigning methods here
+    if (!window.__console_warn_original) {
+      // @ts-expect-error We are assigning methods here
+      window.__console_warn_original = window.console.warn;
+    }
+    // @ts-expect-error We are assigning methods here
+    if (!window.__console_error_original) {
+      // @ts-expect-error We are assigning methods here
+      window.__console_error_original = window.console.error;
+    }
+
+    // Get stored originals
+    // @ts-expect-error We are assigning methods here
+    const originalLog = window.__console_log_original;
+    // @ts-expect-error We are assigning methods here
+    const originalWarn = window.__console_warn_original;
+    // @ts-expect-error We are assigning methods here
+    const originalError = window.__console_error_original;
+
+    // Function to create the interceptor
+    const createInterceptor = (
+      methodName: "log" | "warn" | "error",
+      originalMethod: (...args: any[]) => void
+    ) => {
+      return (...args: any[]) => {
+        // 1. Log the event to our system
+        try {
+          // Format arguments for logging - simple array for now
+          const dataPayload = { messages: args };
+          logEvent(CONSOLE_SOURCE_ID, methodName, dataPayload);
+        } catch (e) {
+          // --- FIX: Use the original method to report logging errors ---
+          const errorArgs = ["Error logging intercepted console message:", e];
+          if (originalMethod?.apply) {
+            originalMethod.apply(window.console, errorArgs);
+          } else if (originalMethod) {
+            // IE fallback for the error reporting itself
+            originalMethod(errorArgs.map(String).join(" "));
+          }
+          // --- END FIX ---
+        }
+
+        // 2. Call the original console method (handling IE compatibility)
+        if (originalMethod) {
+          if (originalMethod.apply) {
+            // Normal browsers
+            originalMethod.apply(window.console, args);
+          } else {
+            // IE fallback (may join args - less ideal but functional)
+            const message = args.map(String).join(" ");
+            originalMethod(message);
+          }
+        }
+      };
+    };
+
+    // Replace console methods
+    window.console.log = createInterceptor("log", originalLog);
+    window.console.warn = createInterceptor("warn", originalWarn);
+    window.console.error = createInterceptor("error", originalError);
+
+    // Cleanup function to restore originals on unmount or when prop changes to false
+    return () => {
+      // @ts-expect-error We are assigning methods here
+      if (window.__console_log_original) {
+        // @ts-expect-error We are assigning methods here
+        window.console.log = window.__console_log_original;
+        // @ts-expect-error We are assigning methods here
+        delete window.__console_log_original; // Clean up temporary storage
+      }
+      // @ts-expect-error We are assigning methods here
+      if (window.__console_warn_original) {
+        // @ts-expect-error We are assigning methods here
+        window.console.warn = window.__console_warn_original;
+        // @ts-expect-error We are assigning methods here
+        delete window.__console_warn_original;
+      }
+      // @ts-expect-error We are assigning methods here
+      if (window.__console_error_original) {
+        // @ts-expect-error We are assigning methods here
+        window.console.error = window.__console_error_original;
+        // @ts-expect-error We are assigning methods here
+        delete window.__console_error_original;
+      }
+    };
+    // Dependency array: run when hijack prop changes or logEvent function instance changes
+  }, [hijackConsoleLogs, logEvent]);
 
   // --- Filtering State & Logic Hook --- (Pass config state)
   const {
