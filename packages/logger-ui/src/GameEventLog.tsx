@@ -508,7 +508,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       position={layout} // Pass layout which contains x/y
       className={`log-container ${isCollapsed ? "collapsed" : ""} ${
         isLocked ? "locked" : ""
-      }`} // Add locked class
+      }`}
       style={{
         opacity: isCollapsed
           ? collapsedOpacity // Use prop for collapsed opacity
@@ -519,14 +519,13 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       dragHandleClassName="drag-handle"
       minWidth={250}
       minHeight={isCollapsed ? 50 : 200} // Use isCollapsed from hook
-      // Disable resizing if collapsed OR locked
       enableResizing={!isCollapsed && !isLocked}
       onDragStop={handleDragStop} // Use handler from hook
       onResizeStop={handleResizeStop} // Use handler from hook
       bounds="window"
       disableDragging={isLocked} // <<< This now correctly uses the hook's isLocked
-      // Prevent drag start when clicking on the slider container
       cancel=".locked-opacity-slider-container"
+      data-testid="rnd-container"
     >
       <div
         className={`log-content-wrapper ${
@@ -534,6 +533,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
             ? "log-content-wrapper--collapsed"
             : "log-content-wrapper--expanded"
         }`}
+        data-testid="log-content-wrapper"
       >
         {/* Header */}
         <div className="log-header drag-handle">
@@ -659,6 +659,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
               className={`log-column log-column--filter ${
                 isFilterCollapsed ? "log-column--filter-collapsed" : ""
               }`}
+              data-testid="log-filter-column"
             >
               {!isFilterCollapsed && (
                 <>
@@ -794,6 +795,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                 flexGrow: isDetailsCollapsed ? 0 : 1,
                 flexBasis: isDetailsCollapsed ? "0px" : "auto",
               }}
+              data-testid="log-details-panel"
             >
               {!isDetailsCollapsed && (
                 <>
