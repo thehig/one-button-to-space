@@ -328,8 +328,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     toggleDetailsCollapse,
     toggleLock, // <<< Get toggleLock from the hook
     handleDragStop,
-    handleResize,
-    handleResizeStop,
+    handleResizeStop, // <<< CORRECTED: Use handleResizeStop
   } = useComponentLayout({
     initialX,
     initialY,
@@ -523,7 +522,6 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
       // Disable resizing if collapsed OR locked
       enableResizing={!isCollapsed && !isLocked}
       onDragStop={handleDragStop} // Use handler from hook
-      onResize={handleResize} // <<< Add the onResize handler
       onResizeStop={handleResizeStop} // Use handler from hook
       bounds="window"
       disableDragging={isLocked} // <<< This now correctly uses the hook's isLocked

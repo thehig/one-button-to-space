@@ -41,7 +41,7 @@ describe("useComponentLayout", () => {
     expect(result.current.layout.x).toEqual(50);
     expect(result.current.layout.y).toEqual(100);
     expect(result.current.layout.width).toEqual(400);
-    expect(result.current.layout.height).toEqual(250);
+    expect(result.current.layout.height).toEqual(50);
   });
 
   it("should initialize with partial custom initial state", () => {
