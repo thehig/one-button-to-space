@@ -159,11 +159,14 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
         state /* Consider logging only diff or key parts */,
       });
     });
-    this.sceneEmitter.on("serverEntitySpawn", (data: unknown) => {
+    /* // Comment out unused listener
+    this.sceneEmitter.on("serverEntitySpawn", (_data: unknown) => {
+      // Prefix data with _ as it's unused due to the commented logEvent below
       // Already logged above as Scene event, decide if duplication is needed or if source tag should change based on origin
       // If LifecycleManager test event is removed, uncomment this:
-      // this.logEvent('Network', 'serverEntitySpawn', data);
+      // this.logEvent('Network', 'serverEntitySpawn', { payload: _data }); // Ensure payload key if uncommented
     });
+    */
     this.sceneEmitter.on("serverEntityRemove", (message: unknown) => {
       // Wrap unknown data in an object
       this.logEvent("Network", "serverEntityRemove", { payload: message });
@@ -347,12 +350,15 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     // this.isProcessing = false; // REMOVED: isProcessing does not exist
   }
 
+  /* // Comment out unused function
   // Example of direct logging without processing
-  private logToConsole(source: string, eventName: string, _data: unknown) {
+  // Prefix unused parameters with _
+  private logToConsole(_source: string, _eventName: string, __data: unknown) {
     // if (this.isProcessing) return; // REMOVED: isProcessing does not exist
-    // console.log(`[${source}] Direct Log: ${eventName}`, _data);
+    // console.log(`[${_source}] Direct Log: ${_eventName}`, __data);
     // Maybe skip adding to the main log here if it's just for console
   }
+  */
 
   // Example handler for messages from another source (e.g., Web Worker, iframe)
   private handleMessage = (event: MessageEvent) => {
@@ -364,7 +370,8 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
 
     // if (this.isProcessing) return; // REMOVED: isProcessing does not exist
 
-    const { type, payload } = event.data;
+    // Remove unused destructured variables
+    // const { type, payload } = event.data;
 
     // ... existing code ...
   };

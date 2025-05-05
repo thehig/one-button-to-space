@@ -49,7 +49,7 @@ const getCallerInfo = (): CallerInfo => {
       }
 
       // Chrome/V8: "at func (path/file.js:123:45)" or "at path/file.js:123:45"
-      let match = line.match(/\(?([^\s\(]+):(\d+):\d+\)?$/);
+      let match = line.match(/\(?([^\s(]+):(\d+):\d+\)?$/);
       if (match) {
         const filePath = match[1];
         const fileName = filePath.substring(filePath.lastIndexOf("/") + 1);
