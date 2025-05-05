@@ -77,6 +77,17 @@ export class GameEventLogConfig {
    * @returns The structured SourceTreeNode array.
    */
   private structureInitialTree(nodes: SourceTreeNode[]): SourceTreeNode[] {
+    // Handle the case where no initial nodes are provided
+    if (!nodes || nodes.length === 0) {
+      return [
+        {
+          id: UNCATEGORIZED_ID,
+          symbol: UNCATEGORIZED_SYMBOL,
+          children: [],
+        },
+      ];
+    }
+
     const structuredTree: SourceTreeNode[] = [];
     let uncategorizedParent: SourceTreeNode | null = null;
 

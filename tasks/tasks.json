@@ -281,7 +281,7 @@
           "description": "Develop tests for the GameEventLogConfig module focusing on tree manipulation functions and configuration state management.",
           "dependencies": [],
           "details": "Implementation steps:\n1. Create GameEventLogConfig.test.ts file if not exists or extend existing file\n2. Test buildTreeFromConfig function with various input configurations\n   - Test with empty config\n   - Test with single level sources\n   - Test with nested source hierarchies\n   - Test with custom labels and IDs\n3. Test findNodeById function\n   - Test finding nodes at different levels\n   - Test with non-existent IDs\n   - Test with empty trees\n4. Test updateNodeState function\n   - Test enabling/disabling nodes\n   - Test parent/child relationship updates\n   - Test state propagation through the tree\n5. Test getAllSourceIds function\n   - Test with various tree structures\n   - Verify all IDs are collected correctly\n\nTesting approach:\n- Create sample tree configurations for testing\n- Use snapshot testing for complex tree structures\n- Test edge cases and boundary conditions\n- Verify tree integrity after operations\n- Aim for 100% coverage of this module",
-          "status": "pending",
+          "status": "done",
           "parentTaskId": 22
         },
         {
