@@ -530,27 +530,25 @@ describe("CommunicationManager", () => {
 
       managerInstance.destroy();
 
-      // Temporarily simplify: Just check the total call count first
+      // Restore full assertions now that call count is confirmed
       expect(logSpy).toHaveBeenCalledTimes(2);
-
-      /* Temporarily commented out
-      expect(logSpy).toHaveBeenNthCalledWith(1,
-        'CommunicationManager',
-        'destroyingSubscriptions',
-        undefined // Explicitly check for undefined data
+      expect(logSpy).toHaveBeenNthCalledWith(
+        1,
+        "CommunicationManager",
+        "destroyingSubscriptions"
       );
-       expect(logSpy).toHaveBeenNthCalledWith(2,
-        'CommunicationManager',
-        'destroyed',
-        undefined // Explicitly check for undefined data
+      expect(logSpy).toHaveBeenNthCalledWith(
+        2,
+        "CommunicationManager",
+        "destroyed"
       );
 
-       // Check the final log state
-       const log = managerInstance.getEventLog();
-       expect(log).toHaveLength(2); // Only the two destroy logs should remain
-       expect(log[0].eventName).toBe('destroyingSubscriptions');
-       expect(log[1].eventName).toBe('destroyed');
-       */
+      // Check the final log state
+      const log = managerInstance.getEventLog();
+      expect(log).toHaveLength(3); // Expect 3 logs: the 'logCleared' from before destroy, and the two destroy logs
+      expect(log[0].eventName).toBe("logCleared"); // Added check for first event
+      expect(log[1].eventName).toBe("destroyingSubscriptions"); // Index shifted
+      expect(log[2].eventName).toBe("destroyed"); // Index shifted
     });
 
     // Optional: Test idempotency (calling destroy multiple times)

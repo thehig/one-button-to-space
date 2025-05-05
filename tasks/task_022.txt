@@ -119,7 +119,7 @@ The implementation will be verified through the following approach:
    - Use mock functions to verify context and manager interactions
 
 # Subtasks:
-## 1. Implement CommunicationManager Test Suite [in-progress]
+## 1. Implement CommunicationManager Test Suite [done]
 ### Dependencies: None
 ### Description: Create a comprehensive test suite for the CommunicationManager singleton class to achieve full coverage of its functionality.
 ### Details:
