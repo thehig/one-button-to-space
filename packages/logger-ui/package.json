@@ -28,7 +28,9 @@
     "react-rnd": "catalog:"
   },
   "devDependencies": {
-    "vitest": "catalog:",
-    "@vitest/coverage-v8": "catalog:"
+    "@testing-library/react": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "jsdom": "catalog:",
+    "vitest": "catalog:"
   }
 }
