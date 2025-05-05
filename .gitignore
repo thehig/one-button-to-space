@@ -31,7 +31,6 @@ next-env.d.ts
 pnpm-lock.yaml
 
 # taskmaster
-/tasks/
 /scripts/task-complexity-report.json
 
 # testing

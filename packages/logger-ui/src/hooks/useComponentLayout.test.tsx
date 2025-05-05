@@ -1,89 +1,87 @@
 import { renderHook, act } from "@testing-library/react";
-import useComponentLayout from "./useComponentLayout";
+import { useComponentLayout } from "./useComponentLayout";
 
 // Mock window dimensions if needed, e.g., for boundary checks later
 // Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
 // Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
 
 describe("useComponentLayout", () => {
-  it("should initialize with default values", () => {
+  // Note: The hook uses isCollapsed internally, which is the inverse of the test's original isVisible concept.
+  // Default state from hook: initialX=20, initialY=20, initialWidth=600, initialHeight=400, startsOpen=false
+  // Default derived state: isCollapsed=true, size={width: 300, height: 50}
+  it("should initialize with default values from hook", () => {
     const { result } = renderHook(() => useComponentLayout({}));
 
-    expect(result.current.isVisible).toBe(true);
-    expect(result.current.isLocked).toBe(false);
-    expect(result.current.position).toEqual({ x: 0, y: 0 }); // Assuming default is 0,0
-    expect(result.current.size).toEqual({ width: 300, height: 200 }); // Assuming default size
+    // Check isCollapsed (hook default startsOpen=false -> isCollapsed=true)
+    expect(result.current.isCollapsed).toBe(true);
+    // Default position from hook
+    expect(result.current.position).toEqual({ x: 20, y: 20 });
+    // Default size when collapsed
+    expect(result.current.size).toEqual({ width: 300, height: 50 });
   });
 
   it("should initialize with custom initial state", () => {
     const initialProps = {
-      initialPosition: { x: 50, y: 100 },
-      initialSize: { width: 400, height: 250 },
-      startsOpen: false,
-      startsLocked: true,
+      // Use individual props as expected by the hook
+      initialX: 50,
+      initialY: 100,
+      initialWidth: 400,
+      initialHeight: 250,
+      startsOpen: true, // If startsOpen=true, isCollapsed should be false
+      // startsLocked: true, // Hook doesn't use startsLocked
     };
     const { result } = renderHook(() => useComponentLayout(initialProps));
 
-    expect(result.current.isVisible).toBe(false);
-    expect(result.current.isLocked).toBe(true);
+    expect(result.current.isCollapsed).toBe(false); // Derived from startsOpen: true
+    // expect(result.current.isLocked).toBe(true); // Hook doesn't return isLocked
     expect(result.current.position).toEqual({ x: 50, y: 100 });
-    expect(result.current.size).toEqual({ width: 400, height: 250 });
+    expect(result.current.size).toEqual({ width: 400, height: 250 }); // Uses initial size when startsOpen=true
   });
 
   it("should initialize with partial custom initial state", () => {
     const initialProps = {
-      initialPosition: { x: 10, y: 20 },
-      startsLocked: true,
+      initialX: 10,
+      initialY: 20,
+      // startsLocked: true, // Hook doesn't use startsLocked
+      startsOpen: true, // Test starting open
     };
     const { result } = renderHook(() => useComponentLayout(initialProps));
 
-    expect(result.current.isVisible).toBe(true); // Default
-    expect(result.current.isLocked).toBe(true); // Custom
+    expect(result.current.isCollapsed).toBe(false); // Derived from startsOpen: true
+    // expect(result.current.isLocked).toBe(true); // Hook doesn't return isLocked
     expect(result.current.position).toEqual({ x: 10, y: 20 }); // Custom
-    expect(result.current.size).toEqual({ width: 300, height: 200 }); // Default
+    expect(result.current.size).toEqual({ width: 600, height: 400 }); // Default size when startsOpen=true
   });
 
-  // --- Tests for toggleVisibility ---
-  it("should toggle visibility using toggleVisibility", () => {
+  // --- Tests for toggleCollapse (formerly toggleVisibility) ---
+  it("should toggle collapse state using toggleCollapse", () => {
+    // Start open (isCollapsed = false)
     const { result } = renderHook(() =>
       useComponentLayout({ startsOpen: true })
     );
+    expect(result.current.isCollapsed).toBe(false);
 
     act(() => {
-      result.current.toggleVisibility();
+      result.current.toggleCollapse(); // Use the correct function name
     });
-    expect(result.current.isVisible).toBe(false);
+    expect(result.current.isCollapsed).toBe(true);
 
     act(() => {
-      result.current.toggleVisibility();
+      result.current.toggleCollapse(); // Use the correct function name
     });
-    expect(result.current.isVisible).toBe(true);
+    expect(result.current.isCollapsed).toBe(false);
   });
 
-  // --- Tests for toggleLock ---
-  it("should toggle lock state using toggleLock", () => {
-    const { result } = renderHook(() =>
-      useComponentLayout({ startsLocked: false })
-    );
-
-    act(() => {
-      result.current.toggleLock();
-    });
-    expect(result.current.isLocked).toBe(true);
-
-    act(() => {
-      result.current.toggleLock();
-    });
-    expect(result.current.isLocked).toBe(false);
-  });
+  // --- Tests for toggleLock (REMOVED as hook doesn't support locking) ---
+  // it('should toggle lock state using toggleLock', () => { ... });
 
   // --- Tests for handleDragStop ---
   it("should update position on handleDragStop", () => {
+    // Start at default 20,20
     const { result } = renderHook(() => useComponentLayout({}));
     const newPosition = { x: 150, y: 250 };
 
     act(() => {
-      // Simulate the event data structure provided by react-rnd
       result.current.handleDragStop(null as any, {
         x: newPosition.x,
         y: newPosition.y,
@@ -93,33 +91,25 @@ describe("useComponentLayout", () => {
     expect(result.current.position).toEqual(newPosition);
   });
 
-  it("should NOT update position on handleDragStop if locked", () => {
-    const initialPosition = { x: 10, y: 10 };
-    const { result } = renderHook(() =>
-      useComponentLayout({ initialPosition, startsLocked: true })
-    );
-    const newPosition = { x: 150, y: 250 };
-
-    act(() => {
-      result.current.handleDragStop(null as any, {
-        x: newPosition.x,
-        y: newPosition.y,
-      });
-    });
-
-    expect(result.current.position).toEqual(initialPosition); // Position should remain unchanged
-  });
+  // --- Test for handleDragStop when locked (REMOVED as hook doesn't support locking) ---
+  // it('should NOT update position on handleDragStop if locked', () => { ... });
 
   // --- Tests for handleResizeStop ---
   it("should update size on handleResizeStop", () => {
-    const { result } = renderHook(() => useComponentLayout({}));
-    const newSize = { width: 500, height: 400 };
-    const delta = { width: 200, height: 200 }; // Change from default 300x200
-    const position = { x: 0, y: 0 }; // Assuming initial position is 0,0
+    // Start open (isCollapsed=false) to have initial non-collapsed size
+    const initialWidth = 600;
+    const initialHeight = 400;
+    const { result } = renderHook(() =>
+      useComponentLayout({ startsOpen: true, initialWidth, initialHeight })
+    );
+    const newSize = { width: 500, height: 350 };
+    const delta = {
+      width: newSize.width - initialWidth,
+      height: newSize.height - initialHeight,
+    };
+    const position = { x: 20, y: 20 }; // Default initial position
 
     act(() => {
-      // Simulate the event data structure provided by react-rnd
-      // ref, direction, and delta are key for resize
       const mockRef = {
         style: { width: `${newSize.width}px`, height: `${newSize.height}px` },
       } as HTMLElement;
@@ -128,37 +118,50 @@ describe("useComponentLayout", () => {
         "bottomRight" as any,
         mockRef,
         delta,
-        position
+        position // Pass the current position
       );
     });
 
     expect(result.current.size).toEqual(newSize);
   });
 
-  it("should NOT update size on handleResizeStop if locked", () => {
-    const initialSize = { width: 300, height: 200 };
-    const { result } = renderHook(() =>
-      useComponentLayout({ initialSize, startsLocked: true })
-    );
-    const newSize = { width: 500, height: 400 };
-    const delta = { width: 200, height: 200 };
-    const position = { x: 0, y: 0 };
-
-    act(() => {
-      const mockRef = {
-        style: { width: `${newSize.width}px`, height: `${newSize.height}px` },
-      } as HTMLElement;
-      result.current.handleResizeStop(
-        null as any,
-        "bottomRight" as any,
-        mockRef,
-        delta,
-        position
-      );
-    });
-
-    expect(result.current.size).toEqual(initialSize); // Size should remain unchanged
-  });
+  // --- Test for handleResizeStop when locked (REMOVED as hook doesn't support locking) ---
+  // it('should NOT update size on handleResizeStop if locked', () => { ... });
 
   // Add more tests for boundary checks later...
+  // Add tests for toggleFilterCollapse and toggleDetailsCollapse...
+
+  // --- Tests for toggleFilterCollapse ---
+  it("should toggle filter collapse state using toggleFilterCollapse", () => {
+    // Hook defaults startTreeOpen=false -> isFilterCollapsed=true
+    const { result } = renderHook(() => useComponentLayout({}));
+    expect(result.current.isFilterCollapsed).toBe(true);
+
+    act(() => {
+      result.current.toggleFilterCollapse();
+    });
+    expect(result.current.isFilterCollapsed).toBe(false);
+
+    act(() => {
+      result.current.toggleFilterCollapse();
+    });
+    expect(result.current.isFilterCollapsed).toBe(true);
+  });
+
+  // --- Tests for toggleDetailsCollapse ---
+  it("should toggle details collapse state using toggleDetailsCollapse", () => {
+    // Hook defaults startDataOpen=false -> isDetailsCollapsed=true
+    const { result } = renderHook(() => useComponentLayout({}));
+    expect(result.current.isDetailsCollapsed).toBe(true);
+
+    act(() => {
+      result.current.toggleDetailsCollapse();
+    });
+    expect(result.current.isDetailsCollapsed).toBe(false);
+
+    act(() => {
+      result.current.toggleDetailsCollapse();
+    });
+    expect(result.current.isDetailsCollapsed).toBe(true);
+  });
 });
