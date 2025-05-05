@@ -447,7 +447,7 @@ Testing approach:
 - Test keyboard shortcuts and accessibility interactions
 - Simulate window drag/resize events and verify layout updates
 
-## 6. Implement Context Tests for LoggerContext [pending]
+## 6. Implement Context Tests for LoggerContext [done]
 ### Dependencies: 22.4, 22.5
 ### Description: Create tests for the LoggerContext provider and consumer behavior.
 ### Details:
@@ -473,4 +473,279 @@ Testing approach:
 - Verify that context functions properly call manager methods
 - Test with empty event arrays and maximum size limits
 - Verify proper error handling for missing providers or invalid context usage
+
+<info added on 2025-05-05T18:52:15.226Z>
+Here's additional information for your implementation plan:
+
+## Testing Implementation Details
+
+### Mock Setup
+```tsx
+// Sample mock implementation
+const mockManager = {
+  getEventLog: jest.fn().mockReturnValue([]),
+  setMaxLogSize: jest.fn(),
+  setRedirectEventsToConsole: jest.fn(),
+  on: jest.fn(),
+  off: jest.fn(),
+  clearLog: jest.fn(),
+  logEvent: jest.fn()
+};
+
+// Event emission testing helper
+function emitMockEvent(event: LogEvent) {
+  // Get the callback registered with mockManager.on
+  const [[_, callback]] = mockManager.on.mock.calls;
+  // Call the callback with the event
+  callback(event);
+}
+```
+
+### Advanced Test Cases
+1. **Event Emission Tests**:
+   ```tsx
+   test('updates context when manager emits events', () => {
+     const { result } = renderHook(() => useCommunicationContext(), {
+       wrapper: ({ children }) => (
+         <CommunicationProvider manager={mockManager as any}>
+           {children}
+         </CommunicationProvider>
+       )
+     });
+     
+     // Initial state check
+     expect(result.current.events).toEqual([]);
+     
+     // Emit mock event
+     const mockEvent = { id: '1', type: 'test', timestamp: Date.now() };
+     emitMockEvent(mockEvent);
+     
+     // Verify state update
+     expect(result.current.events).toEqual([mockEvent]);
+   });
+   ```
+
+2. **MaxLogSize Behavior**:
+   ```tsx
+   test('respects maxLogSize when set', () => {
+     // Setup with maxLogSize=2
+     renderWithProvider({ maxLogSize: 2 });
+     
+     // Verify maxLogSize was set on manager
+     expect(mockManager.setMaxLogSize).toHaveBeenCalledWith(2);
+     
+     // Test with multiple events to verify truncation
+     // ...
+   });
+   ```
+
+3. **Cleanup Testing**:
+   ```tsx
+   test('unregisters event listeners on unmount', () => {
+     const { unmount } = render(
+       <CommunicationProvider manager={mockManager as any} />
+     );
+     
+     unmount();
+     expect(mockManager.off).toHaveBeenCalled();
+   });
+   ```
+
+### Integration Testing
+```tsx
+test('consumer components re-render when events are added', async () => {
+  // Create a consumer component that displays event count
+  const ConsumerComponent = () => {
+    const { events } = useCommunicationContext();
+    return <div data-testid="event-count">{events.length}</div>;
+  };
+  
+  const { getByTestId } = render(
+    <CommunicationProvider manager={mockManager as any}>
+      <ConsumerComponent />
+    </CommunicationProvider>
+  );
+  
+  // Initial state
+  expect(getByTestId('event-count').textContent).toBe('0');
+  
+  // Emit event and verify update
+  emitMockEvent({ id: '1', type: 'test', timestamp: Date.now() });
+  await waitFor(() => {
+    expect(getByTestId('event-count').textContent).toBe('1');
+  });
+});
+```
+
+### Performance Considerations
+- Add tests with large numbers of events to verify performance
+- Test memoization behavior to ensure components don't re-render unnecessarily
+- Verify that context updates are batched appropriately when multiple events arrive simultaneously
+</info added on 2025-05-05T18:52:15.226Z>
+
+<info added on 2025-05-05T18:53:38.463Z>
+<info added on 2025-05-06T09:15:32.123Z>
+## Test Implementation Progress Details
+
+### Mock Event Emission Helpers
+```tsx
+// Helper functions for simulating manager events
+function emitNewEventFromManager(mockManager, newEvent) {
+  // Find the registered 'new-event' callback
+  const newEventCallback = mockManager.on.mock.calls.find(call => call[0] === 'new-event')[1];
+  // Call it to simulate event emission
+  newEventCallback(newEvent);
+}
+
+function emitLogClearedFromManager(mockManager) {
+  // Find the registered 'log-cleared' callback
+  const logClearedCallback = mockManager.on.mock.calls.find(call => call[0] === 'log-cleared')[1];
+  // Call it to simulate log cleared event
+  logClearedCallback();
+}
+```
+
+### Props Change Tests
+```tsx
+test('updates manager when maxLogSize prop changes', async () => {
+  const { rerender } = render(
+    <LoggerProvider manager={mockManager} maxLogSize={5} />
+  );
+  
+  expect(mockManager.setMaxLogSize).toHaveBeenCalledWith(5);
+  
+  // Reset mock to check for new calls
+  mockManager.setMaxLogSize.mockClear();
+  
+  // Rerender with new prop value
+  rerender(<LoggerProvider manager={mockManager} maxLogSize={10} />);
+  
+  expect(mockManager.setMaxLogSize).toHaveBeenCalledWith(10);
+});
+
+test('updates manager when redirectEventsToConsole prop changes', async () => {
+  const { rerender } = render(
+    <LoggerProvider manager={mockManager} redirectEventsToConsole={false} />
+  );
+  
+  expect(mockManager.setRedirectEventsToConsole).toHaveBeenCalledWith(false);
+  
+  // Reset mock to check for new calls
+  mockManager.setRedirectEventsToConsole.mockClear();
+  
+  // Rerender with new prop value
+  rerender(<LoggerProvider manager={mockManager} redirectEventsToConsole={true} />);
+  
+  expect(mockManager.setRedirectEventsToConsole).toHaveBeenCalledWith(true);
+});
+```
+
+### Event Handling Tests
+```tsx
+test('context clearLog function calls manager clearLog', async () => {
+  const TestConsumer = () => {
+    const { clearLog } = useLoggerContext();
+    return <button data-testid="clear-button" onClick={clearLog}>Clear</button>;
+  };
+
+  const { getByTestId } = render(
+    <LoggerProvider manager={mockManager}>
+      <TestConsumer />
+    </LoggerProvider>
+  );
+  
+  fireEvent.click(getByTestId('clear-button'));
+  expect(mockManager.clearLog).toHaveBeenCalledTimes(1);
+});
+
+test('context updates when log-cleared event is emitted', async () => {
+  // Setup mock to return events initially
+  mockManager.getEventLog.mockReturnValue([
+    { id: '1', type: 'test', timestamp: Date.now() }
+  ]);
+  
+  const TestConsumer = () => {
+    const { events } = useLoggerContext();
+    return <div data-testid="event-count">{events.length}</div>;
+  };
+
+  const { getByTestId } = render(
+    <LoggerProvider manager={mockManager}>
+      <TestConsumer />
+    </LoggerProvider>
+  );
+  
+  // Initial state should show 1 event
+  expect(getByTestId('event-count').textContent).toBe('1');
+  
+  // Update mock to return empty array after clear
+  mockManager.getEventLog.mockReturnValue([]);
+  
+  // Simulate log-cleared event
+  emitLogClearedFromManager(mockManager);
+  
+  // Context should update with empty events array
+  await waitFor(() => {
+    expect(getByTestId('event-count').textContent).toBe('0');
+  });
+});
+```
+
+### Cleanup Tests
+```tsx
+test('unregisters event listeners on unmount', () => {
+  const { unmount } = render(
+    <LoggerProvider manager={mockManager} />
+  );
+  
+  unmount();
+  
+  // Should unregister both event types
+  expect(mockManager.off).toHaveBeenCalledWith('new-event', expect.any(Function));
+  expect(mockManager.off).toHaveBeenCalledWith('log-cleared', expect.any(Function));
+});
+```
+
+### Edge Cases
+```tsx
+test('handles empty event log gracefully', () => {
+  mockManager.getEventLog.mockReturnValue([]);
+  
+  const TestConsumer = () => {
+    const { events } = useLoggerContext();
+    return (
+      <div data-testid="empty-state">
+        {events.length === 0 ? 'No events' : 'Has events'}
+      </div>
+    );
+  };
+
+  const { getByTestId } = render(
+    <LoggerProvider manager={mockManager}>
+      <TestConsumer />
+    </LoggerProvider>
+  );
+  
+  expect(getByTestId('empty-state').textContent).toBe('No events');
+});
+
+test('throws error when useLoggerContext is used outside provider', () => {
+  // Silence expected error logs
+  const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  
+  const TestConsumer = () => {
+    // This should throw
+    useLoggerContext();
+    return null;
+  };
+
+  expect(() => {
+    render(<TestConsumer />);
+  }).toThrow('useLoggerContext must be used within a LoggerProvider');
+  
+  consoleSpy.mockRestore();
+});
+```
+</info added on 2025-05-06T09:15:32.123Z>
+</info added on 2025-05-05T18:53:38.463Z>
 
