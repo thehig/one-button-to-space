@@ -264,69 +264,7 @@
       "testStrategy": "The implementation will be verified through the following approach:\n\n1. **Code Review**:\n   - Verify test files exist for all components, hooks, and contexts\n   - Check that tests follow React Testing Library best practices\n   - Ensure tests are well-organized and maintainable\n\n2. **Test Coverage Analysis**:\n   - Run coverage reports to ensure at least 80% code coverage\n   - Identify and address any gaps in test coverage\n   - Verify all critical paths are tested\n\n3. **Test Quality Verification**:\n   - Confirm tests include positive and negative scenarios\n   - Verify edge cases are covered\n   - Check that tests are deterministic (no flaky tests)\n\n4. **Specific Test Cases to Verify**:\n   - Hook initialization and state management\n   - Component rendering with various prop combinations\n   - Error states and boundary conditions\n   - User interactions (clicks, inputs, etc.)\n   - Context provider behavior and consumer updates\n   - Accessibility compliance\n   - **Hook-Specific Test Cases**:\n     - For `useComponentLayout`: Initial state, visibility toggling, position updates, size updates, boundary conditions\n     - For `useEventFiltering`: Filter application, text search, source/level filtering, combined filters, filter reset\n   - **Component-Specific Test Cases**:\n     - For `GameEventLog`: Prop variations, context integration, conditional rendering, state-based visibility\n     - For `TreeNode`: Node structure rendering, source filtering, styling based on active sources\n   - **Interaction-Specific Test Cases**:\n     - Event handling: Manager events to UI updates, console hijacking, source filtering\n     - UI controls: Clear button, visibility toggle, lock button, tree/details toggle\n     - Window management: Drag and resize operations\n\n5. **CI Integration**:\n   - Ensure tests run successfully in the CI pipeline\n   - Verify tests complete in a reasonable time\n\n6. **Testing Tools**:\n   - Use `renderHook` and `act` from React Testing Library for hook testing\n   - Implement appropriate mocks for dependencies\n   - Use mock functions to verify context and manager interactions",
       "status": "in-progress",
       "dependencies": [],
-      "priority": "medium",
-      "subtasks": [
-        {
-          "id": 1,
-          "title": "Implement Unit Tests for useComponentLayout Hook",
-          "description": "Create comprehensive unit tests for the useComponentLayout hook to verify layout state management functionality.",
-          "dependencies": [],
-          "details": "Implementation steps:\n1. Create a new test file `useComponentLayout.test.tsx` in the appropriate test directory\n2. Import the hook and React Testing Library utilities\n3. Write test cases for:\n   - Initial state verification with default and custom parameters\n   - Toggle visibility functionality (verify state changes)\n   - Position update simulation (test drag events)\n   - Size update simulation (test resize events)\n   - Boundary checks for position and size\n   - Lock/unlock functionality\n4. Use React Testing Library's renderHook utility to test the hook in isolation\n5. Mock any required dependencies\n6. Verify state updates after each action\n\nTesting approach:\n- Use renderHook to test the hook directly\n- Create test fixtures for different initial states\n- Simulate state changes by calling the returned functions\n- Assert on the returned state values after each operation\n- Test edge cases like minimum/maximum sizes and boundary positions",
-          "status": "in-progress",
-          "parentTaskId": 22
-        },
-        {
-          "id": 2,
-          "title": "Implement Unit Tests for useEventFiltering Hook",
-          "description": "Create comprehensive unit tests for the useEventFiltering hook to verify log filtering functionality.",
-          "dependencies": [],
-          "details": "Implementation steps:\n1. Create a new test file `useEventFiltering.test.tsx` in the appropriate test directory\n2. Import the hook and React Testing Library utilities\n3. Create mock log event data with various sources, levels, and messages\n4. Write test cases for:\n   - Initial state verification (no filters applied)\n   - Text filtering functionality (case sensitive and insensitive)\n   - Source filtering (single and multiple sources)\n   - Level filtering (verify events filtered by log level)\n   - Combined filters (text + source + level)\n   - Filter clearing functionality\n   - Input debouncing (if implemented)\n5. Test with empty log arrays and edge cases\n\nTesting approach:\n- Use renderHook to test the hook directly\n- Create comprehensive test fixtures with varied log events\n- Test each filtering mechanism independently and in combination\n- Verify filtered results match expected output\n- Test performance with large arrays of log events\n- Verify filter state is properly maintained between renders",
-          "status": "pending",
-          "parentTaskId": 22
-        },
-        {
-          "id": 3,
-          "title": "Implement Component Tests for TreeNode Component",
-          "description": "Create tests for the TreeNode component to verify rendering and interaction behavior.",
-          "dependencies": [],
-          "details": "Implementation steps:\n1. Create a new test file `TreeNode.test.tsx` in the appropriate test directory\n2. Import the component and React Testing Library utilities\n3. Create mock data for different node structures (simple, nested, with counts)\n4. Write test cases for:\n   - Basic rendering with various props\n   - Rendering with different allowedSources configurations\n   - Rendering with different activeSourcesInLog configurations\n   - Proper styling based on active/inactive states\n   - Count display accuracy\n   - Disabled state rendering\n   - Checkbox interaction and state changes\n   - Parent/child node relationships and cascading selections\n5. Test accessibility compliance\n\nTesting approach:\n- Use render from React Testing Library\n- Use screen queries to verify rendered elements\n- Use userEvent to simulate user interactions\n- Test with various prop combinations\n- Verify checkbox state changes trigger the correct callbacks\n- Test keyboard navigation and accessibility\n- Verify proper ARIA attributes are present",
-          "status": "pending",
-          "parentTaskId": 22
-        },
-        {
-          "id": 4,
-          "title": "Implement Basic Component Tests for GameEventLog",
-          "description": "Create tests for the GameEventLog component focusing on rendering and prop behavior.",
-          "dependencies": [],
-          "details": "Implementation steps:\n1. Create a new test file `GameEventLog.test.tsx` in the appropriate test directory\n2. Import the component and React Testing Library utilities\n3. Mock any required context providers and dependencies\n4. Write test cases for:\n   - Basic rendering with default props\n   - Rendering with custom props (startsOpen, startsLocked, hijackConsoleLogs, initial layout)\n   - Context wrapping and initial event display\n   - Conditional rendering of tree/details sections\n   - Visibility/opacity based on component state\n   - Proper styling and layout based on props\n5. Test accessibility compliance\n\nTesting approach:\n- Use render from React Testing Library with custom wrapper for context\n- Create mock event data for testing\n- Test with various prop combinations\n- Verify conditional rendering logic\n- Check that initial state matches expected values based on props\n- Verify component structure matches expected DOM hierarchy\n- Test that all required elements are present and properly styled",
-          "status": "pending",
-          "parentTaskId": 22
-        },
-        {
-          "id": 5,
-          "title": "Implement Interaction Tests for GameEventLog",
-          "description": "Create integration tests for GameEventLog focusing on user interactions, event handling, and filtering.",
-          "dependencies": [
-            3,
-            4
-          ],
-          "details": "Implementation steps:\n1. Extend the GameEventLog test file or create a new integration test file\n2. Mock the logger manager to simulate events and verify interactions\n3. Write test cases for:\n   - Event handling (new-event from manager, console.log hijacking)\n   - Filtering interactions:\n     - Text input filtering\n     - TreeNode checkbox interactions\n     - Parent/child checkbox logic\n   - UI control interactions:\n     - Clear button functionality\n     - Toggle visibility button\n     - Lock/unlock button\n     - Toggle tree/details sections\n   - Window management:\n     - Drag simulation\n     - Resize simulation\n4. Verify state updates after each interaction\n\nTesting approach:\n- Use render from React Testing Library with context providers\n- Use userEvent to simulate complex user interactions\n- Mock the logger manager to emit events and verify handlers\n- Test the full interaction flow from user action to UI update\n- Verify that component state changes correctly after interactions\n- Test keyboard shortcuts and accessibility interactions\n- Simulate window drag/resize events and verify layout updates",
-          "status": "pending",
-          "parentTaskId": 22
-        },
-        {
-          "id": 6,
-          "title": "Implement Context Tests for LoggerContext",
-          "description": "Create tests for the LoggerContext provider and consumer behavior.",
-          "dependencies": [
-            4,
-            5
-          ],
-          "details": "Implementation steps:\n1. Create a new test file `LoggerContext.test.tsx` in the appropriate test directory\n2. Import the context, provider, and React Testing Library utilities\n3. Create a mock logger manager for testing\n4. Write test cases for:\n   - Provider initialization with default and custom props\n   - Context value verification (events, clearLog, logEvent functions)\n   - Provider props behavior (maxLogSize, redirectEventsToConsole)\n   - Event emission from manager and context state updates\n   - clearLog functionality\n   - Context consumer behavior\n   - Integration with components that use the context\n5. Test error handling and edge cases\n\nTesting approach:\n- Create test components that consume the context\n- Render the provider with various props and verify context values\n- Mock the logger manager to simulate events and verify context updates\n- Test the full flow from manager events to context updates to component renders\n- Verify that context functions properly call manager methods\n- Test with empty event arrays and maximum size limits\n- Verify proper error handling for missing providers or invalid context usage",
-          "status": "pending",
-          "parentTaskId": 22
-        }
-      ]
+      "priority": "medium"
     }
   ],
   "metadata": {

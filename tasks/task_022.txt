@@ -1,0 +1,285 @@
+# Task ID: 22
+# Title: Develop Comprehensive Test Suite for logger-ui Package
+# Status: in-progress
+# Dependencies: None
+# Priority: medium
+# Description: Create a complete test suite for the logger-ui package that covers hook logic, component rendering, user interactions, and context usage using React Testing Library.
+# Details:
+Implement a comprehensive test suite for the logger-ui package following these requirements:
+
+1. **Hook Testing**:
+   - Test all custom hooks in the package (e.g., useLogger, useLoggerContext)
+   - Verify hooks properly manage state and respond to changes
+   - Test error handling and edge cases
+   - **Specific Hook Testing Plan**:
+     - **`useComponentLayout`**:
+       - Verify layout state management (position, size, visibility)
+       - Test initial state, toggle visibility, update position (drag simulation)
+       - Test update size (resize simulation) and boundary checks
+     - **`useEventFiltering`**:
+       - Verify log event filtering logic
+       - Test initial state, text filtering (including case sensitivity)
+       - Test source filtering, level filtering, combined filters
+       - Test filter clearing and input debouncing (if applicable)
+
+2. **Component Testing**:
+   - Test all UI components for proper rendering
+   - Verify components display correct information based on props
+   - Test component lifecycle behaviors
+   - Ensure accessibility standards are met
+   - **Specific Component Testing Plan**:
+     - **`GameEventLog.tsx`**: 
+       - Test rendering with prop variations (`startsOpen`, `startsLocked`, `hijackConsoleLogs`, initial layout)
+       - Test context wrapping and initial events
+       - Verify conditional sections (tree/details)
+       - Test visibility/opacity based on state
+     - **`TreeNode.tsx`**: 
+       - Test rendering with various node structures
+       - Test `allowedSources` variations (verify checkbox state)
+       - Test `activeSourcesInLog` variations (verify styling)
+       - Verify count displays and disabled state
+
+3. **User Interaction Testing**:
+   - Test all interactive elements (buttons, inputs, etc.)
+   - Verify event handlers are called with correct parameters
+   - Test keyboard navigation and shortcuts
+   - Simulate user actions and verify expected outcomes
+   - **Specific Interaction/Integration Tests (GameEventLog focus)**:
+     - **Event Handling:** 
+       - Simulate `new-event` from manager -> verify UI updates
+       - Test `console.log` hijack -> verify context `logEvent` called & UI updates
+       - Test new source event -> verify filter tree updates
+     - **Filtering:** 
+       - Test text input -> verify list filters
+       - Test `TreeNode` checkbox clicks -> verify `allowedSources` updates & list filters
+       - Test parent/child checkbox logic
+     - **UI Controls:** 
+       - Test clear button -> verify `clearLog` called & UI clears
+       - Test toggle visibility -> verify state change & window visibility
+       - Test lock button -> verify state change & Rnd props toggle
+       - Test toggle tree/details -> verify sections visibility
+     - **Window Management:** 
+       - Simulate Rnd drag/resize -> verify layout state updates via hook
+
+4. **Context Testing**:
+   - Test LoggerContext provider and consumer behavior
+   - Verify context values are properly passed to components
+   - Test context updates and their effects on dependent components
+   - **Specific Context Testing Plan**:
+     - Render consumer -> verify received values (`events`, `clearLog`, `logEvent`)
+     - Test provider props (`maxLogSize`, `redirectEventsToConsole`) -> verify manager methods called (mock manager singleton)
+     - Mock manager -> emit `new-event`/`log-cleared` -> verify context `events` state updates
+     - Call context `clearLog` -> verify manager `clearLog` called
+
+Use React Testing Library as the primary testing tool. Organize tests in a structure that mirrors the package's component hierarchy. Mock external dependencies as needed. Aim for at least 80% test coverage.
+
+# Test Strategy:
+The implementation will be verified through the following approach:
+
+1. **Code Review**:
+   - Verify test files exist for all components, hooks, and contexts
+   - Check that tests follow React Testing Library best practices
+   - Ensure tests are well-organized and maintainable
+
+2. **Test Coverage Analysis**:
+   - Run coverage reports to ensure at least 80% code coverage
+   - Identify and address any gaps in test coverage
+   - Verify all critical paths are tested
+
+3. **Test Quality Verification**:
+   - Confirm tests include positive and negative scenarios
+   - Verify edge cases are covered
+   - Check that tests are deterministic (no flaky tests)
+
+4. **Specific Test Cases to Verify**:
+   - Hook initialization and state management
+   - Component rendering with various prop combinations
+   - Error states and boundary conditions
+   - User interactions (clicks, inputs, etc.)
+   - Context provider behavior and consumer updates
+   - Accessibility compliance
+   - **Hook-Specific Test Cases**:
+     - For `useComponentLayout`: Initial state, visibility toggling, position updates, size updates, boundary conditions
+     - For `useEventFiltering`: Filter application, text search, source/level filtering, combined filters, filter reset
+   - **Component-Specific Test Cases**:
+     - For `GameEventLog`: Prop variations, context integration, conditional rendering, state-based visibility
+     - For `TreeNode`: Node structure rendering, source filtering, styling based on active sources
+   - **Interaction-Specific Test Cases**:
+     - Event handling: Manager events to UI updates, console hijacking, source filtering
+     - UI controls: Clear button, visibility toggle, lock button, tree/details toggle
+     - Window management: Drag and resize operations
+
+5. **CI Integration**:
+   - Ensure tests run successfully in the CI pipeline
+   - Verify tests complete in a reasonable time
+
+6. **Testing Tools**:
+   - Use `renderHook` and `act` from React Testing Library for hook testing
+   - Implement appropriate mocks for dependencies
+   - Use mock functions to verify context and manager interactions
+
+# Subtasks:
+## 1. Implement Unit Tests for useComponentLayout Hook [in-progress]
+### Dependencies: None
+### Description: Create comprehensive unit tests for the useComponentLayout hook to verify layout state management functionality.
+### Details:
+Implementation steps:
+1. Create a new test file `useComponentLayout.test.tsx` in the appropriate test directory
+2. Import the hook and React Testing Library utilities
+3. Write test cases for:
+   - Initial state verification with default and custom parameters
+   - Toggle visibility functionality (verify state changes)
+   - Position update simulation (test drag events)
+   - Size update simulation (test resize events)
+   - Boundary checks for position and size
+   - Lock/unlock functionality
+4. Use React Testing Library's renderHook utility to test the hook in isolation
+5. Mock any required dependencies
+6. Verify state updates after each action
+
+Testing approach:
+- Use renderHook to test the hook directly
+- Create test fixtures for different initial states
+- Simulate state changes by calling the returned functions
+- Assert on the returned state values after each operation
+- Test edge cases like minimum/maximum sizes and boundary positions
+
+## 2. Implement Unit Tests for useEventFiltering Hook [pending]
+### Dependencies: None
+### Description: Create comprehensive unit tests for the useEventFiltering hook to verify log filtering functionality.
+### Details:
+Implementation steps:
+1. Create a new test file `useEventFiltering.test.tsx` in the appropriate test directory
+2. Import the hook and React Testing Library utilities
+3. Create mock log event data with various sources, levels, and messages
+4. Write test cases for:
+   - Initial state verification (no filters applied)
+   - Text filtering functionality (case sensitive and insensitive)
+   - Source filtering (single and multiple sources)
+   - Level filtering (verify events filtered by log level)
+   - Combined filters (text + source + level)
+   - Filter clearing functionality
+   - Input debouncing (if implemented)
+5. Test with empty log arrays and edge cases
+
+Testing approach:
+- Use renderHook to test the hook directly
+- Create comprehensive test fixtures with varied log events
+- Test each filtering mechanism independently and in combination
+- Verify filtered results match expected output
+- Test performance with large arrays of log events
+- Verify filter state is properly maintained between renders
+
+## 3. Implement Component Tests for TreeNode Component [pending]
+### Dependencies: None
+### Description: Create tests for the TreeNode component to verify rendering and interaction behavior.
+### Details:
+Implementation steps:
+1. Create a new test file `TreeNode.test.tsx` in the appropriate test directory
+2. Import the component and React Testing Library utilities
+3. Create mock data for different node structures (simple, nested, with counts)
+4. Write test cases for:
+   - Basic rendering with various props
+   - Rendering with different allowedSources configurations
+   - Rendering with different activeSourcesInLog configurations
+   - Proper styling based on active/inactive states
+   - Count display accuracy
+   - Disabled state rendering
+   - Checkbox interaction and state changes
+   - Parent/child node relationships and cascading selections
+5. Test accessibility compliance
+
+Testing approach:
+- Use render from React Testing Library
+- Use screen queries to verify rendered elements
+- Use userEvent to simulate user interactions
+- Test with various prop combinations
+- Verify checkbox state changes trigger the correct callbacks
+- Test keyboard navigation and accessibility
+- Verify proper ARIA attributes are present
+
+## 4. Implement Basic Component Tests for GameEventLog [pending]
+### Dependencies: None
+### Description: Create tests for the GameEventLog component focusing on rendering and prop behavior.
+### Details:
+Implementation steps:
+1. Create a new test file `GameEventLog.test.tsx` in the appropriate test directory
+2. Import the component and React Testing Library utilities
+3. Mock any required context providers and dependencies
+4. Write test cases for:
+   - Basic rendering with default props
+   - Rendering with custom props (startsOpen, startsLocked, hijackConsoleLogs, initial layout)
+   - Context wrapping and initial event display
+   - Conditional rendering of tree/details sections
+   - Visibility/opacity based on component state
+   - Proper styling and layout based on props
+5. Test accessibility compliance
+
+Testing approach:
+- Use render from React Testing Library with custom wrapper for context
+- Create mock event data for testing
+- Test with various prop combinations
+- Verify conditional rendering logic
+- Check that initial state matches expected values based on props
+- Verify component structure matches expected DOM hierarchy
+- Test that all required elements are present and properly styled
+
+## 5. Implement Interaction Tests for GameEventLog [pending]
+### Dependencies: 22.3, 22.4
+### Description: Create integration tests for GameEventLog focusing on user interactions, event handling, and filtering.
+### Details:
+Implementation steps:
+1. Extend the GameEventLog test file or create a new integration test file
+2. Mock the logger manager to simulate events and verify interactions
+3. Write test cases for:
+   - Event handling (new-event from manager, console.log hijacking)
+   - Filtering interactions:
+     - Text input filtering
+     - TreeNode checkbox interactions
+     - Parent/child checkbox logic
+   - UI control interactions:
+     - Clear button functionality
+     - Toggle visibility button
+     - Lock/unlock button
+     - Toggle tree/details sections
+   - Window management:
+     - Drag simulation
+     - Resize simulation
+4. Verify state updates after each interaction
+
+Testing approach:
+- Use render from React Testing Library with context providers
+- Use userEvent to simulate complex user interactions
+- Mock the logger manager to emit events and verify handlers
+- Test the full interaction flow from user action to UI update
+- Verify that component state changes correctly after interactions
+- Test keyboard shortcuts and accessibility interactions
+- Simulate window drag/resize events and verify layout updates
+
+## 6. Implement Context Tests for LoggerContext [pending]
+### Dependencies: 22.4, 22.5
+### Description: Create tests for the LoggerContext provider and consumer behavior.
+### Details:
+Implementation steps:
+1. Create a new test file `LoggerContext.test.tsx` in the appropriate test directory
+2. Import the context, provider, and React Testing Library utilities
+3. Create a mock logger manager for testing
+4. Write test cases for:
+   - Provider initialization with default and custom props
+   - Context value verification (events, clearLog, logEvent functions)
+   - Provider props behavior (maxLogSize, redirectEventsToConsole)
+   - Event emission from manager and context state updates
+   - clearLog functionality
+   - Context consumer behavior
+   - Integration with components that use the context
+5. Test error handling and edge cases
+
+Testing approach:
+- Create test components that consume the context
+- Render the provider with various props and verify context values
+- Mock the logger manager to simulate events and verify context updates
+- Test the full flow from manager events to context updates to component renders
+- Verify that context functions properly call manager methods
+- Test with empty event arrays and maximum size limits
+- Verify proper error handling for missing providers or invalid context usage
+
