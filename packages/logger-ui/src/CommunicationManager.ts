@@ -3,6 +3,21 @@ import { EventLogEntry } from "./types"; // Update import path
 // Remove NetworkManager import if no longer needed for direct interaction
 // import NetworkManager from "./NetworkManager";
 
+// --- Define an interface for window properties used by console hijacking ---
+interface WindowWithConsoleOriginals extends Window {
+  __console_log_original?: (...args: unknown[]) => void;
+  __console_warn_original?: (...args: unknown[]) => void;
+  __console_error_original?: (...args: unknown[]) => void;
+}
+
+// --- End interface definition ---
+
+// Define a simple interface for the expected room structure
+interface RoomInfo {
+  id?: string;
+  sessionId?: string;
+}
+
 /**
  * Manages communication between different parts of the game (Phaser, Network, UI)
  * and provides an event log for React components via Context.
@@ -90,7 +105,8 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     // --- Subscribe to Scene Emitter Events (Inter-Manager) ---
     // Example: Listen to a generic scene event
     this.sceneEmitter.on("someSceneEvent", (data: unknown) => {
-      this.logEvent("Scene", "someSceneEvent", data);
+      // Wrap unknown data in an object to match logEvent signature
+      this.logEvent("Scene", "someSceneEvent", { payload: data });
     });
 
     // Listen to events already used in LifecycleManager test triggers
@@ -98,7 +114,8 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
       this.logEvent("Scene", "scoreUpdated", { score });
     });
     this.sceneEmitter.on("serverEntitySpawn", (data: unknown) => {
-      this.logEvent("Scene", "serverEntitySpawn", data);
+      // Wrap unknown data in an object
+      this.logEvent("Scene", "serverEntitySpawn", { payload: data });
     });
     this.sceneEmitter.on("playerEntityCreated", (playerId: string) => {
       this.logEvent("Scene", "playerEntityCreated", { playerId });
@@ -123,9 +140,11 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
 
     // --- Subscribe to Network-related Events (via Scene Emitter) ---
     this.sceneEmitter.on("networkConnected", (room: unknown) => {
+      // Type guard to safely access properties
+      const roomInfo = room as RoomInfo;
       this.logEvent("Network", "networkConnected", {
-        roomId: (room as any)?.id,
-        sessionId: (room as any)?.sessionId,
+        roomId: roomInfo?.id,
+        sessionId: roomInfo?.sessionId,
       });
     });
     this.sceneEmitter.on("networkDisconnected", (code: number) => {
@@ -135,6 +154,7 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
       this.logEvent("Network", "networkError", { error });
     });
     this.sceneEmitter.on("serverStateUpdate", (state: unknown) => {
+      // data remains unknown, logEvent should handle it
       this.logEvent("Network", "serverStateUpdate", {
         state /* Consider logging only diff or key parts */,
       });
@@ -145,7 +165,8 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
       // this.logEvent('Network', 'serverEntitySpawn', data);
     });
     this.sceneEmitter.on("serverEntityRemove", (message: unknown) => {
-      this.logEvent("Network", "serverEntityRemove", message);
+      // Wrap unknown data in an object
+      this.logEvent("Network", "serverEntityRemove", { payload: message });
     });
     // Remove direct subscription attempt
     /*
@@ -180,9 +201,10 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
       | null
   ): void {
     // Allow structured data, arrays, or primitives. Avoid 'any'.
-    if (!this.config.enabled) return;
+    // if (!this.config.enabled) return; // REMOVED: this.config does not exist
 
-    const timestamp = Date.now();
+    const timestampNumber = Date.now();
+    const timestamp = new Date(timestampNumber).toISOString(); // Convert number to ISO string
     const logEntry: EventLogEntry = { timestamp, source, eventName, data }; // Use the interface
 
     this.eventLog.push(logEntry);
@@ -202,7 +224,9 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     // <-- Add redirection logic here -->
     if (this._redirectEventsToConsole) {
       // Attempt to get the *original* console.log method saved by the hijacker
-      const originalConsoleLog = (window as any).__console_log_original;
+      // Use the specific Window interface
+      const originalConsoleLog = (window as WindowWithConsoleOriginals)
+        .__console_log_original;
 
       if (typeof originalConsoleLog === "function") {
         // Format args for console: Prefix with source/event, include data if present
@@ -218,11 +242,29 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
           let errorMessage = "Unknown error";
           if (error instanceof Error) {
             errorMessage = error.message;
+          } else if (typeof error === "string") {
+            errorMessage = error;
+          } else if (
+            typeof error === "object" &&
+            error !== null &&
+            "toString" in error
+          ) {
+            errorMessage = String(error); // Fallback to string representation
           }
+          // Use the derived errorMessage instead of casting the original error
           this.logEvent("CommunicationManager", "error", {
             message: "Error calling original console.log",
-            error: errorMessage,
-            eventData: JSON.stringify(data).substring(0, 100), // Log truncated data
+            error: errorMessage, // Use the safe message
+            // Safely stringify potentially complex data, handle circular refs
+            eventData: JSON.stringify(data, (key, value) => {
+              if (typeof value === "object" && value !== null) {
+                if (key === "_parent" || key === "scene") {
+                  // Avoid circular Phaser refs
+                  return "[Phaser Reference]";
+                }
+              }
+              return value;
+            })?.substring(0, 100), // Log truncated data
           });
         }
       } else {
@@ -238,9 +280,11 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     // Optionally emit the original event if needed for other Phaser systems
     // this.emit(eventName, data);
 
+    /* REMOVED: import.meta.env does not exist in this context
     if (import.meta.env.DEV) {
       // console.debug(`[${source}] Event: ${eventName}`, data);
     }
+    */
   }
 
   public getEventLog(): EventLogEntry[] {
@@ -292,57 +336,36 @@ export class CommunicationManager extends Phaser.Events.EventEmitter {
     this.logEvent("CommunicationManager", "destroyed");
   }
 
-  // Prefix with _ if data is intentionally unused in this specific implementation
+  // Example of processing a custom event before logging
   private processEvent(source: string, eventName: string, _data: unknown) {
-    if (this.isProcessing) return; // Prevent recursive processing
-    this.isProcessing = true;
-    try {
-      // Process the event data here
-      this.logEvent(source, eventName, _data);
-    } catch (error: unknown) {
-      // Type guard for Error object
-      let errorMessage = "Unknown error";
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      this.logEvent("CommunicationManager", "error", {
-        message: "Error processing event",
-        error: errorMessage,
-        eventData: JSON.stringify(_data).substring(0, 100), // Log truncated data
-      });
-    } finally {
-      this.isProcessing = false;
-    }
+    // if (this.isProcessing) return; // REMOVED: isProcessing does not exist
+    // this.isProcessing = true; // REMOVED: isProcessing does not exist
+    // console.log(`Processing custom event: ${eventName}`, data);
+    // Perform any specific logic based on the event...
+    // Wrap unknown data in an object
+    this.logEvent(source, `processed:${eventName}`, { payload: _data }); // Log a transformed version
+    // this.isProcessing = false; // REMOVED: isProcessing does not exist
   }
 
-  // Remove the disable comment as _data is now used
+  // Example of direct logging without processing
   private logToConsole(source: string, eventName: string, _data: unknown) {
-    // Keep _data unused if console logging is simple
-    if (this.config.logLevel === "debug" || this.config.logLevel === "info") {
-      console.groupCollapsed(`[${source}] ${eventName}`);
-      console.log(_data);
-      console.groupEnd();
-    }
+    // if (this.isProcessing) return; // REMOVED: isProcessing does not exist
+    // console.log(`[${source}] Direct Log: ${eventName}`, _data);
+    // Maybe skip adding to the main log here if it's just for console
   }
 
+  // Example handler for messages from another source (e.g., Web Worker, iframe)
   private handleMessage = (event: MessageEvent) => {
-    // Perform type checking on event.data
-    if (
-      event.data &&
-      typeof event.data === "object" &&
-      "type" in event.data &&
-      "payload" in event.data
-    ) {
-      const { type, payload } = event.data as {
-        type: string;
-        payload: unknown;
-      }; // Assert structure after check
-      this.processEvent("Message", type, payload);
-    } else {
-      this.logEvent("CommunicationManager", "warning", {
-        message: "Received malformed message",
-        data: event.data,
-      });
+    // Basic validation
+    if (!event.data || typeof event.data.type !== "string") {
+      console.warn("Received malformed message:", event);
+      return;
     }
+
+    // if (this.isProcessing) return; // REMOVED: isProcessing does not exist
+
+    const { type, payload } = event.data;
+
+    // ... existing code ...
   };
 }

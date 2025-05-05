@@ -211,9 +211,9 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     // Function to create the interceptor
     const createInterceptor = (
       methodName: "log" | "warn" | "error",
-      originalMethod: (...args: any[]) => void
+      originalMethod: (...args: unknown[]) => void
     ) => {
-      return (...args: any[]) => {
+      return (...args: unknown[]) => {
         // --- MODIFICATION: Get caller info object ---
         const { fileName, lineNumber } = getCallerInfo(); // Line number is now ignored
 
