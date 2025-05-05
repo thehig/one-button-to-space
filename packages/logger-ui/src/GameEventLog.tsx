@@ -307,6 +307,12 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     eventsCountBySource,
   } = useEventFiltering(events, config.getAllSourceIds()); // Pass all known source IDs from config state
 
+  // --- NEW: Local state for Filter Tree Collapse, initialized by prop ---
+  const [isFilterCollapsed, setIsFilterCollapsed] = useState(!startTreeOpen);
+  const toggleFilterCollapse = useCallback(() => {
+    setIsFilterCollapsed((prev) => !prev);
+  }, []);
+
   // --- NEW: Calculate total counts based on *unfiltered* events ---
   const totalEventsCountBySource = useMemo(() => {
     return calculateCountsBySource(events);
@@ -314,13 +320,10 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
 
   // --- Layout & Visibility State Hook ---
   const {
-    position,
-    size,
+    layout, // Destructure layout object instead of position/size
     isCollapsed,
-    isFilterCollapsed,
     isDetailsCollapsed,
     toggleCollapse,
-    toggleFilterCollapse,
     toggleDetailsCollapse,
     handleDragStop,
     handleResizeStop,
@@ -329,9 +332,9 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     initialY,
     initialWidth, // Pass initialWidth
     initialHeight, // Pass initialHeight (Added)
-    startsOpen,
-    startTreeOpen, // Pass startTreeOpen
-    startDataOpen, // Pass startDataOpen
+    initialCollapsed: !startsOpen, // Pass initialCollapsed based on startsOpen
+    initialDetailsCollapsed: !startDataOpen, // Pass initialDetailsCollapsed based on startDataOpen
+    initialLocked: startsLocked, // Pass initialLocked based on startsLocked
     // Pass other initial layout props if needed (e.g., initialHeight)
   });
 
@@ -463,10 +466,10 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
   const handleSaveSettings = useCallback(() => {
     // Explicitly build lines to ensure literal curly braces
     const settingsLines = [
-      `initialX={${Math.round(position.x)}}`,
-      `initialY={${Math.round(position.y)}}`,
-      `initialWidth={${Math.round(Number(size.width))}}`, // Ensure width is treated as a number
-      `initialHeight={${Math.round(Number(size.height))}}`, // Added initialHeight
+      `initialX={${Math.round(layout.x)}}`, // Use layout.x
+      `initialY={${Math.round(layout.y)}}`, // Use layout.y
+      `initialWidth={${Math.round(Number(layout.width))}}`, // Use layout.width
+      `initialHeight={${Math.round(Number(layout.height))}}`, // Use layout.height
       `startsOpen={${!isCollapsed}}`,
       `startsLocked={${isLocked}}`,
       `startTreeOpen={${!isFilterCollapsed}}`,
@@ -490,10 +493,10 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
         logEvent("GameEventLog", "settingsCopyFailed", { error: String(err) });
       });
   }, [
-    position.x,
-    position.y,
-    size.width,
-    size.height, // Added size.height dependency
+    layout.x,
+    layout.y,
+    layout.width,
+    layout.height, // Added layout.height dependency
     isCollapsed,
     isLocked,
     isFilterCollapsed,
@@ -507,8 +510,8 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
   // --- JSX Rendering ---
   return (
     <Rnd
-      size={size} // Use size from hook
-      position={position} // Use position from hook
+      size={layout} // Pass layout which contains width/height
+      position={layout} // Pass layout which contains x/y
       className={`log-container ${isCollapsed ? "collapsed" : ""} ${
         isLocked ? "locked" : ""
       }`} // Add locked class

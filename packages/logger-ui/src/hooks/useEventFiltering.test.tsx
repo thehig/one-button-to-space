@@ -5,31 +5,31 @@ import type { EventLogEntry, SourceTreeNode } from "../types"; // Assuming types
 // Mock Data
 const mockEvents: EventLogEntry[] = [
   {
-    timestamp: 1678886400000,
+    timestamp: new Date(1678886400000).toISOString(),
     source: "PhysicsManager",
     eventName: "Init",
     data: { setting: "gravity", value: 9.8 },
   },
   {
-    timestamp: 1678886401000,
+    timestamp: new Date(1678886401000).toISOString(),
     source: "EntityManager",
     eventName: "EntityCreated",
     data: { entityId: "player1", type: "Player" },
   },
   {
-    timestamp: 1678886402000,
+    timestamp: new Date(1678886402000).toISOString(),
     source: "InputManager",
     eventName: "KeyDown",
     data: { key: "ArrowUp" },
   },
   {
-    timestamp: 1678886403000,
+    timestamp: new Date(1678886403000).toISOString(),
     source: "PhysicsManager",
     eventName: "CollisionStart",
     data: { bodyA: "player1", bodyB: "wall" },
   },
   {
-    timestamp: 1678886404000,
+    timestamp: new Date(1678886404000).toISOString(),
     source: "NetworkManager",
     eventName: "StateUpdate",
     data: { latency: 50 },
@@ -47,12 +47,12 @@ const mockAllSourceIds = [
 // You might need a more complex structure depending on your actual config
 const mockSourceTreeRoot: SourceTreeNode = {
   id: "root",
-  name: "All Sources",
+  label: "All Sources",
   children: [
-    { id: "PhysicsManager", name: "Physics" },
-    { id: "EntityManager", name: "Entities" },
-    { id: "InputManager", name: "Input" },
-    { id: "NetworkManager", name: "Network" },
+    { id: "PhysicsManager", label: "Physics" },
+    { id: "EntityManager", label: "Entities" },
+    { id: "InputManager", label: "Input" },
+    { id: "NetworkManager", label: "Network" },
   ],
 };
 
@@ -67,59 +67,56 @@ const mockNestedSourceIds = [
 
 const mockNestedEvents: EventLogEntry[] = [
   {
-    timestamp: 1,
+    timestamp: new Date(1).toISOString(),
     source: "PhysicsManager",
     eventName: "Init",
     data: {},
   },
   {
-    timestamp: 2,
+    timestamp: new Date(2).toISOString(),
     source: "PhysicsManager.Collisions",
     eventName: "CollisionStart",
     data: {},
   },
   {
-    timestamp: 3,
+    timestamp: new Date(3).toISOString(),
     source: "PhysicsManager.Collisions",
     eventName: "CollisionEnd",
     data: {},
   },
   {
-    timestamp: 4,
+    timestamp: new Date(4).toISOString(),
     source: "PhysicsManager.Forces",
     eventName: "ApplyForce",
     data: {},
   },
   {
-    timestamp: 5,
+    timestamp: new Date(5).toISOString(),
     source: "EntityManager",
     eventName: "EntityCreated",
     data: {},
   },
   {
-    timestamp: 6,
+    timestamp: new Date(6).toISOString(),
     source: "InputManager",
     eventName: "KeyDown",
     data: {},
   },
 ];
 
-const mockNestedSourceTree: SourceTreeNode = {
-  id: "root",
-  name: "All Sources",
-  children: [
-    {
-      id: "PhysicsManager",
-      name: "Physics",
-      children: [
-        { id: "PhysicsManager.Collisions", name: "Collisions" },
-        { id: "PhysicsManager.Forces", name: "Forces" },
-      ],
-    },
-    { id: "EntityManager", name: "Entities" },
-    { id: "InputManager", name: "Input" },
-  ],
-};
+const mockNestedSourceTree: SourceTreeNode[] = [
+  {
+    id: "PhysicsManager",
+    label: "Physics",
+    children: [
+      { id: "PhysicsManager.Collisions", label: "Collisions" },
+      { id: "PhysicsManager.Forces", label: "Forces" },
+    ],
+  },
+  { id: "EntityManager", label: "Entities" },
+  { id: "InputManager", label: "Input" },
+  { id: "NetworkManager", label: "Network" },
+];
 // --- End Mock Data for Nested Test ---
 
 describe("useEventFiltering", () => {
@@ -273,7 +270,7 @@ describe("useEventFiltering", () => {
     );
 
     // Find the parent node (PhysicsManager)
-    const physicsParentNode = mockNestedSourceTree.children?.find(
+    const physicsParentNode = mockNestedSourceTree.find(
       (node) => node.id === "PhysicsManager"
     );
     expect(physicsParentNode).toBeDefined();
@@ -309,14 +306,16 @@ describe("useEventFiltering", () => {
 
     // Check filteredEvents (back to original)
     expect(result.current.filteredEvents).toHaveLength(mockNestedEvents.length);
-    // Sort for consistent comparison as order might not be guaranteed
-    const sortedFiltered = [...result.current.filteredEvents].sort(
-      (a, b) => a.timestamp - b.timestamp
+    // Sort results for consistent comparison
+    const sortedResult = [...result.current.filteredEvents].sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     );
-    const sortedMock = [...mockNestedEvents].sort(
-      (a, b) => a.timestamp - b.timestamp
+    const sortedExpected = [...mockNestedEvents].sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     );
-    expect(sortedFiltered).toEqual(sortedMock);
+    expect(sortedResult).toEqual(sortedExpected);
   });
 
   // --- Tests for combined filtering ---

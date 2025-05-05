@@ -2,7 +2,8 @@ import { useState, useCallback } from "react";
 // import type { Position, DraggableData } from "react-rnd"; // Removed unused Rnd specific types
 
 // Define an interface for the layout state
-interface LayoutState {
+// Export the interface
+export interface LayoutState {
   x: number;
   y: number;
   width: number;

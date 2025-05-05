@@ -18,7 +18,17 @@ interface CommunicationContextType {
   events: EventLogEntry[];
   clearLog: () => void;
   // Potentially add filters state and setters here if context should manage them
-  logEvent: (source: string, eventName: string, data?: unknown) => void;
+  logEvent: (
+    source: string,
+    eventName: string,
+    data?:
+      | Record<string, unknown>
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null
+  ) => void;
 }
 
 const CommunicationContext = createContext<

@@ -9,18 +9,18 @@ import type { SourceTreeNode } from "./types";
 // --- Mock Data ---
 const simpleNode: SourceTreeNode = {
   id: "SourceA",
-  name: "Source A", // Name isn't directly rendered, but good for context
+  label: "Source A", // Use label instead of name
 };
 
 const nestedNode: SourceTreeNode = {
   id: "ParentSource",
-  name: "Parent Source",
+  label: "Parent Source", // Use label instead of name
   children: [
-    { id: "ChildSource1", name: "Child 1" },
+    { id: "ChildSource1", label: "Child 1" }, // Use label instead of name
     {
       id: "ChildSource2",
-      name: "Child 2",
-      children: [{ id: "Grandchild", name: "GC" }],
+      label: "Child 2", // Use label instead of name
+      children: [{ id: "Grandchild", label: "GC" }], // Use label instead of name
     },
   ],
 };
@@ -33,7 +33,7 @@ const mockActiveSources = new Set([
   "Grandchild",
 ]);
 const mockFilteredCounts = { SourceA: 5, ChildSource1: 2, Grandchild: 1 }; // Counts after filtering
-const mockTotalCounts = {
+const mockTotalCounts: Record<string, number> = {
   SourceA: 10,
   ChildSource1: 3,
   ChildSource2: 4,
@@ -201,7 +201,7 @@ describe("TreeNode Component", () => {
 
   // --- Styling/Attribute Tests ---
   it("should disable checkbox if node and descendants are not relevant", () => {
-    const irrelevantNode: SourceTreeNode = { id: "Irrelevant", name: "Nope" };
+    const irrelevantNode: SourceTreeNode = { id: "Irrelevant", label: "Nope" }; // Use label instead of name
     renderTreeNode({
       node: irrelevantNode,
       allowedSources: new Set(),
