@@ -137,12 +137,32 @@
   border-right: 1px solid #444;
   flex-basis: auto;
   /* flex-grow handled dynamically via inline style */
-  flex-shrink: 0;
-  position: relative; /* Keep for list item positioning? */
-  overflow: hidden;
+  flex-shrink: 1; /* Ensure it can shrink */
+  min-height: 0; /* Required for flex scroll */
+  overflow-y: auto; /* Enable vertical scroll */
+  overflow-x: hidden; /* Disable horizontal scroll */
 }
 .log-column--list-no-details {
   border-right: none; /* Remove border if details are collapsed */
+}
+
+/* Optional: Style the scrollbar for webkit browsers */
+.log-column--list::-webkit-scrollbar {
+  width: 8px; /* Adjust width */
+}
+
+.log-column--list::-webkit-scrollbar-track {
+  background: #f1f1f1; /* Track color */
+  border-radius: 4px;
+}
+
+.log-column--list::-webkit-scrollbar-thumb {
+  background: #888; /* Handle color */
+  border-radius: 4px;
+}
+
+.log-column--list::-webkit-scrollbar-thumb:hover {
+  background: #555; /* Handle color on hover */
 }
 
 .log-column--details {
