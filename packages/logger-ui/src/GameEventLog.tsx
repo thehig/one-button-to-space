@@ -606,20 +606,8 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                   📋
                 </button>
 
-                {/* NEW Settings Button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevent drag
-                    handleSaveSettings();
-                  }}
-                  className="log-button"
-                  title="Save Current Settings to Console"
-                >
-                  ⚙️
-                </button>
-
                 {/* Locked Opacity Slider - Only show when expanded */}
-                <div className="locked-opacity-slider-container">
+                <div className="log-button locked-opacity-slider-container">
                   <label
                     htmlFor="lockedOpacitySlider"
                     className="locked-opacity-slider-label"
@@ -632,6 +620,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                   >
                     👁️ {/* Eye icon */}
                   </label>
+
                   {/* Conditionally render the slider */}
                   {isOpacitySliderVisible && (
                     <input
@@ -649,6 +638,18 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                     />
                   )}
                 </div>
+
+                {/* NEW Settings Button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent drag
+                    handleSaveSettings();
+                  }}
+                  className="log-button"
+                  title="Save Current Settings to Console"
+                >
+                  ⚙️
+                </button>
               </>
             )}
           </div>
