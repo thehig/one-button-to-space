@@ -11,16 +11,17 @@ function App() {
       <PhaserGame />
       <GameEventLog
         sourceConfigData={sourceTreeData}
-        initialX={-938}
-        initialY={-248}
-        initialWidth={2530}
+        startsLocked={true}
+        /* Above is the default settings */
+        initialX={-875}
+        initialY={-228}
+        initialWidth={787}
         initialHeight={200}
         startsOpen={true}
-        startsLocked={true}
         startTreeOpen={false}
         startDataOpen={false}
         collapsedOpacity={0.7}
-        lockedOpacity={0.75}
+        lockedOpacity={0.25}
         hijackConsoleLogs={true}
       />
     </>

@@ -352,7 +352,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
     useState<number>(lockedOpacity);
   // New state for slider visibility
   const [isOpacitySliderVisible, setIsOpacitySliderVisible] =
-    useState<boolean>(true);
+    useState<boolean>(false); // Default to hidden
 
   // --- Memoized Calculations ---
   const initializationTime = useMemo(() => {
