@@ -86,7 +86,7 @@ import { CommunicationManager } from "./CommunicationManager";
 const mockManagerInstance = CommunicationManager.getInstance();
 
 // Import the real CommunicationProvider
-import { CommunicationProvider } from "./CommunicationContext";
+import { CommunicationProvider } from "./contexts/CommunicationContext";
 
 // Helper to render with the real provider
 const renderWithProvider = (ui: React.ReactElement) => {

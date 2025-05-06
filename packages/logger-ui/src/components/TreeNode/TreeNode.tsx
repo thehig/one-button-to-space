@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { SourceTreeNode } from "./types"; // Only import the type
+import { SourceTreeNode } from "../../types"; // Only import the type
 
 // --- Helper function to get all descendant IDs (including self) ---
 const getAllDescendantIds = (node: SourceTreeNode): string[] => {

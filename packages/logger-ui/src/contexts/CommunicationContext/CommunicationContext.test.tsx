@@ -5,8 +5,8 @@ import {
   useCommunicationContext,
 } from "./CommunicationContext";
 import { vi, Mock } from "vitest";
-import { EventLogEntry } from "./types";
-import { CommunicationManager } from "./CommunicationManager"; // Import the real one for mocking path
+import { EventLogEntry } from "../../types";
+import { CommunicationManager } from "../../CommunicationManager"; // Import the real one for mocking path
 
 // Define the listener callback type at the top level
 // Use Function type to match the expected signature from spyOn errors
@@ -29,7 +29,7 @@ vi.mock("phaser", () => {
 // --- End Phaser Mock ---
 
 // --- Mock CommunicationManager ---
-vi.mock("./CommunicationManager", () => {
+vi.mock("../../CommunicationManager", () => {
   // Initialize listeners record here
   const listeners: Record<string, Array<ListenerCallback>> = {};
 

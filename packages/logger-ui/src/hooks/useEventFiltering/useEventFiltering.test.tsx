@@ -1,6 +1,6 @@
 import { renderHook, act } from "@testing-library/react";
 import { useEventFiltering } from "./useEventFiltering";
-import type { EventLogEntry, SourceTreeNode } from "../types"; // Assuming types are in ../types
+import type { EventLogEntry, SourceTreeNode } from "../../types"; // Assuming types are in ../types
 
 // Mock Data
 const mockEvents: EventLogEntry[] = [

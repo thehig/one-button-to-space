@@ -5,8 +5,8 @@ import React, {
   useEffect,
   useRef,
 } from "react";
-import { SourceTreeNode } from "../types";
-import { EventLogEntry } from "../types";
+import { SourceTreeNode } from "../../types";
+import { EventLogEntry } from "../../types";
 
 const DEBUG = false;
 

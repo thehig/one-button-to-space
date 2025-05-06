@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { GameEventLogConfig } from "./GameEventLogConfig";
-import type { SourceTreeNode } from "./types";
+import type { SourceTreeNode } from "../../types";
 
 // Constants for default node
 const UNCATEGORIZED_ID = "Uncategorized";
