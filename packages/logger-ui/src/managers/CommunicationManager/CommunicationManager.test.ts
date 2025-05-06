@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import type { EventLogEntry } from "./types"; // Assuming types.ts is in the same directory
+import type { EventLogEntry } from "../../types"; // Assuming types.ts is in the same directory
 
 // Unmock CommunicationManager for this test file to use the real implementation
 vi.unmock("./CommunicationManager");

@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { EventLogEntry } from "./types"; // Update import path
+import { EventLogEntry } from "../../types"; // Corrected path
 // Remove NetworkManager import if no longer needed for direct interaction
 // import NetworkManager from "./NetworkManager";
 

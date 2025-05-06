@@ -6,6 +6,10 @@ import { GameEventLog } from "./GameEventLog";
 import { vi } from "vitest";
 import { EventLogEntry, SourceTreeNode } from "../../types"; // Import the type and SourceTreeNode
 import { fireEvent } from "@testing-library/react";
+import {
+  mockCommunicationManagerInstance,
+  MockManagerType,
+} from "../../mocks/CommunicationManager"; // Corrected path
 
 // --- Global Mock for Phaser --- // REMOVED as it's now in setupTests.ts
 // vi.mock("phaser", () => {
@@ -90,7 +94,7 @@ const setupMockContext = (mockValues: {
 */
 
 // Get the mocked manager instance for test manipulation
-import { CommunicationManager } from "../../CommunicationManager";
+import { CommunicationManager } from "../../managers/CommunicationManager";
 const mockManagerInstance = CommunicationManager.getInstance();
 
 // Import the real CommunicationProvider
@@ -105,25 +109,51 @@ const renderWithProvider = (ui: React.ReactElement) => {
 describe.sequential("GameEventLog", () => {
   // Reset the mock manager's methods before each test
   beforeEach(() => {
-    // Reset calls and mock implementations
-    vi.clearAllMocks(); // Clears call history and resets implementations for *all* mocks
-    // Set default return value for getEventLog using spyOn
-    vi.spyOn(mockManagerInstance, "getEventLog").mockReturnValue([]);
-    // Ensure clearLog and logEvent are also mocked if needed globally
-    // If their default behavior is no-op, spying might be enough,
-    // but explicit mocks are safer if tests rely on them being functions.
-    vi.spyOn(mockManagerInstance, "clearLog").mockImplementation(() => {});
-    vi.spyOn(mockManagerInstance, "logEvent").mockImplementation(() => {});
+    // Clear call history and reset any specific mock implementations (like returnValues)
+    vi.clearAllMocks();
+
+    // Reset internal state of the mock instance if needed for a clean slate,
+    // although clearAllMocks might reset internal vi.fn() state implicitly.
+    // For safety, we can reset the log array.
+    mockCommunicationManagerInstance.eventLog = [];
+    // Ensure getEventLog uses the potentially reset internal log
+    vi.spyOn(
+      mockCommunicationManagerInstance,
+      "getEventLog"
+    ).mockImplementation(function (this: MockManagerType) {
+      return [...this.eventLog];
+    });
+
+    // No need to re-spy on logEvent, setMaxLogSize etc. unless a specific test
+    // needs to override their behavior or provide a specific implementation.
+    // They are already vi.fn() from the setup.
   });
 
-  it("should render without crashing", () => {
-    // Setup default manager return values (done in beforeEach)
-    // Render GameEventLog with the real provider
+  it("should render without crashing and log initial setup events", () => {
     renderWithProvider(<GameEventLog />);
-
-    // Check for a key element to confirm rendering
     expect(screen.getByText("Game Event Log")).toBeInTheDocument();
-    expect(mockManagerInstance.logEvent).not.toHaveBeenCalled();
+
+    // Check that the methods that *cause* logs were called
+    expect(mockCommunicationManagerInstance.setMaxLogSize).toHaveBeenCalledWith(
+      100
+    );
+    expect(
+      mockCommunicationManagerInstance.setRedirectEventsToConsole
+    ).toHaveBeenCalledWith(false);
+
+    // Now check that logEvent was called AS A RESULT - ONLY ONCE for setMaxLogSize
+    expect(mockCommunicationManagerInstance.logEvent).toHaveBeenCalledTimes(1);
+    expect(mockCommunicationManagerInstance.logEvent).toHaveBeenCalledWith(
+      "CommunicationManager",
+      "maxLogSizeSet",
+      expect.objectContaining({ newSize: 100 })
+    );
+    // DO NOT expect setRedirectEventsToConsole to log, as the value doesn't change initially
+    // expect(mockCommunicationManagerInstance.logEvent).toHaveBeenCalledWith(
+    //   "CommunicationManager",
+    //   "setRedirectEventsToConsole",
+    //   { enabled: false }
+    // );
   });
 
   // --- Test Event Display ---
@@ -571,84 +601,58 @@ describe.sequential("GameEventLog", () => {
 
   // --- New Test ---
   it("should hijack console.log and call logEvent when hijackConsoleLogs is true", () => {
-    // 1. Arrange: Setup mock manager with a spy for logEvent
-    const mockLogEvent = vi.fn();
-    // Spy on the method and provide the mock implementation
-    vi.spyOn(mockManagerInstance, "logEvent").mockImplementation(mockLogEvent);
+    const { unmount } = renderWithProvider(<GameEventLog startsOpen={true} />); // hijackConsoleLogs is true by default
 
-    // Render with default hijackConsoleLogs=true using provider
-    // Use unmount to test cleanup
-    const { unmount } = renderWithProvider(<GameEventLog startsOpen={true} />);
+    // Get the logEvent spy directly from the imported mock instance
+    const logEventSpy = mockCommunicationManagerInstance.logEvent;
+    logEventSpy.mockClear(); // Clear calls from initial render (setMaxLogSize, setRedirect)
 
-    // Store original console.log to restore it later (belt and suspenders)
-    const originalConsoleLog = window.console.log;
-
-    // 2. Act: Call console.log
     const testMessage = "This is a console test message";
     console.log(testMessage, { moreData: true });
 
-    // 3. Assert: Check if mock logEvent was called with expected structure
-    expect(mockLogEvent).toHaveBeenCalledTimes(1);
-    // Check the arguments. source should be 'log'. eventName is tricky, check data.
-    expect(mockLogEvent).toHaveBeenCalledWith(
-      "log", // Source for hijacked console.log
-      expect.stringContaining("GameEventLog.test.tsx"), // eventName should contain the filename
-      { messages: [testMessage, { moreData: true }] } // data payload
+    // Expect ONLY the hijacked call now
+    expect(logEventSpy).toHaveBeenCalledTimes(1);
+    expect(logEventSpy).toHaveBeenCalledWith(
+      "log",
+      expect.stringContaining("GameEventLog.test.tsx"),
+      { messages: [testMessage, { moreData: true }] }
     );
 
-    // --- Test Cleanup ---
-    // Ensure the original console.log is restored on unmount
     unmount();
-
-    // Check if console.log is the original (or if window prop is gone)
-    // This check might be flaky depending on test runner environment
-    try {
-      expect(
-        window.console.log === originalConsoleLog ||
-          !window.__console_log_original
-      ).toBe(true);
-    } catch (e) {
-      console.warn(
-        "Test runner environment might not fully support console restoration check.",
-        e
-      );
-    }
-
-    // Restore console fully just in case unmount didn't catch it or property exists
-    if (window.__console_log_original) {
-      window.console.log = window.__console_log_original;
-    }
-
-    // Call console.log again - logEvent should NOT be called this time
-    mockLogEvent.mockClear(); // Clear previous calls
+    logEventSpy.mockClear(); // Clear for the final check
     console.log("This should NOT be hijacked");
-    expect(mockLogEvent).not.toHaveBeenCalled();
+    expect(logEventSpy).not.toHaveBeenCalled();
   });
 
-  // --- New Test ---
-  it("should NOT hijack console.log when hijackConsoleLogs is false", () => {
-    // 1. Arrange: Setup mock manager with a spy for logEvent
-    const mockLogEvent = vi.fn();
-    // Spy on the method and provide the mock implementation
-    vi.spyOn(mockManagerInstance, "logEvent").mockImplementation(mockLogEvent);
-
-    // No need to store originalConsoleLog here
-
-    // Render with hijackConsoleLogs explicitly set to false using provider
+  it("should NOT hijack console.log when hijackConsoleLogs is false, but still log setup events", () => {
     const { unmount } = renderWithProvider(
       <GameEventLog hijackConsoleLogs={false} />
     );
+    const logEventSpy = mockCommunicationManagerInstance.logEvent;
 
-    // 2. Act: Call console.log
+    // Initial render calls logEvent ONLY for setMaxLogSize
+    expect(logEventSpy).toHaveBeenCalledTimes(1);
+    expect(logEventSpy).toHaveBeenCalledWith(
+      "CommunicationManager",
+      "maxLogSizeSet",
+      expect.objectContaining({ newSize: 100 })
+    );
+    // DO NOT expect setRedirectEventsToConsole to log initially
+    //  expect(logEventSpy).toHaveBeenCalledWith(
+    //   "CommunicationManager",
+    //   "setRedirectEventsToConsole",
+    //   { enabled: false }
+    // );
+
+    logEventSpy.mockClear(); // Clear initial calls before the console.log test
+
     const testMessage = "This should go to the real console";
     console.log(testMessage);
 
-    // 3. Assert: Check that mock logEvent was NOT called
-    expect(mockLogEvent).not.toHaveBeenCalled();
+    // logEvent should NOT be called by the console.log
+    expect(logEventSpy).not.toHaveBeenCalled();
 
-    // Cleanup
     unmount();
-    // No manual restoration check needed here, unmount should handle it.
   });
 
   // --- Test startsOpen Prop ---

@@ -6,11 +6,14 @@ import {
 } from "./CommunicationContext";
 import { vi } from "vitest";
 import { EventLogEntry } from "../../types";
-import { CommunicationManager } from "../../CommunicationManager"; // Import the real one for mocking path
+// import { CommunicationManager } from "../../managers/CommunicationManager"; // No longer needed
+import {
+  mockCommunicationManagerInstance,
+  MockManagerType,
+} from "../../mocks/CommunicationManager"; // Corrected path
 
 // Define the listener callback type at the top level
-// Use Function type to match the expected signature from spyOn errors
-type ListenerCallback = (...args: unknown[]) => void; // More specific type
+// type ListenerCallback = (...args: unknown[]) => void; // No longer needed here
 
 // --- Global Mock for Phaser --- // REMOVED as it's now in setupTests.ts
 // vi.mock("phaser", () => {
@@ -107,12 +110,15 @@ type ListenerCallback = (...args: unknown[]) => void; // More specific type
 
 // Get the mocked manager instance for test manipulation
 // Cast to the internal type to access _listeners and _trigger safely
-const mockManagerInstance = CommunicationManager.getInstance() as ReturnType<
-  (typeof CommunicationManager)["getInstance"]
-> & {
-  _trigger: (event: string, ...args: unknown[]) => void;
-  _listeners: Record<string, Array<ListenerCallback>>;
-};
+// const mockManagerInstance = CommunicationManager.getInstance() as ReturnType< // OLD WAY
+//   (typeof CommunicationManager)["getInstance"]
+// > & {
+//   _trigger: (event: string, ...args: unknown[]) => void;
+//   _listeners: Record<string, Array<ListenerCallback>>;
+// };
+
+// Use the directly imported mock instance from setupTests.ts
+const mockInstance: MockManagerType = mockCommunicationManagerInstance; // Explicitly type it
 
 // Helper to render with the real provider
 const renderWithProvider = (
@@ -158,17 +164,18 @@ describe.sequential("CommunicationContext", () => {
   beforeEach(() => {
     vi.clearAllMocks(); // Clears call history and resets implementations
     // Reset internal listener store for the mock directly
-    for (const key in mockManagerInstance._listeners) {
-      delete mockManagerInstance._listeners[key];
+    for (const key in mockInstance._listeners) {
+      // Use mockInstance
+      delete mockInstance._listeners[key]; // Use mockInstance
     }
 
     // Set default return value for getEventLog
-    vi.spyOn(mockManagerInstance, "getEventLog").mockReturnValue([]);
+    vi.spyOn(mockInstance, "getEventLog").mockReturnValue([]); // Use mockInstance
     // Ensure other methods are spies if needed (clearAllMocks resets implementations)
-    vi.spyOn(mockManagerInstance, "clearLog"); // Just spy to track calls
-    vi.spyOn(mockManagerInstance, "logEvent"); // Just spy to track calls
-    vi.spyOn(mockManagerInstance, "setMaxLogSize"); // Just spy to track calls
-    vi.spyOn(mockManagerInstance, "setRedirectEventsToConsole"); // Just spy to track calls
+    vi.spyOn(mockInstance, "clearLog"); // Use mockInstance
+    vi.spyOn(mockInstance, "logEvent"); // Use mockInstance
+    vi.spyOn(mockInstance, "setMaxLogSize"); // Use mockInstance
+    vi.spyOn(mockInstance, "setRedirectEventsToConsole"); // Use mockInstance
 
     // REMOVED spyOn for on/off with mockImplementation
     /*
@@ -211,19 +218,17 @@ describe.sequential("CommunicationContext", () => {
     // We can also check if the manager's methods were called *initially* if expected
     // Based on CommunicationContext, getEventLog IS called initially in useEffect
     // It's called twice: once for maxLogSize effect, once for main event effect
-    expect(mockManagerInstance.getEventLog).toHaveBeenCalledTimes(2);
+    expect(mockInstance.getEventLog).toHaveBeenCalledTimes(2);
     // setMaxLogSize and setRedirectEventsToConsole are also called with defaults
-    expect(mockManagerInstance.setMaxLogSize).toHaveBeenCalledWith(100); // Default value
-    expect(mockManagerInstance.setRedirectEventsToConsole).toHaveBeenCalledWith(
-      false
-    ); // Default value
+    expect(mockInstance.setMaxLogSize).toHaveBeenCalledWith(100); // Default value
+    expect(mockInstance.setRedirectEventsToConsole).toHaveBeenCalledWith(false); // Default value
 
     // Check that 'on' was called to subscribe to events
-    expect(mockManagerInstance.on).toHaveBeenCalledWith(
+    expect(mockInstance.on).toHaveBeenCalledWith(
       "new-event",
       expect.any(Function)
     );
-    expect(mockManagerInstance.on).toHaveBeenCalledWith(
+    expect(mockInstance.on).toHaveBeenCalledWith(
       "log-cleared",
       expect.any(Function)
     );
@@ -248,9 +253,7 @@ describe.sequential("CommunicationContext", () => {
     });
 
     // Check initial call during mount effect
-    expect(mockManagerInstance.setMaxLogSize).toHaveBeenCalledWith(
-      testMaxLogSize
-    );
+    expect(mockInstance.setMaxLogSize).toHaveBeenCalledWith(testMaxLogSize);
   });
 
   it("should call setMaxLogSize again when maxLogSize prop changes", () => {
@@ -258,8 +261,8 @@ describe.sequential("CommunicationContext", () => {
     const { rerender } = renderWithProvider(<TestConsumerComponent />, {
       maxLogSize: initialSize,
     });
-    expect(mockManagerInstance.setMaxLogSize).toHaveBeenCalledTimes(1); // Initial call
-    expect(mockManagerInstance.setMaxLogSize).toHaveBeenCalledWith(initialSize);
+    expect(mockInstance.setMaxLogSize).toHaveBeenCalledTimes(1); // Initial call
+    expect(mockInstance.setMaxLogSize).toHaveBeenCalledWith(initialSize);
 
     const newSize = 25;
     act(() => {
@@ -271,8 +274,8 @@ describe.sequential("CommunicationContext", () => {
     });
 
     // Check call after rerender with new prop
-    expect(mockManagerInstance.setMaxLogSize).toHaveBeenCalledTimes(2); // Called again
-    expect(mockManagerInstance.setMaxLogSize).toHaveBeenCalledWith(newSize);
+    expect(mockInstance.setMaxLogSize).toHaveBeenCalledTimes(2); // Called again
+    expect(mockInstance.setMaxLogSize).toHaveBeenCalledWith(newSize);
   });
 
   it("should call setRedirectEventsToConsole on the manager when redirectEventsToConsole prop is provided", () => {
@@ -280,32 +283,23 @@ describe.sequential("CommunicationContext", () => {
       redirectEventsToConsole: true,
     });
     // Check initial call during mount effect
-    expect(mockManagerInstance.setRedirectEventsToConsole).toHaveBeenCalledWith(
-      true
-    );
+    expect(mockInstance.setRedirectEventsToConsole).toHaveBeenCalledWith(true);
 
     // Check default case (implicitly tested in default context value test, but good to be explicit)
     vi.clearAllMocks(); // Clear mocks before rendering again
-    vi.spyOn(
-      mockManagerInstance,
-      "setRedirectEventsToConsole"
-    ).mockImplementation(() => {}); // Re-spy after clear
+    vi.spyOn(mockInstance, "setRedirectEventsToConsole").mockImplementation(
+      () => {}
+    ); // Re-spy after clear
     renderWithProvider(<TestConsumerComponent />);
-    expect(mockManagerInstance.setRedirectEventsToConsole).toHaveBeenCalledWith(
-      false
-    ); // Default
+    expect(mockInstance.setRedirectEventsToConsole).toHaveBeenCalledWith(false); // Default
   });
 
   it("should call setRedirectEventsToConsole again when redirectEventsToConsole prop changes", () => {
     const { rerender } = renderWithProvider(<TestConsumerComponent />, {
       redirectEventsToConsole: true,
     });
-    expect(
-      mockManagerInstance.setRedirectEventsToConsole
-    ).toHaveBeenCalledTimes(1);
-    expect(mockManagerInstance.setRedirectEventsToConsole).toHaveBeenCalledWith(
-      true
-    );
+    expect(mockInstance.setRedirectEventsToConsole).toHaveBeenCalledTimes(1);
+    expect(mockInstance.setRedirectEventsToConsole).toHaveBeenCalledWith(true);
 
     act(() => {
       rerender(
@@ -315,12 +309,8 @@ describe.sequential("CommunicationContext", () => {
       );
     });
 
-    expect(
-      mockManagerInstance.setRedirectEventsToConsole
-    ).toHaveBeenCalledTimes(2);
-    expect(mockManagerInstance.setRedirectEventsToConsole).toHaveBeenCalledWith(
-      false
-    );
+    expect(mockInstance.setRedirectEventsToConsole).toHaveBeenCalledTimes(2);
+    expect(mockInstance.setRedirectEventsToConsole).toHaveBeenCalledWith(false);
   });
 
   // --- Test Event Handling ---
@@ -342,19 +332,19 @@ describe.sequential("CommunicationContext", () => {
 
     // Reset the spy and set up the specific mock sequence for this test
     // AFTER the initial render calls have happened.
-    vi.spyOn(mockManagerInstance, "getEventLog")
+    vi.spyOn(mockInstance, "getEventLog")
       .mockClear() // Clear any calls from initial render
       .mockReturnValueOnce([newEvent]); // Expect one call from the handler
 
     // Simulate the manager emitting the event
     act(() => {
       // Access _trigger directly now
-      mockManagerInstance._trigger("new-event", newEvent);
+      mockInstance._trigger("new-event", newEvent);
     });
 
     // Check that getEventLog was called again by the handler
     // We cleared calls from render, so expect only 1 call here
-    expect(mockManagerInstance.getEventLog).toHaveBeenCalledTimes(1);
+    expect(mockInstance.getEventLog).toHaveBeenCalledTimes(1);
 
     // Check that the state updated in the consumer
     expect(screen.getByTestId("event-count")).toHaveTextContent("1");
@@ -370,7 +360,7 @@ describe.sequential("CommunicationContext", () => {
       fireEvent.click(clearButton);
     });
 
-    expect(mockManagerInstance.clearLog).toHaveBeenCalledTimes(1);
+    expect(mockInstance.clearLog).toHaveBeenCalledTimes(1);
   });
 
   it("should clear context events when the manager emits 'log-cleared'", () => {
@@ -380,9 +370,7 @@ describe.sequential("CommunicationContext", () => {
       source: "S1",
       eventName: "E1",
     };
-    vi.spyOn(mockManagerInstance, "getEventLog").mockReturnValue([
-      initialEvent,
-    ]);
+    vi.spyOn(mockInstance, "getEventLog").mockReturnValue([initialEvent]);
 
     renderWithProvider(<TestConsumerComponent />);
     expect(screen.getByTestId("event-count")).toHaveTextContent("1"); // Starts with 1 event
@@ -390,7 +378,7 @@ describe.sequential("CommunicationContext", () => {
     // Simulate the manager emitting log-cleared
     act(() => {
       // Access _trigger directly now
-      mockManagerInstance._trigger("log-cleared");
+      mockInstance._trigger("log-cleared");
     });
 
     // Check that the state updated in the consumer
@@ -402,31 +390,28 @@ describe.sequential("CommunicationContext", () => {
     const { unmount } = renderWithProvider(<TestConsumerComponent />);
 
     // Check that 'on' was called initially
-    expect(mockManagerInstance.on).toHaveBeenCalledWith(
+    expect(mockInstance.on).toHaveBeenCalledWith(
       "new-event",
       expect.any(Function)
     );
-    expect(mockManagerInstance.on).toHaveBeenCalledWith(
+    expect(mockInstance.on).toHaveBeenCalledWith(
       "log-cleared",
       expect.any(Function)
     );
 
     // Store the listeners that were registered
-    const listeners = mockManagerInstance._listeners;
+    const listeners = mockInstance._listeners;
     const newEventListener = listeners["new-event"][0];
     const clearListener = listeners["log-cleared"][0];
 
     unmount();
 
     // Check that 'off' was called with the correct listeners
-    expect(mockManagerInstance.off).toHaveBeenCalledWith(
+    expect(mockInstance.off).toHaveBeenCalledWith(
       "new-event",
       newEventListener
     );
-    expect(mockManagerInstance.off).toHaveBeenCalledWith(
-      "log-cleared",
-      clearListener
-    );
+    expect(mockInstance.off).toHaveBeenCalledWith("log-cleared", clearListener);
   });
 
   // Add more tests here...

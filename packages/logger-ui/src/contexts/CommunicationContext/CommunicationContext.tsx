@@ -5,7 +5,7 @@ import React, {
   useEffect,
   PropsWithChildren,
 } from "react";
-import { CommunicationManager } from "../../CommunicationManager";
+import { CommunicationManager } from "../../managers/CommunicationManager";
 import { EventLogEntry } from "../../types";
 
 // Define props interface
