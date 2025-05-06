@@ -4,7 +4,7 @@ import { GameEventLog } from "./GameEventLog";
 // Remove CommunicationProvider import, we won't use the real one
 // import { CommunicationProvider } from "./CommunicationContext";
 import { vi } from "vitest";
-import { EventLogEntry, SourceTreeNode } from "./types"; // Import the type and SourceTreeNode
+import { EventLogEntry, SourceTreeNode } from "../../types"; // Import the type and SourceTreeNode
 import { fireEvent } from "@testing-library/react";
 
 // --- Global Mock for Phaser ---
@@ -30,7 +30,7 @@ vi.mock("phaser", () => {
 
 // --- Mock CommunicationManager ---
 // Explicitly mock this to prevent its side effects, even though we mock the context hook
-vi.mock("./CommunicationManager", () => {
+vi.mock("../../CommunicationManager", () => {
   const mockInstance = {
     logEvent: vi.fn(),
     clearLog: vi.fn(),
@@ -82,11 +82,11 @@ const setupMockContext = (mockValues: {
 */
 
 // Get the mocked manager instance for test manipulation
-import { CommunicationManager } from "./CommunicationManager";
+import { CommunicationManager } from "../../CommunicationManager";
 const mockManagerInstance = CommunicationManager.getInstance();
 
 // Import the real CommunicationProvider
-import { CommunicationProvider } from "./contexts/CommunicationContext";
+import { CommunicationProvider } from "../../contexts/CommunicationContext";
 
 // Helper to render with the real provider
 const renderWithProvider = (ui: React.ReactElement) => {

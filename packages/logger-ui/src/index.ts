@@ -4,5 +4,5 @@ export {
   CommunicationProvider,
   useCommunicationContext,
 } from "./contexts/CommunicationContext";
-export { GameEventLog } from "./GameEventLog";
+export { GameEventLog } from "./components/GameEventLog";
 export type { EventLogEntry } from "./types"; // Assuming EventLogEntry is in types.ts

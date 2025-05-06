@@ -4,22 +4,22 @@ import { Rnd } from "react-rnd";
 // Import types from the main module
 // Removed direct RndDragCallback, RndResizeCallback imports as hook handles callbacks
 // Restore context import
-import { useCommunicationContext } from "./contexts/CommunicationContext";
+import { useCommunicationContext } from "../../contexts/CommunicationContext";
 // Import the JSON viewer component
 import ReactJson from "react-json-view";
 // Import the CSS file
 import "./GameEventLog.css";
 // Import configuration CLASS and TYPE
-import { GameEventLogConfig } from "./components/GameEventLogConfig"; // Adjust path if needed
-import { SourceTreeNode } from "./types"; // Keep type for prop
+import { GameEventLogConfig } from "../GameEventLogConfig"; // Adjust path if needed
+import { SourceTreeNode } from "../../types"; // Keep type for prop
 // Import the TreeNode component
-import { TreeNode } from "./components/TreeNode";
+import { TreeNode } from "../TreeNode";
 // Import helper functions
-import { formatTimeDifference } from "./utils";
+import { formatTimeDifference } from "../../utils";
 // Import the custom hooks
-import { useEventFiltering } from "./hooks/useEventFiltering";
-import { useComponentLayout } from "./hooks/useComponentLayout";
-import { EventLogEntry } from "./types"; // Assuming types are defined here or adjust path
+import { useEventFiltering } from "../../hooks/useEventFiltering";
+import { useComponentLayout } from "../../hooks/useComponentLayout";
+import { EventLogEntry } from "../../types"; // Assuming types are defined here or adjust path
 
 // --- Constants ---
 const CONSOLE_SOURCE_ID = "Console"; // Default Source ID for hijacked logs
