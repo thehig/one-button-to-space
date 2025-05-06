@@ -5,8 +5,8 @@ import {
   useCommunicationContext,
 } from "./CommunicationContext";
 import { vi, Mock } from "vitest";
-import { EventLogEntry } from "./types";
-import { CommunicationManager } from "./CommunicationManager"; // Import the real one for mocking path
+import { EventLogEntry } from "../../types";
+import { CommunicationManager } from "../../managers/CommunicationManager/CommunicationManager"; // Import the real one for mocking path
 
 // Define the listener callback type at the top level
 // Use Function type to match the expected signature from spyOn errors

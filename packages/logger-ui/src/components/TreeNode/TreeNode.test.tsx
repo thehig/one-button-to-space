@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { vi } from "vitest"; // Import Vitest's mocking utility
 import { TreeNode } from "./TreeNode";
 import type { TreeNodeProps } from "./TreeNode";
-import type { SourceTreeNode } from "./types";
+import type { SourceTreeNode } from "../../types";
 
 // --- Mock Data ---
 const simpleNode: SourceTreeNode = {

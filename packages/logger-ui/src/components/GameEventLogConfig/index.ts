@@ -1,1 +1,1 @@
- 
+export * from "./GameEventLogConfig";

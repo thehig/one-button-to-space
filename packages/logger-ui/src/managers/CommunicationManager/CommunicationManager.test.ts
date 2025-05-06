@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import type { EventLogEntry } from "./types"; // Assuming types.ts is in the same directory
+import type { EventLogEntry } from "../../types"; // Assuming types.ts is in the same directory
 
 // Mock Phaser's EventEmitter using a mock class with basic implementation
 class MockPhaserEventEmitter {

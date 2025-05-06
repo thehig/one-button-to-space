@@ -1,4 +1,4 @@
-import { SourceTreeNode } from "./types";
+import { SourceTreeNode } from "../../types";
 
 // Define constants for the default parent node
 const UNCATEGORIZED_ID = "Uncategorized";

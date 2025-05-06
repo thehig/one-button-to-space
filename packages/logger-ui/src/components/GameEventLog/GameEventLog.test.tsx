@@ -4,7 +4,7 @@ import { GameEventLog } from "./GameEventLog";
 // Remove CommunicationProvider import, we won't use the real one
 // import { CommunicationProvider } from "./CommunicationContext";
 import { vi } from "vitest";
-import { EventLogEntry, SourceTreeNode } from "./types"; // Import the type and SourceTreeNode
+import { EventLogEntry, SourceTreeNode } from "../../types"; // Import the type and SourceTreeNode
 import { fireEvent } from "@testing-library/react";
 
 // --- Global Mock for Phaser ---
@@ -82,11 +82,11 @@ const setupMockContext = (mockValues: {
 */
 
 // Get the mocked manager instance for test manipulation
-import { CommunicationManager } from "./CommunicationManager";
+import { CommunicationManager } from "../../managers/CommunicationManager/CommunicationManager";
 const mockManagerInstance = CommunicationManager.getInstance();
 
 // Import the real CommunicationProvider
-import { CommunicationProvider } from "./CommunicationContext";
+import { CommunicationProvider } from "../../contexts/CommunicationContext/CommunicationContext";
 
 // Helper to render with the real provider
 const renderWithProvider = (ui: React.ReactElement) => {
