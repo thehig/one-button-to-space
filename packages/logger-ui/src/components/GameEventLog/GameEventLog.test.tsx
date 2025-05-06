@@ -7,25 +7,34 @@ import { vi } from "vitest";
 import { EventLogEntry, SourceTreeNode } from "../../types"; // Import the type and SourceTreeNode
 import { fireEvent } from "@testing-library/react";
 
-// --- Global Mock for Phaser ---
-vi.mock("phaser", () => {
-  // Use plain objects and functions instead of a class definition inside the factory
-  const mockEventEmitterInstance = {
-    on: vi.fn(),
-    off: vi.fn(),
-    emit: vi.fn(),
-  };
+// --- Global Mock for Phaser --- // REMOVED as it's now in setupTests.ts
+// vi.mock("phaser", () => {
+//   // Simplified mock for Phaser.Scene - adjust if specific Scene methods are needed
+//   const mockScene = {
+//     sys: {
+//       events: {
+//         once: vi.fn(),
+//       },
+//     },
+//     // Add other scene properties/methods if needed by the code under test
+//   };
 
-  return {
-    default: {}, // Keep default based on previous error
-    Events: {
-      // Mock EventEmitter as a function that returns the instance mock
-      // This mimics calling `new Phaser.Events.EventEmitter()`
-      EventEmitter: vi.fn(() => mockEventEmitterInstance),
-    },
-    // Add other Phaser exports if needed by dependencies
-  };
-});
+//   const mockEventEmitterInstance = {
+//     on: vi.fn(),
+//     off: vi.fn(),
+//     emit: vi.fn(),
+//   };
+
+//   return {
+//     default: {
+//       // Add any default exports if needed
+//     },
+//     Scene: vi.fn(() => mockScene),
+//     Events: {
+//       EventEmitter: vi.fn(() => mockEventEmitterInstance),
+//     },
+//   };
+// });
 // --- End Phaser Mock ---
 
 // --- Mock CommunicationManager ---

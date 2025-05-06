@@ -12,20 +12,20 @@ import { CommunicationManager } from "../../CommunicationManager"; // Import the
 // Use Function type to match the expected signature from spyOn errors
 type ListenerCallback = (...args: unknown[]) => void; // More specific type
 
-// --- Global Mock for Phaser ---
-vi.mock("phaser", () => {
-  const mockEventEmitterInstance = {
-    on: vi.fn(),
-    off: vi.fn(),
-    emit: vi.fn(),
-  };
-  return {
-    default: {},
-    Events: {
-      EventEmitter: vi.fn(() => mockEventEmitterInstance),
-    },
-  };
-});
+// --- Global Mock for Phaser --- // REMOVED as it's now in setupTests.ts
+// vi.mock("phaser", () => {
+//   const mockEventEmitterInstance = {
+//     on: vi.fn(),
+//     off: vi.fn(),
+//     emit: vi.fn(),
+//   };
+//   return {
+//     default: {},
+//     Events: {
+//       EventEmitter: vi.fn(() => mockEventEmitterInstance),
+//     },
+//   };
+// });
 // --- End Phaser Mock ---
 
 // --- Mock CommunicationManager ---
