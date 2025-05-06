@@ -257,18 +257,27 @@ describe("CommunicationManager", () => {
     });
 
     it("should handle logEvent call when redirect is enabled but original console is missing", () => {
+      // Locally spy on console.warn for THIS TEST ONLY to suppress the expected warning
+      const localConsoleWarnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => {});
+
       delete (global.window as MockWindow).__console_log_original;
-      managerInstance.setRedirectEventsToConsole(true);
-      mockConsoleLog.mockClear(); // Clear constructor log
+      managerInstance.setRedirectEventsToConsole(true); // This will attempt to log & warn
+      mockConsoleLog.mockClear(); // Clear the main console.log spy if needed
 
       expect(() => {
-        managerInstance.logEvent("MissingConsoleTest", "noError");
+        managerInstance.logEvent("MissingConsoleTest", "noError"); // This will also attempt to log & warn
       }).not.toThrow();
 
       const log = managerInstance.getEventLog();
       // Expect 3 logs: init, setRedirect, noError
+      // The setRedirectEventsToConsole and logEvent calls will add to eventLog despite the console warning.
       expect(log).toHaveLength(3);
-      expect(log[2].eventName).toBe("noError"); // Check the third entry
+      expect(log[2].eventName).toBe("noError");
+
+      // Restore the original console.warn (or the global spy if it was in effect)
+      localConsoleWarnSpy.mockRestore();
     });
   });
 
