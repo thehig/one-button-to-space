@@ -37,25 +37,24 @@ import { fireEvent } from "@testing-library/react";
 // });
 // --- End Phaser Mock ---
 
-// --- Mock CommunicationManager ---
-// Explicitly mock this to prevent its side effects, even though we mock the context hook
-vi.mock("../../CommunicationManager", () => {
-  const mockInstance = {
-    logEvent: vi.fn(),
-    clearLog: vi.fn(),
-    getEventLog: vi.fn(() => []),
-    on: vi.fn(),
-    off: vi.fn(),
-    setMaxLogSize: vi.fn(),
-    setRedirectEventsToConsole: vi.fn(),
-    // Add other methods if needed
-  };
-  return {
-    CommunicationManager: {
-      getInstance: vi.fn(() => mockInstance),
-    },
-  };
-});
+// --- Global Mock for CommunicationManager --- // REMOVED as it's now in setupTests.ts
+// vi.mock("../../CommunicationManager", () => {
+//   const mockInstance = {
+//     logEvent: vi.fn(),
+//     clearLog: vi.fn(),
+//     getEventLog: vi.fn(() => []),
+//     on: vi.fn(),
+//     off: vi.fn(),
+//     setMaxLogSize: vi.fn(),
+//     setRedirectEventsToConsole: vi.fn(),
+//     // Add other methods if needed
+//   };
+//   return {
+//     CommunicationManager: {
+//       getInstance: vi.fn(() => mockInstance),
+//     },
+//   };
+// });
 // --- End CommunicationManager Mock ---
 
 /* // Remove this - we will mock the manager instance instead
