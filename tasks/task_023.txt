@@ -96,7 +96,7 @@ Testing approach:
 - Ensure package can be imported in a test environment
 - Validate directory structure and configuration files
 
-## 2. Implement Core Physics Worker with Matter.js and Command Pattern [in-progress]
+## 2. Implement Core Physics Worker with Matter.js and Command Pattern [done]
 ### Dependencies: 23.1
 ### Description: Develop the main physics worker file using Matter.js with a Command design pattern for message passing protocol and core calculation functionality.
 ### Details:
@@ -201,6 +201,86 @@ Performance considerations:
 - Implement spatial partitioning for collision detection optimization
 - Add throttling mechanisms for high-frequency updates
 </info added on 2025-05-07T20:04:20.324Z>
+
+<info added on 2025-05-07T22:16:00.075Z>
+Here's additional information about implementing the physics worker with Matter.js:
+
+```javascript
+// Efficient body serialization for worker communication
+function serializeBody(body) {
+  // Only transfer necessary properties to minimize message size
+  return {
+    id: body.id,
+    position: { x: body.position.x, y: body.position.y },
+    angle: body.angle,
+    velocity: { x: body.velocity.x, y: body.velocity.y },
+    angularVelocity: body.angularVelocity,
+    // Include only what's needed for rendering
+  };
+}
+
+// Optimized batch processing for multiple bodies
+class UpdateBodiesCommand extends PhysicsCommand {
+  constructor(bodies) {
+    super('UPDATE_BODIES', { bodies });
+  }
+  
+  execute(engine) {
+    const updates = [];
+    for (const bodyData of this.payload.bodies) {
+      const body = Matter.Composite.get(engine.world, bodyData.id, 'body');
+      if (body) {
+        Matter.Body.setPosition(body, bodyData.position);
+        Matter.Body.setVelocity(body, bodyData.velocity);
+        Matter.Body.setAngle(body, bodyData.angle);
+        updates.push({ id: body.id, success: true });
+      } else {
+        updates.push({ id: bodyData.id, success: false, error: 'Body not found' });
+      }
+    }
+    return { updates };
+  }
+}
+
+// Collision detection and event handling
+function setupCollisionHandling(engine) {
+  Matter.Events.on(engine, 'collisionStart', (event) => {
+    const collisions = event.pairs.map(pair => ({
+      bodyA: pair.bodyA.id,
+      bodyB: pair.bodyB.id,
+      point: pair.collision.supports[0] // Contact point
+    }));
+    
+    self.postMessage(PhysicsCommand.serialize({
+      type: 'COLLISION_EVENT',
+      payload: { collisions }
+    }));
+  });
+}
+
+// Memory management techniques
+function cleanupInactiveObjects(engine, inactivityThreshold = 5000) {
+  const currentTime = Date.now();
+  const bodies = Matter.Composite.allBodies(engine.world);
+  
+  bodies.forEach(body => {
+    if (body.metadata && body.metadata.lastActive && 
+        (currentTime - body.metadata.lastActive > inactivityThreshold)) {
+      Matter.Composite.remove(engine.world, body);
+    }
+  });
+}
+```
+
+Implementation tips for debugging and optimization:
+
+1. Create a debug visualization mode that can be toggled to render physics bodies directly in a canvas within the worker for troubleshooting
+2. Implement timestep interpolation to smooth rendering when physics and rendering frequencies differ
+3. Add support for compound bodies and constraints with proper serialization
+4. Create a body pooling system to reduce garbage collection overhead
+5. Implement spatial hashing for broad-phase collision detection to improve performance with many objects
+6. Add support for different collision categories and masks for selective collision detection
+</info added on 2025-05-07T22:16:00.075Z>
 
 ## 3. Create Test Harnesses and Unit Tests [pending]
 ### Dependencies: 23.2
