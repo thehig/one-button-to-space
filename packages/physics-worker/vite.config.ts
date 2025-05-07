@@ -23,4 +23,22 @@ export default defineConfig({
   // worker: {
   //   format: 'es',
   // },
+  test: {
+    globals: true,
+    environment: "jsdom",
+    setupFiles: ["./tests/setupTests.ts"], // Path to your setup file
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      exclude: [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/demos/**",
+        "**/*.config.js",
+        "**/*.config.ts",
+        "**/tests/setupTests.ts", // Exclude the setup file itself
+        "**/src/main.ts", // Assuming main.ts is an entry point not needing coverage
+      ],
+    },
+  },
 });

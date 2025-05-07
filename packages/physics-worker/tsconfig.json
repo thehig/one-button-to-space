@@ -6,6 +6,7 @@
     "lib": ["ES2020", "WebWorker", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
+    "types": ["vitest/globals", "@testing-library/jest-dom"],
 
     /* Bundler mode - adjusted for library output */
     "moduleResolution": "node",
@@ -20,6 +21,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist", "tests", "demos"]
+  "include": ["src", "tests"],
+  "exclude": ["node_modules", "dist", "demos"]
 }

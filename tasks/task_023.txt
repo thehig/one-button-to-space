@@ -282,7 +282,7 @@ Implementation tips for debugging and optimization:
 6. Add support for different collision categories and masks for selective collision detection
 </info added on 2025-05-07T22:16:00.075Z>
 
-## 3. Create Test Harnesses and Unit Tests [pending]
+## 3. Create Test Harnesses and Unit Tests [in-progress]
 ### Dependencies: 23.2
 ### Description: Develop comprehensive test harnesses and unit tests to verify the functionality and performance of the physics worker with Matter.js.
 ### Details:
