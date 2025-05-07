@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@eslint/js": "catalog:",
+    "@types/matter-js": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "eslint": "catalog:",
     "globals": "catalog:",

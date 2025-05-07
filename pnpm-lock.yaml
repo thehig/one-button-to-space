@@ -224,6 +224,9 @@ importers:
       '@eslint/js':
         specifier: 'catalog:'
         version: 9.26.0
+      '@types/matter-js':
+        specifier: 'catalog:'
+        version: 0.19.8
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 3.1.2(vitest@3.1.2(@types/node@22.15.3)(jsdom@26.1.0))
