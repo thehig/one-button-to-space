@@ -7,8 +7,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc -w",
-    "dev:demo": "vite",
+    "dev": "vite",
     "lint": "tsc --noEmit && eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run --coverage"
   },

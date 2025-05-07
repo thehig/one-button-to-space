@@ -50,7 +50,7 @@ export enum CommandType {
   STEP_SIMULATION = "STEP_SIMULATION",
 
   // From Worker (Responses/Events)
-  _WORKER_READY = "WORKER_READY", // Intentionally unused for now, sent by worker but not explicitly handled by client yet
+  WORKER_READY = "WORKER_READY", // Worker sends this, client/demo listens for it
   WORLD_INITIALIZED = "WORLD_INITIALIZED",
   BODY_ADDED = "BODY_ADDED",
   BODY_REMOVED = "BODY_REMOVED",
