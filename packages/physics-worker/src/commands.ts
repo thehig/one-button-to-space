@@ -44,13 +44,13 @@ export enum CommandType {
   INIT_WORLD = "INIT_WORLD",
   ADD_BODY = "ADD_BODY",
   REMOVE_BODY = "REMOVE_BODY",
-  UPDATE_BODY = "UPDATE_BODY", // Placeholder for updating existing body properties
-  APPLY_FORCE = "APPLY_FORCE", // Placeholder
-  SET_GRAVITY = "SET_GRAVITY", // Placeholder
+  _UPDATE_BODY = "UPDATE_BODY", // Placeholder for updating existing body properties
+  _APPLY_FORCE = "APPLY_FORCE", // Placeholder
+  _SET_GRAVITY = "SET_GRAVITY", // Placeholder
   STEP_SIMULATION = "STEP_SIMULATION",
 
   // From Worker (Responses/Events)
-  WORKER_READY = "WORKER_READY",
+  _WORKER_READY = "WORKER_READY", // Intentionally unused for now, sent by worker but not explicitly handled by client yet
   WORLD_INITIALIZED = "WORLD_INITIALIZED",
   BODY_ADDED = "BODY_ADDED",
   BODY_REMOVED = "BODY_REMOVED",

@@ -6,7 +6,7 @@ import {
   AddBodyCommandPayload,
   StepSimulationCommandPayload,
   RemoveBodyCommandPayload,
-  IBodyDefinition,
+  // IBodyDefinition, // Removed as it's implicitly used via Matter.IBodyDefinition
 } from "./commands";
 
 // TODO: Define Command interfaces/classes
@@ -319,7 +319,7 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
 };
 
 // Optional: Initial message to main thread to indicate worker is ready
-self.postMessage({ type: CommandType.WORKER_READY });
+self.postMessage({ type: CommandType._WORKER_READY });
 
 // TODO: Add Matter.js engine, world, and other necessary variables
 // let engine: Matter.Engine;

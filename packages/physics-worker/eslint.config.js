@@ -29,6 +29,18 @@ export default tseslint.config(
       ...tseslint.configs.strict.rules, // Stricter TS rules (optional, but good)
       // ...tseslint.configs.stylistic.rules, // Stylistic TS rules (optional)
 
+      // Disable base ESLint rule and enable TypeScript-specific one
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
+
       // Add any specific rule overrides or new rules here
       // e.g., '@typescript-eslint/no-explicit-any': 'warn',
     },

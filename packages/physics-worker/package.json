@@ -9,7 +9,7 @@
     "build": "tsc",
     "dev": "tsc -w",
     "dev:demo": "vite",
-    "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
+    "lint": "tsc --noEmit && eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run --coverage"
   },
   "dependencies": {

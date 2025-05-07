@@ -5,7 +5,7 @@ import {
 } from "./commands";
 
 // Define a type for the callback function when messages are received from the worker
-export type WorkerMessageHandler = (message: PhysicsCommand) => void;
+export type WorkerMessageHandler = (_message: PhysicsCommand) => void;
 
 export class PhysicsWorkerClient {
   private worker: Worker | null = null;

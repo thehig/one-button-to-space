@@ -82,7 +82,9 @@ describe("Physics Worker", () => {
   });
 
   afterEach(() => {
+    const currentWorkerOnMessage = workerOnMessage; // Capture the handler before nulling
     workerOnMessage = null;
+
     // Potentially reset or remove the worker script's side effects if necessary,
     // though Vitest module mocking should handle isolation between tests.
 
@@ -90,7 +92,8 @@ describe("Physics Worker", () => {
     // This is important for ADD_BODY tests to not interfere with each other
     // For now, we assume tests are isolated enough or worker cleans up.
     // If not, a CLEAR_ALL_BODIES command might be needed for testing.
-    if (workerOnMessage) {
+    if (currentWorkerOnMessage) {
+      // Use the captured handler for the check and call
       // Simulate INIT_WORLD to reset the internal 'bodies' Map in physicsWorker.ts
       // This helps ensure ADD_BODY tests don't conflict due to pre-existing bodies
       // from other tests within the same describe block if state isn't perfectly isolated.
@@ -102,7 +105,9 @@ describe("Physics Worker", () => {
         payload: initPayload,
         commandId: "cleanup-init",
       };
-      workerOnMessage({ data: initCommand } as MessageEvent<PhysicsCommand>);
+      currentWorkerOnMessage({
+        data: initCommand,
+      } as MessageEvent<PhysicsCommand>); // Use the captured handler
       mockPostMessage.mockClear(); // Clear postMessage calls from this cleanup
       mockWorldAdd.mockClear(); // Clear world add calls from this cleanup
       mockWorldRemove.mockClear();
