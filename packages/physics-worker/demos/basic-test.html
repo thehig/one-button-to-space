@@ -3,11 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Physics Worker - Basic Test</title>
+    <title>Physics Worker - Phaser Demo</title>
     <style>
       body {
         font-family: sans-serif;
-        margin: 20px;
+        margin: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      #controls {
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+        padding: 10px;
+      }
+      #phaser-container {
+        width: 800px;
+        height: 600px;
+        border: 1px solid black;
+        margin-bottom: 10px;
       }
       pre {
         background-color: #f4f4f4;
@@ -15,6 +29,9 @@
         padding: 10px;
         white-space: pre-wrap;
         word-wrap: break-word;
+        max-height: 200px;
+        overflow-y: scroll;
+        width: 780px;
       }
       button {
         margin: 5px;
@@ -23,21 +40,24 @@
     </style>
   </head>
   <body>
-    <h1>Physics Worker - Basic Test</h1>
-    <p>Check the browser console and the log below for messages.</p>
+    <h1>Physics Worker - Phaser Demo</h1>
+    <p>Physics runs in a worker, rendering via Phaser.</p>
 
-    <button id="initWorldButton" disabled>
-      Initialize World (Sent on Worker Ready)
-    </button>
-    <button id="addRectButton" disabled>Add Rectangle</button>
-    <button id="addCircleButton" disabled>Add Circle</button>
-    <button id="stepButton" disabled>Step Simulation</button>
-    <button id="terminateButton" disabled>Terminate Worker</button>
+    <div id="controls">
+      <button id="initWorldButton" disabled>Initialize World</button>
+      <button id="addRectButton" disabled>Add Rectangle</button>
+      <button id="addCircleButton" disabled>Add Circle</button>
+      <button id="stepButton" disabled>Step Simulation</button>
+      <button id="terminateButton" disabled>Terminate Worker</button>
+    </div>
+
+    <div id="phaser-container"></div>
 
     <h2>Log:</h2>
     <pre id="logOutput">Initializing...</pre>
 
     <script type="module">
+      import Phaser from "phaser";
       import { PhysicsWorkerClient } from "../src/index.ts";
       import { CommandType } from "../src/commands.ts";
 
@@ -67,108 +87,237 @@
         note: "Demo page script running.",
       });
 
-      const physicsClient = new PhysicsWorkerClient();
-      logMessage({
-        type: "CLIENT_ATTEMPT_INIT",
-        note: "PhysicsWorkerClient instantiated.",
-      });
+      // --- Phaser Scene ---
+      class DemoScene extends Phaser.Scene {
+        physicsClient = null;
+        // Map to store Phaser game objects corresponding to physics bodies
+        gameObjects = new Map();
+        // Store initial properties needed for rendering
+        pendingBodies = new Map();
 
-      physicsClient.onMessage((message) => {
-        logMessage(message);
+        constructor() {
+          super({ key: "DemoScene" });
+        }
 
-        if (message.type === CommandType.WORKER_READY) {
+        preload() {
+          // No assets needed for simple shapes yet
+        }
+
+        create() {
+          logMessage({
+            type: "PHASER_SCENE_CREATE",
+            note: "Phaser scene creating...",
+          });
+          this.physicsClient = new PhysicsWorkerClient();
+          logMessage({
+            type: "CLIENT_ATTEMPT_INIT",
+            note: "PhysicsWorkerClient instantiated in scene.",
+          });
+
+          this.physicsClient.onMessage((message) => {
+            logMessage(message);
+
+            switch (message.type) {
+              case CommandType.WORKER_READY:
+                this.handleWorkerReady();
+                break;
+              case CommandType.WORLD_INITIALIZED:
+                this.handleWorldInitialized(message.payload);
+                break;
+              case CommandType.BODY_ADDED:
+                this.handleBodyAdded(message.payload);
+                break;
+              case CommandType.SIMULATION_STEPPED:
+                this.handleSimulationStepped(message.payload);
+                break;
+              case CommandType.ERROR:
+                console.error("Error from worker:", message.payload);
+                break;
+            }
+          });
+
+          this.setupUIListeners();
+        }
+
+        setupUIListeners() {
+          initWorldButton.onclick = () => {
+            logMessage({
+              type: "DEMO_ACTION",
+              note: "INIT_WORLD button clicked.",
+            });
+            this.physicsClient?.initWorld({
+              width: 800,
+              height: 600,
+              gravity: { x: 0, y: 1, scale: 0.001 },
+            });
+            // Clear existing visuals
+            this.gameObjects.forEach((go) => go.destroy());
+            this.gameObjects.clear();
+            this.pendingBodies.clear();
+          };
+
+          let bodyIdCounter = 0;
+          addRectButton.onclick = () => {
+            const id = `rect-${bodyIdCounter++}`;
+            const payload = {
+              id: id,
+              type: "rectangle",
+              x: Math.random() * 700 + 50,
+              y: Math.random() * 100,
+              width: Math.random() * 30 + 20,
+              height: Math.random() * 30 + 20,
+              options: { restitution: 0.7 },
+            };
+            logMessage({
+              type: "DEMO_ACTION",
+              note: `Sending ADD_BODY (rectangle). ID: ${id}`,
+            });
+            this.pendingBodies.set(id, payload); // Store properties needed for rendering
+            this.physicsClient?.sendMessage({
+              type: CommandType.ADD_BODY,
+              payload,
+            });
+          };
+
+          addCircleButton.onclick = () => {
+            const id = `circle-${bodyIdCounter++}`;
+            const payload = {
+              id: id,
+              type: "circle",
+              x: Math.random() * 700 + 50,
+              y: Math.random() * 100,
+              radius: Math.random() * 15 + 10,
+              options: { restitution: 0.7 },
+            };
+            logMessage({
+              type: "DEMO_ACTION",
+              note: `Sending ADD_BODY (circle). ID: ${id}`,
+            });
+            this.pendingBodies.set(id, payload); // Store properties needed for rendering
+            this.physicsClient?.sendMessage({
+              type: CommandType.ADD_BODY,
+              payload,
+            });
+          };
+
+          stepButton.onclick = () => {
+            this.physicsClient?.sendMessage({
+              type: CommandType.STEP_SIMULATION,
+              payload: { deltaTime: 16.666 },
+            });
+          };
+
+          terminateButton.onclick = () => {
+            logMessage({
+              type: "DEMO_ACTION",
+              note: "Terminate button clicked.",
+            });
+            this.physicsClient?.terminate();
+            // Disable UI, clear visuals
+            initWorldButton.disabled = true;
+            addRectButton.disabled = true;
+            addCircleButton.disabled = true;
+            stepButton.disabled = true;
+            terminateButton.disabled = true;
+            this.gameObjects.forEach((go) => go.destroy());
+            this.gameObjects.clear();
+            this.pendingBodies.clear();
+          };
+        }
+
+        handleWorkerReady() {
           initWorldButton.disabled = false;
           terminateButton.disabled = false;
           logMessage({
             type: "DEMO_ACTION",
-            note: "Worker ready. Sending INIT_WORLD.",
+            note: "Worker ready. Auto-sending INIT_WORLD.",
           });
-          physicsClient.initWorld({
+          this.physicsClient?.initWorld({
             width: 800,
             height: 600,
             gravity: { x: 0, y: 1, scale: 0.001 },
           });
         }
 
-        if (
-          message.type === CommandType.WORLD_INITIALIZED &&
-          message.payload.success
-        ) {
-          addRectButton.disabled = false;
-          addCircleButton.disabled = false;
-          stepButton.disabled = false;
+        handleWorldInitialized(payload) {
+          if (payload.success) {
+            addRectButton.disabled = false;
+            addCircleButton.disabled = false;
+            stepButton.disabled = false;
+            // Optional: Add static ground in Phaser visuals
+            const ground = this.add.rectangle(400, 590, 800, 20, 0x888888);
+            this.gameObjects.set("ground", ground); // Track it if needed
+          }
         }
-      });
 
-      initWorldButton.onclick = () => {
-        logMessage({ type: "DEMO_ACTION", note: "INIT_WORLD button clicked." });
-        physicsClient.initWorld({
-          width: 800,
-          height: 600,
-          gravity: { x: 0, y: 1, scale: 0.001 },
-        });
+        handleBodyAdded(payload) {
+          if (payload.success && this.pendingBodies.has(payload.id)) {
+            const initialProps = this.pendingBodies.get(payload.id);
+            let gameObject = null;
+            const color = Phaser.Display.Color.RandomRGB().color;
+
+            if (
+              initialProps.type === "rectangle" &&
+              initialProps.width &&
+              initialProps.height
+            ) {
+              gameObject = this.add.rectangle(
+                initialProps.x,
+                initialProps.y,
+                initialProps.width,
+                initialProps.height,
+                color
+              );
+            } else if (initialProps.type === "circle" && initialProps.radius) {
+              gameObject = this.add.circle(
+                initialProps.x,
+                initialProps.y,
+                initialProps.radius,
+                color
+              );
+            }
+            // TODO: Add polygon/vertex rendering if needed
+
+            if (gameObject) {
+              this.gameObjects.set(
+                payload.id,
+                Object.assign(gameObject, { bodyType: initialProps.type })
+              );
+            }
+            this.pendingBodies.delete(payload.id); // Clean up
+          }
+        }
+
+        handleSimulationStepped(payload) {
+          if (payload.success) {
+            payload.bodies.forEach((bodyUpdate) => {
+              const go = this.gameObjects.get(bodyUpdate.id);
+              if (go) {
+                go.setPosition(bodyUpdate.x, bodyUpdate.y);
+                go.rotation = bodyUpdate.angle;
+              }
+            });
+          }
+        }
+
+        // Phaser's update loop
+        update(time, delta) {
+          // We get physics updates from the worker via messages
+        }
+      }
+
+      // --- Phaser Game Config ---
+      const config = {
+        type: Phaser.AUTO, // Use WebGL if available, otherwise Canvas
+        width: 800,
+        height: 600,
+        parent: "phaser-container", // Render into the div
+        scene: [DemoScene],
       };
 
-      let bodyIdCounter = 0;
-      addRectButton.onclick = () => {
-        const id = `rect-${bodyIdCounter++}`;
-        logMessage({
-          type: "DEMO_ACTION",
-          note: `ADD_BODY (rectangle) button clicked. ID: ${id}`,
-        });
-        physicsClient.sendMessage({
-          type: CommandType.ADD_BODY,
-          payload: {
-            id: id,
-            type: "rectangle",
-            x: Math.random() * 700 + 50,
-            y: Math.random() * 100,
-            width: Math.random() * 30 + 20,
-            height: Math.random() * 30 + 20,
-            options: { restitution: 0.7 },
-          },
-        });
-      };
-
-      addCircleButton.onclick = () => {
-        const id = `circle-${bodyIdCounter++}`;
-        logMessage({
-          type: "DEMO_ACTION",
-          note: `ADD_BODY (circle) button clicked. ID: ${id}`,
-        });
-        physicsClient.sendMessage({
-          type: CommandType.ADD_BODY,
-          payload: {
-            id: id,
-            type: "circle",
-            x: Math.random() * 700 + 50,
-            y: Math.random() * 100,
-            radius: Math.random() * 15 + 10,
-            options: { restitution: 0.7 },
-          },
-        });
-      };
-
-      stepButton.onclick = () => {
-        logMessage({
-          type: "DEMO_ACTION",
-          note: "STEP_SIMULATION button clicked.",
-        });
-        physicsClient.sendMessage({
-          type: CommandType.STEP_SIMULATION,
-          payload: { deltaTime: 16.666 }, // Approx 60fps
-        });
-      };
-
-      terminateButton.onclick = () => {
-        logMessage({ type: "DEMO_ACTION", note: "Terminate button clicked." });
-        physicsClient.terminate();
-        initWorldButton.disabled = true;
-        addRectButton.disabled = true;
-        addCircleButton.disabled = true;
-        stepButton.disabled = true;
-        terminateButton.disabled = true;
-      };
+      // Start the game
+      const game = new Phaser.Game(config);
+      logMessage({ type: "PHASER_INIT", note: "Phaser game instantiated." });
     </script>
   </body>
 </html>

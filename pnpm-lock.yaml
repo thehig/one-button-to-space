@@ -236,6 +236,9 @@ importers:
       globals:
         specifier: 'catalog:'
         version: 16.0.0
+      phaser:
+        specifier: 'catalog:'
+        version: 3.88.2
       typescript:
         specifier: 'catalog:'
         version: 5.8.3

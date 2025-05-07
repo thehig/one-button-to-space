@@ -21,6 +21,7 @@
     "@vitest/coverage-v8": "catalog:",
     "eslint": "catalog:",
     "globals": "catalog:",
+    "phaser": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vite": "catalog:",
