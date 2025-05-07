@@ -47,7 +47,9 @@
       <button id="initWorldButton" disabled>Initialize World</button>
       <button id="addRectButton" disabled>Add Rectangle</button>
       <button id="addCircleButton" disabled>Add Circle</button>
+      <button id="removeLastButton" disabled>Remove Last Body</button>
       <button id="stepButton" disabled>Step Simulation</button>
+      <button id="loopButton" disabled>Run Loop (5s)</button>
       <button id="terminateButton" disabled>Terminate Worker</button>
     </div>
 
@@ -65,7 +67,9 @@
       const initWorldButton = document.getElementById("initWorldButton");
       const addRectButton = document.getElementById("addRectButton");
       const addCircleButton = document.getElementById("addCircleButton");
+      const removeLastButton = document.getElementById("removeLastButton");
       const stepButton = document.getElementById("stepButton");
+      const loopButton = document.getElementById("loopButton");
       const terminateButton = document.getElementById("terminateButton");
 
       let logCount = 0;
@@ -94,6 +98,9 @@
         gameObjects = new Map();
         // Store initial properties needed for rendering
         pendingBodies = new Map();
+        lastAddedBodyId = null;
+        isLooping = false;
+        loopEndTime = 0;
 
         constructor() {
           super({ key: "DemoScene" });
@@ -127,8 +134,14 @@
               case CommandType.BODY_ADDED:
                 this.handleBodyAdded(message.payload);
                 break;
+              case CommandType.BODY_REMOVED:
+                this.handleBodyRemoved(message.payload);
+                break;
               case CommandType.SIMULATION_STEPPED:
                 this.handleSimulationStepped(message.payload);
+                break;
+              case CommandType.PHYSICS_EVENTS:
+                this.handlePhysicsEvents(message.payload);
                 break;
               case CommandType.ERROR:
                 console.error("Error from worker:", message.payload);
@@ -159,6 +172,7 @@
           let bodyIdCounter = 0;
           addRectButton.onclick = () => {
             const id = `rect-${bodyIdCounter++}`;
+            this.lastAddedBodyId = id;
             const payload = {
               id: id,
               type: "rectangle",
@@ -181,6 +195,7 @@
 
           addCircleButton.onclick = () => {
             const id = `circle-${bodyIdCounter++}`;
+            this.lastAddedBodyId = id;
             const payload = {
               id: id,
               type: "circle",
@@ -200,14 +215,66 @@
             });
           };
 
+          removeLastButton.onclick = () => {
+            if (this.lastAddedBodyId !== null) {
+              logMessage({
+                type: "DEMO_ACTION",
+                note: `Sending REMOVE_BODY. ID: ${this.lastAddedBodyId}`,
+              });
+              this.physicsClient?.sendMessage({
+                type: CommandType.REMOVE_BODY,
+                payload: { id: this.lastAddedBodyId },
+              });
+              this.lastAddedBodyId = null;
+              removeLastButton.disabled = true;
+            } else {
+              logMessage({
+                type: "DEMO_ACTION",
+                note: "No body ID tracked to remove.",
+              });
+            }
+          };
+
           stepButton.onclick = () => {
+            if (this.isLooping) return;
             this.physicsClient?.sendMessage({
               type: CommandType.STEP_SIMULATION,
               payload: { deltaTime: 16.666 },
             });
           };
 
+          loopButton.onclick = () => {
+            if (this.isLooping) return;
+
+            logMessage({
+              type: "DEMO_ACTION",
+              note: "Starting simulation loop for 5 seconds.",
+            });
+            this.isLooping = true;
+            this.loopEndTime = Date.now() + 5000;
+            this.disableLoopControls(true);
+
+            const runStep = () => {
+              if (!this.isLooping || Date.now() >= this.loopEndTime) {
+                this.isLooping = false;
+                this.disableLoopControls(false);
+                logMessage({
+                  type: "DEMO_ACTION",
+                  note: "Simulation loop finished.",
+                });
+                return;
+              }
+              this.physicsClient?.sendMessage({
+                type: CommandType.STEP_SIMULATION,
+                payload: { deltaTime: 16.666 },
+              });
+              requestAnimationFrame(runStep);
+            };
+            requestAnimationFrame(runStep);
+          };
+
           terminateButton.onclick = () => {
+            this.isLooping = false;
             logMessage({
               type: "DEMO_ACTION",
               note: "Terminate button clicked.",
@@ -218,11 +285,21 @@
             addRectButton.disabled = true;
             addCircleButton.disabled = true;
             stepButton.disabled = true;
+            loopButton.disabled = true;
             terminateButton.disabled = true;
             this.gameObjects.forEach((go) => go.destroy());
             this.gameObjects.clear();
             this.pendingBodies.clear();
           };
+        }
+
+        disableLoopControls(disable) {
+          initWorldButton.disabled = disable;
+          addRectButton.disabled = disable;
+          addCircleButton.disabled = disable;
+          removeLastButton.disabled = disable;
+          stepButton.disabled = disable;
+          loopButton.disabled = disable;
         }
 
         handleWorkerReady() {
@@ -244,6 +321,7 @@
             addRectButton.disabled = false;
             addCircleButton.disabled = false;
             stepButton.disabled = false;
+            loopButton.disabled = false;
             // Optional: Add static ground in Phaser visuals
             const ground = this.add.rectangle(400, 590, 800, 20, 0x888888);
             this.gameObjects.set("ground", ground); // Track it if needed
@@ -283,8 +361,24 @@
                 payload.id,
                 Object.assign(gameObject, { bodyType: initialProps.type })
               );
+              this.lastAddedBodyId = payload.id;
+              removeLastButton.disabled = false;
             }
             this.pendingBodies.delete(payload.id); // Clean up
+          }
+        }
+
+        handleBodyRemoved(payload) {
+          if (payload.success && payload.id) {
+            const go = this.gameObjects.get(payload.id);
+            if (go) {
+              go.destroy();
+              this.gameObjects.delete(payload.id);
+              logMessage({
+                type: "PHASER_ACTION",
+                note: `Destroyed visual for body ID: ${payload.id}`,
+              });
+            }
           }
         }
 
@@ -292,12 +386,29 @@
           if (payload.success) {
             payload.bodies.forEach((bodyUpdate) => {
               const go = this.gameObjects.get(bodyUpdate.id);
+
               if (go) {
+                if (go.isTinted) {
+                  go.clearTint();
+                }
                 go.setPosition(bodyUpdate.x, bodyUpdate.y);
                 go.rotation = bodyUpdate.angle;
               }
             });
           }
+        }
+
+        handlePhysicsEvents(payload) {
+          payload.collisions.forEach((collision) => {
+            const bodyA = this.gameObjects.get(collision.bodyAId);
+            const bodyB = this.gameObjects.get(collision.bodyBId);
+
+            [bodyA, bodyB].forEach((go) => {
+              if (go && go.setTint) {
+                go.setTint(0xff0000);
+              }
+            });
+          });
         }
 
         // Phaser's update loop

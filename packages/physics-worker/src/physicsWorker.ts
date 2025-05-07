@@ -5,7 +5,8 @@ import {
   InitWorldCommandPayload,
   AddBodyCommandPayload,
   StepSimulationCommandPayload,
-  // RemoveBodyCommandPayload // Added (for later use) - COMMENTED OUT
+  RemoveBodyCommandPayload,
+  IBodyDefinition,
 } from "./commands";
 
 // TODO: Define Command interfaces/classes
@@ -65,11 +66,77 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
         }
         // TODO: Set world bounds if width/height are provided (e.g., for static boundaries)
 
+        // --- ADD STATIC BOUNDARIES ---
+        const wallOptions: Matter.IBodyDefinition = { isStatic: true };
+        const ground = Matter.Bodies.rectangle(
+          payload.width / 2,
+          payload.height + 25,
+          payload.width,
+          50,
+          wallOptions
+        );
+        const leftWall = Matter.Bodies.rectangle(
+          -25,
+          payload.height / 2,
+          50,
+          payload.height,
+          wallOptions
+        );
+        const rightWall = Matter.Bodies.rectangle(
+          payload.width + 25,
+          payload.height / 2,
+          50,
+          payload.height,
+          wallOptions
+        );
+        const ceiling = Matter.Bodies.rectangle(
+          payload.width / 2,
+          -25,
+          payload.width,
+          50,
+          wallOptions
+        );
+
+        Matter.World.add(world, [ground, leftWall, rightWall, ceiling]);
+        // We don't need to track these static bodies in our `bodies` map typically
+        // --- END STATIC BOUNDARIES ---
+
+        // --- ADD COLLISION LISTENER ---
+        Matter.Events.on(engine, "collisionStart", (event) => {
+          const pairs = event.pairs;
+          const collisionEvents: Array<{
+            bodyAId: string | number;
+            bodyBId: string | number;
+          }> = [];
+          for (let i = 0; i < pairs.length; i++) {
+            const pair = pairs[i];
+            // Use the IDs we assigned to the bodies
+            if (pair.bodyA.id && pair.bodyB.id) {
+              collisionEvents.push({
+                bodyAId: pair.bodyA.id,
+                bodyBId: pair.bodyB.id,
+              });
+            }
+          }
+          if (collisionEvents.length > 0) {
+            // Send collision events back to the main thread
+            self.postMessage({
+              type: CommandType.PHYSICS_EVENTS,
+              payload: { collisions: collisionEvents },
+              // Note: No commandId here as it's an event, not a response to a command
+            });
+          }
+        });
+        // --- END COLLISION LISTENER ---
+
         // Example: Create a simple runner for stepping the simulation
         // runner = Matter.Runner.create();
         // Matter.Runner.run(runner, engine); // This would run the simulation automatically
 
-        console.log("Physics Worker: World initialized", payload);
+        console.log(
+          "Physics Worker: World initialized with boundaries and collision listener",
+          payload
+        );
         self.postMessage({
           type: CommandType.WORLD_INITIALIZED,
           payload: { success: true },
@@ -169,14 +236,42 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
       }
       break;
 
+    case CommandType.REMOVE_BODY:
+      if (!engine || !world) break;
+      try {
+        const payload = command.payload as RemoveBodyCommandPayload;
+        const bodyToRemove = bodies.get(payload.id);
+
+        if (bodyToRemove) {
+          Matter.World.remove(world, bodyToRemove);
+          bodies.delete(payload.id);
+          console.log("Physics Worker: Body removed", payload.id);
+          self.postMessage({
+            type: CommandType.BODY_REMOVED,
+            payload: { id: payload.id, success: true },
+            commandId: command.commandId,
+          });
+        } else {
+          throw new Error(`Body with ID ${payload.id} not found for removal.`);
+        }
+      } catch (e: any) {
+        console.error("Physics Worker: Error removing body", e);
+        self.postMessage({
+          type: CommandType.ERROR,
+          payload: { message: e.message, originalCommand: command },
+          commandId: command.commandId,
+        });
+      }
+      break;
+
     case CommandType.STEP_SIMULATION:
-      if (!engine) break;
+      if (!engine || !world) break;
       try {
         const payload = command.payload as StepSimulationCommandPayload;
-        Matter.Engine.update(engine, payload.deltaTime);
+        if (engine && world) {
+          Matter.Engine.update(engine, payload.deltaTime); // Update the physics engine
+        }
 
-        // TODO: Extract and send relevant body updates (positions, rotations)
-        // For now, just acknowledge the step
         const updatedBodiesInfo: Array<{
           id: string | number;
           x: number;
@@ -207,7 +302,7 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
       }
       break;
 
-    // TODO: Implement REMOVE_BODY, UPDATE_BODY, APPLY_FORCE etc.
+    // TODO: Implement UPDATE_BODY, APPLY_FORCE etc.
 
     default:
       console.warn(
