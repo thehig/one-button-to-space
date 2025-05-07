@@ -1,9 +1,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
-// Import react-rnd
 import { Rnd } from "react-rnd";
 // Import types from the main module
-// Removed direct RndDragCallback, RndResizeCallback imports as hook handles callbacks
-// Restore context import
+
 import { useCommunicationContext } from "../../contexts/CommunicationContext";
 // Import the JSON viewer component
 import ReactJson from "react-json-view";
@@ -211,17 +209,6 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
         // --- MODIFICATION: Get caller info object ---
         const { fileName, lineNumber } = getCallerInfo(); // Line number is now ignored
 
-        // --- REVERT: Remove line number prepending ---
-        // const processedArgs = [...args]; // Create a copy to modify
-        // if (lineNumber && processedArgs.length > 0) {
-        //     if (typeof processedArgs[0] === 'string') {
-        //         processedArgs[0] = `[L${lineNumber}] ${processedArgs[0]}`;
-        //     } else {
-        //         // If first arg isn't a string, insert line number as a new first arg
-        //         processedArgs.unshift(`[L${lineNumber}]`);
-        //     }
-        // }
-
         // --- NEW: Construct eventName with filename and optional line number ---
         const eventNameForLog = lineNumber
           ? `${fileName}:${lineNumber}`
@@ -230,7 +217,7 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
         // 1. Log the event to our system using method as source, file:line as eventName
         try {
           // Log the ORIGINAL arguments
-          const dataPayload = { messages: args }; // Use original args
+          const dataPayload = { messages: args };
           // --- SWAP: Use methodName as source, constructed name as eventName ---
           logEvent(methodName, eventNameForLog, dataPayload);
         } catch (e) {
@@ -249,10 +236,10 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
         if (originalMethod) {
           if (originalMethod.apply) {
             // Normal browsers
-            originalMethod.apply(window.console, args); // Use original args
+            originalMethod.apply(window.console, args);
           } else {
             // IE fallback (may join args - less ideal but functional)
-            const message = args.map(String).join(" "); // Use original args
+            const message = args.map(String).join(" ");
             originalMethod(message);
           }
         }

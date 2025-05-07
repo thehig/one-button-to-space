@@ -1,7 +1,7 @@
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
-import eslint from "@eslint/js"; // Import recommended config
+import eslint from "@eslint/js";
 import vitestPlugin from "eslint-plugin-vitest";
 
 export default [

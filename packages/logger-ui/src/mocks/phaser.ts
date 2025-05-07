@@ -45,14 +45,13 @@ class MockPhaserEventEmitter {
 // Global Mock for Phaser
 vi.mock("phaser", () => {
   return {
-    // __esModule: true, // Add if needed based on how Phaser is structured/imported
     default: {
       Events: {
-        EventEmitter: MockPhaserEventEmitter, // Use the mock class
+        EventEmitter: MockPhaserEventEmitter,
       },
     },
     Events: {
-      EventEmitter: MockPhaserEventEmitter, // Use the mock class
+      EventEmitter: MockPhaserEventEmitter,
     },
   };
 });
