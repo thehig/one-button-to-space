@@ -96,7 +96,7 @@ Testing approach:
 - Ensure package can be imported in a test environment
 - Validate directory structure and configuration files
 
-## 2. Implement Core Physics Worker with Matter.js and Command Pattern [pending]
+## 2. Implement Core Physics Worker with Matter.js and Command Pattern [in-progress]
 ### Dependencies: 23.1
 ### Description: Develop the main physics worker file using Matter.js with a Command design pattern for message passing protocol and core calculation functionality.
 ### Details:

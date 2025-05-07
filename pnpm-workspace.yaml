@@ -24,3 +24,7 @@ catalog:
   "@testing-library/jest-dom": "*"
   "@testing-library/user-event": "*"
   "jsdom": "*"
+  eslint: "*"
+  "@eslint/js": "*"
+  "typescript-eslint": "*"
+  globals: "*"

@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@eslint/js':
+      specifier: '*'
+      version: 9.26.0
     '@testing-library/jest-dom':
       specifier: '*'
       version: 6.6.3
@@ -27,6 +30,12 @@ catalogs:
     '@vitest/coverage-v8':
       specifier: ^3.1.2
       version: 3.1.2
+    eslint:
+      specifier: '*'
+      version: 9.26.0
+    globals:
+      specifier: '*'
+      version: 16.0.0
     jsdom:
       specifier: '*'
       version: 26.1.0
@@ -54,6 +63,9 @@ catalogs:
     typescript:
       specifier: '*'
       version: 5.8.3
+    typescript-eslint:
+      specifier: '*'
+      version: 8.31.1
     vite:
       specifier: '*'
       version: 5.4.19
@@ -199,6 +211,34 @@ importers:
       jsdom:
         specifier: 'catalog:'
         version: 26.1.0
+      vitest:
+        specifier: 'catalog:'
+        version: 3.1.2(@types/node@22.15.3)(jsdom@26.1.0)
+
+  packages/physics-worker:
+    dependencies:
+      matter-js:
+        specifier: 'catalog:'
+        version: 0.20.0
+    devDependencies:
+      '@eslint/js':
+        specifier: 'catalog:'
+        version: 9.26.0
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 3.1.2(vitest@3.1.2(@types/node@22.15.3)(jsdom@26.1.0))
+      eslint:
+        specifier: 'catalog:'
+        version: 9.26.0
+      globals:
+        specifier: 'catalog:'
+        version: 16.0.0
+      typescript:
+        specifier: 'catalog:'
+        version: 5.8.3
+      typescript-eslint:
+        specifier: 'catalog:'
+        version: 8.31.1(eslint@9.26.0)(typescript@5.8.3)
       vitest:
         specifier: 'catalog:'
         version: 3.1.2(@types/node@22.15.3)(jsdom@26.1.0)

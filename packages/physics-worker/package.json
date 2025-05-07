@@ -11,14 +11,16 @@
     "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run --coverage"
   },
-  "dependencies": {},
+  "dependencies": {
+    "matter-js": "catalog:"
+  },
   "devDependencies": {
-    "typescript": "catalog:",
-    "vitest": "catalog:",
+    "@eslint/js": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "eslint": "catalog:",
-    "@eslint/js": "catalog:",
+    "globals": "catalog:",
+    "typescript": "catalog:",
     "typescript-eslint": "catalog:",
-    "globals": "catalog:"
+    "vitest": "catalog:"
   }
 }
