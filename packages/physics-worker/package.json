@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
+    "dev:demo": "vite",
     "lint": "eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
     "test": "vitest run --coverage"
   },
@@ -22,6 +23,7 @@
     "globals": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

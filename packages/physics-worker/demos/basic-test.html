@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Physics Worker - Basic Test</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 20px;
+      }
+      pre {
+        background-color: #f4f4f4;
+        border: 1px solid #ddd;
+        padding: 10px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+      }
+      button {
+        margin: 5px;
+        padding: 8px 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Physics Worker - Basic Test</h1>
+    <p>Check the browser console and the log below for messages.</p>
+
+    <button id="initWorldButton" disabled>
+      Initialize World (Sent on Worker Ready)
+    </button>
+    <button id="addRectButton" disabled>Add Rectangle</button>
+    <button id="addCircleButton" disabled>Add Circle</button>
+    <button id="stepButton" disabled>Step Simulation</button>
+    <button id="terminateButton" disabled>Terminate Worker</button>
+
+    <h2>Log:</h2>
+    <pre id="logOutput">Initializing...</pre>
+
+    <script type="module">
+      import { PhysicsWorkerClient } from "../src/index.ts";
+      import { CommandType } from "../src/commands.ts";
+
+      const logOutput = document.getElementById("logOutput");
+      const initWorldButton = document.getElementById("initWorldButton");
+      const addRectButton = document.getElementById("addRectButton");
+      const addCircleButton = document.getElementById("addCircleButton");
+      const stepButton = document.getElementById("stepButton");
+      const terminateButton = document.getElementById("terminateButton");
+
+      let logCount = 0;
+      function logMessage(message) {
+        logCount++;
+        console.log(`[Demo Page] ${logCount}:`, message);
+        logOutput.textContent =
+          `${logCount}: ${JSON.stringify(message, null, 2)}\n\n` +
+          logOutput.textContent;
+        if (logCount > 100) {
+          // Prevent excessively long log on page
+          const lines = logOutput.textContent.split("\n");
+          logOutput.textContent = lines.slice(0, 200).join("\n"); // Keep ~50 messages
+        }
+      }
+
+      logMessage({
+        type: "CLIENT_SCRIPT_LOADED",
+        note: "Demo page script running.",
+      });
+
+      const physicsClient = new PhysicsWorkerClient();
+      logMessage({
+        type: "CLIENT_ATTEMPT_INIT",
+        note: "PhysicsWorkerClient instantiated.",
+      });
+
+      physicsClient.onMessage((message) => {
+        logMessage(message);
+
+        if (message.type === CommandType.WORKER_READY) {
+          initWorldButton.disabled = false;
+          terminateButton.disabled = false;
+          logMessage({
+            type: "DEMO_ACTION",
+            note: "Worker ready. Sending INIT_WORLD.",
+          });
+          physicsClient.initWorld({
+            width: 800,
+            height: 600,
+            gravity: { x: 0, y: 1, scale: 0.001 },
+          });
+        }
+
+        if (
+          message.type === CommandType.WORLD_INITIALIZED &&
+          message.payload.success
+        ) {
+          addRectButton.disabled = false;
+          addCircleButton.disabled = false;
+          stepButton.disabled = false;
+        }
+      });
+
+      initWorldButton.onclick = () => {
+        logMessage({ type: "DEMO_ACTION", note: "INIT_WORLD button clicked." });
+        physicsClient.initWorld({
+          width: 800,
+          height: 600,
+          gravity: { x: 0, y: 1, scale: 0.001 },
+        });
+      };
+
+      let bodyIdCounter = 0;
+      addRectButton.onclick = () => {
+        const id = `rect-${bodyIdCounter++}`;
+        logMessage({
+          type: "DEMO_ACTION",
+          note: `ADD_BODY (rectangle) button clicked. ID: ${id}`,
+        });
+        physicsClient.sendMessage({
+          type: CommandType.ADD_BODY,
+          payload: {
+            id: id,
+            type: "rectangle",
+            x: Math.random() * 700 + 50,
+            y: Math.random() * 100,
+            width: Math.random() * 30 + 20,
+            height: Math.random() * 30 + 20,
+            options: { restitution: 0.7 },
+          },
+        });
+      };
+
+      addCircleButton.onclick = () => {
+        const id = `circle-${bodyIdCounter++}`;
+        logMessage({
+          type: "DEMO_ACTION",
+          note: `ADD_BODY (circle) button clicked. ID: ${id}`,
+        });
+        physicsClient.sendMessage({
+          type: CommandType.ADD_BODY,
+          payload: {
+            id: id,
+            type: "circle",
+            x: Math.random() * 700 + 50,
+            y: Math.random() * 100,
+            radius: Math.random() * 15 + 10,
+            options: { restitution: 0.7 },
+          },
+        });
+      };
+
+      stepButton.onclick = () => {
+        logMessage({
+          type: "DEMO_ACTION",
+          note: "STEP_SIMULATION button clicked.",
+        });
+        physicsClient.sendMessage({
+          type: CommandType.STEP_SIMULATION,
+          payload: { deltaTime: 16.666 }, // Approx 60fps
+        });
+      };
+
+      terminateButton.onclick = () => {
+        logMessage({ type: "DEMO_ACTION", note: "Terminate button clicked." });
+        physicsClient.terminate();
+        initWorldButton.disabled = true;
+        addRectButton.disabled = true;
+        addCircleButton.disabled = true;
+        stepButton.disabled = true;
+        terminateButton.disabled = true;
+      };
+    </script>
+  </body>
+</html>

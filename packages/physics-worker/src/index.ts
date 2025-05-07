@@ -12,7 +12,7 @@ export class PhysicsWorkerClient {
   private onMessageCallback: WorkerMessageHandler | null = null;
   private static nextCommandId = 1; // For tracking commands if needed
 
-  constructor(workerPath: string = "./physicsWorker.js") {
+  constructor(workerPath: string = "./physicsWorker.ts") {
     // Assuming worker JS is co-located after build
     if (typeof Worker !== "undefined") {
       try {
