@@ -1,0 +1,37 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- **Monorepo Structure**: This repository uses a monorepo folder structure.
+  - Terminal operations will often leave the shell in a subdirectory.
+  - **Critical**: Always verify the current working directory before executing commands, or use absolute paths to ensure commands run in the correct context.
+
+- **Package Manager**: `pnpm` is the designated package manager for this project.
+  - Use `pnpm` for all package management operations (install, add, remove, update).
+  - Example: `pnpm install`, `pnpm add <package-name> -w` (to add to workspace root), `pnpm add <package-name> --filter <package-name>` (to add to a specific package).
+
+- **Version Management**:
+  - Library versions are centrally managed via the `pnpm-workspace.yaml` file at the root of the repository.
+  - In individual `package.json` files, dependencies managed by the workspace should be referenced using the `catalog:` protocol.
+  - ✅ **DO:**
+    ```json
+    // In a package.json file
+    "dependencies": {
+      "vitest": "catalog:",
+      "react": "catalog:"
+    }
+    ```
+  - ❌ **DON'T:**
+    ```json
+    // In a package.json file - AVOID hardcoding versions here if managed by catalog
+    "dependencies": {
+      "vitest": "^1.2.0", // Should use "catalog:"
+      "react": "18.2.0"   // Should use "catalog:"
+    }
+    ```
+  - When adding new shared dependencies, ensure they are defined in `pnpm-workspace.yaml` and then referenced with `catalog:` in the relevant `package.json` files.
+
+- **Path Considerations**:
+  - Reiteration: Due to the monorepo structure, be extremely careful with relative paths in scripts and commands.
+  - Prefer using absolute paths or constructing paths relative to a known root (e.g., using `pnpm -w exec` to run a command from the workspace root).

@@ -338,7 +338,7 @@
           "description": "Set up the foundational package structure for the physics worker with all necessary configuration files and build scripts.",
           "dependencies": [],
           "details": "Implementation steps:\n1. Create a new directory called `physics-worker-package`\n2. Initialize package with `npm init` or equivalent\n3. Set up package.json with appropriate metadata, dependencies, and scripts\n4. Configure build tools (webpack/rollup) with specific worker output settings\n5. Set up TypeScript configuration if applicable\n6. Create directory structure: src/, tests/, demos/, dist/\n7. Add README.md with basic documentation structure\n8. Configure linting and formatting tools\n9. Set up basic CI configuration\n10. Create entry point files (index.js, physicsWorker.js)\n\nTesting approach:\n- Verify build process completes successfully\n- Ensure package can be imported in a test environment\n- Validate directory structure and configuration files",
-          "status": "pending",
+          "status": "in-progress",
           "parentTaskId": 23
         },
         {
