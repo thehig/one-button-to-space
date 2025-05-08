@@ -18,8 +18,8 @@ catalog:
   "matter-js": "*"
   "@types/matter-js": "*"
   "react-rnd": "*"
-  vitest: ^3.1.2
-  "@vitest/coverage-v8": ^3.1.2
+  vitest: "*"
+  "@vitest/coverage-v8": "*"
   "@testing-library/react": "*"
   "@testing-library/jest-dom": "*"
   "@testing-library/user-event": "*"
