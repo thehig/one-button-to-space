@@ -1,0 +1,32 @@
+body {
+  font-family: sans-serif;
+  margin: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+#controls {
+  margin-bottom: 10px;
+  border: 1px solid #ccc;
+  padding: 10px;
+}
+#phaser-container {
+  width: 800px;
+  height: 600px;
+  border: 1px solid black;
+  margin-bottom: 10px;
+}
+pre {
+  background-color: #f4f4f4;
+  border: 1px solid #ddd;
+  padding: 10px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 200px;
+  overflow-y: scroll;
+  width: 780px;
+}
+button {
+  margin: 5px;
+  padding: 8px 12px;
+}
