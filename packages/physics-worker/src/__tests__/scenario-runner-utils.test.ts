@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import Matter from "matter-js";
-import { setupScenarioInEngine } from "../scenario-runner-utils";
+import {
+  setupScenarioInEngine,
+  runSimulationPerformance,
+} from "../scenario-runner-utils";
 import type { ScenarioData } from "../scenario-runner-utils"; // Assuming ScenarioData is exported or reconstructable
 
 // Helper function to compare relevant properties of two Matter.Body objects
@@ -119,4 +122,127 @@ describe("Scenario Runner Utilities", () => {
 
   // TODO: Add tests for runSimulationPerformance determinism (especially actualSteps)
   // TODO: Add tests for mulberry32 itself (optional, as its use in setup is covered)
+});
+
+// Helper for snapshotting body states
+interface SerializableBodyState {
+  label: string | undefined;
+  isStatic: boolean;
+  position: { x: number; y: number };
+  angle: number;
+  velocity: { x: number; y: number };
+  angularVelocity: number;
+  // Potentially add vertices if their determinism is critical for your scenarios
+}
+
+function getSerializableBodyStates(
+  engine: Matter.Engine
+): SerializableBodyState[] {
+  const bodies = Matter.Composite.allBodies(engine.world);
+  bodies.sort((a, b) => (a.label || "").localeCompare(b.label || ""));
+  return bodies.map((body) => ({
+    label: body.label,
+    isStatic: body.isStatic,
+    position: {
+      x: parseFloat(body.position.x.toFixed(4)),
+      y: parseFloat(body.position.y.toFixed(4)),
+    },
+    angle: parseFloat(body.angle.toFixed(4)),
+    velocity: {
+      x: parseFloat(body.velocity.x.toFixed(4)),
+      y: parseFloat(body.velocity.y.toFixed(4)),
+    },
+    angularVelocity: parseFloat(body.angularVelocity.toFixed(4)),
+  }));
+}
+
+describe("runSimulationPerformance", () => {
+  let scenarioDataForSim: ScenarioData;
+
+  beforeEach(() => {
+    scenarioDataForSim = {
+      description: "Test Sim Performance Determinism",
+      seed: 54321, // Different seed from setup tests
+      worldOptions: {
+        gravity: { x: 0, y: 1, scale: 0.001 },
+        width: 400, // Smaller world for faster sim tests
+        height: 300,
+      },
+      staticBodies: [
+        {
+          type: "rectangle",
+          x: 200,
+          y: 290,
+          width: 400,
+          height: 20,
+          options: { label: "sim-ground" },
+        },
+      ],
+      bodyGeneration: {
+        type: "circle",
+        count: 3, // Fewer bodies for faster sim tests
+        idPrefix: "simCircle",
+        templateOptions: { restitution: 0.8, friction: 0.05 },
+        positioning: {
+          x: { min: 50, max: 350 },
+          y: { min: 20, max: 100 },
+          radius: { min: 5, max: 10 },
+        },
+      },
+      simulationParameters: {
+        deltaTime: 16.666, // Approx 60 FPS
+        // durationMs or targetSteps will be set by the test
+      },
+    };
+  });
+
+  it("should produce deterministic actualSteps for a fixed number of target steps", async () => {
+    const engine1 = Matter.Engine.create();
+    await setupScenarioInEngine(engine1, scenarioDataForSim);
+    const results1 = await runSimulationPerformance(
+      engine1,
+      scenarioDataForSim,
+      "steps",
+      50,
+      scenarioDataForSim.seed || 0
+    );
+
+    const engine2 = Matter.Engine.create();
+    await setupScenarioInEngine(engine2, scenarioDataForSim);
+    const results2 = await runSimulationPerformance(
+      engine2,
+      scenarioDataForSim,
+      "steps",
+      50,
+      scenarioDataForSim.seed || 0
+    );
+
+    expect(results1.actualSteps).toBe(50);
+    expect(results2.actualSteps).toBe(50);
+    expect(results1.actualSteps).toBe(results2.actualSteps);
+    // actualDurationMs might vary slightly, so we don't compare it strictly here for determinism of steps.
+  });
+
+  it("should produce a deterministic final world state after a fixed number of simulation steps", async () => {
+    const engine = Matter.Engine.create();
+    await setupScenarioInEngine(engine, scenarioDataForSim);
+
+    // Run simulation for a small, fixed number of steps
+    const numStepsToRun = 10;
+    await runSimulationPerformance(
+      engine,
+      scenarioDataForSim,
+      "steps",
+      numStepsToRun,
+      scenarioDataForSim.seed || 0
+    );
+
+    const finalBodyStates = getSerializableBodyStates(engine);
+    expect(finalBodyStates.length).toBeGreaterThan(0); // Ensure we have bodies
+    expect(finalBodyStates).toMatchSnapshot();
+  });
+
+  // Optional: Test with runMode 'duration' if needed, though 'actualSteps' might vary more.
+  // The key for determinism is that for a fixed number of *engine updates* (steps),
+  // the state should be the same.
 });

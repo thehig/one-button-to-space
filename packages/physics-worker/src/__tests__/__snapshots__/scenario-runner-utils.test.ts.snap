@@ -1,0 +1,118 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`runSimulationPerformance > should produce a deterministic final world state after a fixed number of simulation steps 1`] = `
+[
+  {
+    "angle": 0,
+    "angularVelocity": 0,
+    "isStatic": true,
+    "label": "ceiling-main",
+    "position": {
+      "x": 200,
+      "y": -25,
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+    },
+  },
+  {
+    "angle": 0,
+    "angularVelocity": 0,
+    "isStatic": true,
+    "label": "ground-main",
+    "position": {
+      "x": 200,
+      "y": 325,
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+    },
+  },
+  {
+    "angle": 0,
+    "angularVelocity": 0,
+    "isStatic": true,
+    "label": "leftWall-main",
+    "position": {
+      "x": -25,
+      "y": 150,
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+    },
+  },
+  {
+    "angle": 0,
+    "angularVelocity": 0,
+    "isStatic": true,
+    "label": "rightWall-main",
+    "position": {
+      "x": 425,
+      "y": 150,
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+    },
+  },
+  {
+    "angle": 0,
+    "angularVelocity": 0,
+    "isStatic": true,
+    "label": "sim-ground",
+    "position": {
+      "x": 200,
+      "y": 290,
+    },
+    "velocity": {
+      "x": 0,
+      "y": 0,
+    },
+  },
+  {
+    "angle": 0,
+    "angularVelocity": 0,
+    "isStatic": false,
+    "label": "simCircle-main-0",
+    "position": {
+      "x": 188.1181,
+      "y": 74.5558,
+    },
+    "velocity": {
+      "x": 0,
+      "y": 2.656,
+    },
+  },
+  {
+    "angle": 0,
+    "angularVelocity": 0,
+    "isStatic": false,
+    "label": "simCircle-main-1",
+    "position": {
+      "x": 280.2966,
+      "y": 62.0738,
+    },
+    "velocity": {
+      "x": 0,
+      "y": 2.656,
+    },
+  },
+  {
+    "angle": 0,
+    "angularVelocity": 0,
+    "isStatic": false,
+    "label": "simCircle-main-2",
+    "position": {
+      "x": 243.6066,
+      "y": 96.3731,
+    },
+    "velocity": {
+      "x": 0,
+      "y": 2.656,
+    },
+  },
+]
+`;
