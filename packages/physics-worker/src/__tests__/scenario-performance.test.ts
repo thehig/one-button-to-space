@@ -15,8 +15,12 @@ import type {
 // --- Performance Test Configuration ---
 const PERFORMANCE_TEST_SEED = 98765;
 const NUM_DYNAMIC_BODIES = 30;
-const SIMULATION_TARGET_STEPS = 200;
+// const SIMULATION_TARGET_STEPS = 200; // This is no longer used for duration-based runs
 const SIMULATION_DELTA_TIME = 1000 / 60; // Approx 60 FPS
+
+// New constants for multiple runs
+const NUM_PERFORMANCE_RUNS = 5;
+const PERFORMANCE_RUN_DURATION_MS = 2500; // 2.5 seconds per run
 
 // New approach: Define an expected average and an acceptable delta.
 // Last stable run showed avgStepTimeMs around 0.49ms for the performanceTestScenario.
@@ -84,108 +88,129 @@ const performanceTestScenario: ScenarioData = {
 };
 
 describe("Physics Engine Performance", () => {
-  it(`should maintain an average step time below ${
-    EXPECTED_AVG_STEP_TIME_MS + PERFORMANCE_STEP_TIME_DELTA_MS
-  }ms for ${NUM_DYNAMIC_BODIES} bodies over ${SIMULATION_TARGET_STEPS} steps`, async () => {
-    const engine = Matter.Engine.create();
+  it(`should maintain an average step time within expected bounds over ${NUM_PERFORMANCE_RUNS} runs of ${PERFORMANCE_RUN_DURATION_MS}ms each`, async () => {
+    const allRunResults: PerformanceRunResults[] = [];
 
     console.log(
-      `Setting up performance scenario: ${performanceTestScenario.description}`
+      `Starting ${NUM_PERFORMANCE_RUNS} performance runs, each for ${PERFORMANCE_RUN_DURATION_MS}ms.`
     );
-    await setupScenarioInEngine(engine, performanceTestScenario);
 
+    for (let i = 0; i < NUM_PERFORMANCE_RUNS; i++) {
+      console.log(
+        `--- Starting Performance Run ${i + 1}/${NUM_PERFORMANCE_RUNS} ---`
+      );
+      const engine = Matter.Engine.create();
+      // Ensure the same seed is used for scenario setup in each iteration for consistency if desired,
+      // or allow different seeds if testing variability. For performance, same seed is better.
+      await setupScenarioInEngine(engine, performanceTestScenario); // performanceTestScenario already has a fixed seed
+
+      const results: PerformanceRunResults = await runSimulationPerformance(
+        engine,
+        performanceTestScenario,
+        "duration", // Run by duration
+        PERFORMANCE_RUN_DURATION_MS,
+        performanceTestScenario.seed || 0 // Use the scenario's seed for this run's reporting
+      );
+      allRunResults.push(results);
+
+      // Log individual run to file
+      const performanceStatsToLog = {
+        timestamp: new Date().toISOString(),
+        runNumber: i + 1,
+        scenarioDescription: results.scenarioDescription,
+        seedUsed: results.seedUsed,
+        targetDurationMs: PERFORMANCE_RUN_DURATION_MS,
+        actualSteps: results.actualSteps,
+        actualDurationMs: parseFloat(results.actualDurationMs.toFixed(2)),
+        avgStepTimeMs: parseFloat(results.avgStepTimeMs.toFixed(4)),
+        minStepTimeMs:
+          results.minStepTimeMs !== undefined
+            ? parseFloat(results.minStepTimeMs.toFixed(4))
+            : 0,
+        maxStepTimeMs:
+          results.maxStepTimeMs !== undefined
+            ? parseFloat(results.maxStepTimeMs.toFixed(4))
+            : 0,
+        medianStepTimeMs:
+          results.medianStepTimeMs !== undefined
+            ? parseFloat(results.medianStepTimeMs.toFixed(4))
+            : 0,
+        stdDevStepTimeMs:
+          results.stdDevStepTimeMs !== undefined
+            ? parseFloat(results.stdDevStepTimeMs.toFixed(4))
+            : 0,
+        stepsPerSecond: parseFloat(results.stepsPerSecond.toFixed(2)),
+      };
+      try {
+        fs.appendFileSync(
+          PERFORMANCE_LOG_FILE,
+          JSON.stringify(performanceStatsToLog) + "\n"
+        );
+        console.log(
+          `Performance stats for run ${
+            i + 1
+          } appended to ${PERFORMANCE_LOG_FILE}`
+        );
+      } catch (error) {
+        console.error(
+          `Failed to write performance log for run ${
+            i + 1
+          } to ${PERFORMANCE_LOG_FILE}:`,
+          error
+        );
+      }
+      console.log(
+        `--- Finished Performance Run ${i + 1}/${NUM_PERFORMANCE_RUNS} ---`
+      );
+      console.log(
+        `Run ${i + 1} Avg Step Time: ${results.avgStepTimeMs.toFixed(
+          4
+        )} ms, Steps: ${results.actualSteps}`
+      );
+    }
+
+    // Aggregate results
+    const totalAvgStepTimeMs = allRunResults.reduce(
+      (sum, r) => sum + (r.avgStepTimeMs || 0),
+      0
+    );
+    const overallAverageStepTimeMs = totalAvgStepTimeMs / NUM_PERFORMANCE_RUNS;
+
+    const totalSteps = allRunResults.reduce((sum, r) => sum + r.actualSteps, 0);
+    const totalDuration = allRunResults.reduce(
+      (sum, r) => sum + r.actualDurationMs,
+      0
+    );
+
+    console.log("--- Overall Aggregated Performance Results ---");
+    console.log(`Number of Runs: ${NUM_PERFORMANCE_RUNS}`);
+    console.log(`Total Simulation Steps Across All Runs: ${totalSteps}`);
     console.log(
-      `Running performance test: ${SIMULATION_TARGET_STEPS} steps, deltaTime: ${SIMULATION_DELTA_TIME.toFixed(
+      `Total Simulation Duration Across All Runs: ${totalDuration.toFixed(
         2
-      )}ms`
-    );
-    const results: PerformanceRunResults = await runSimulationPerformance(
-      engine,
-      performanceTestScenario,
-      "steps",
-      SIMULATION_TARGET_STEPS,
-      PERFORMANCE_TEST_SEED
-    );
-
-    console.log("--- Performance Test Results ---");
-    console.log(`Scenario: ${results.scenarioDescription}`);
-    console.log(`Seed Used: ${results.seedUsed}`);
-    console.log(`Target: ${results.targetValue}`);
-    console.log(`Actual Steps: ${results.actualSteps}`);
-    console.log(`Actual Duration: ${results.actualDurationMs.toFixed(2)} ms`);
-    console.log(`Avg Step Time: ${results.avgStepTimeMs.toFixed(4)} ms`);
-    console.log(`Min Step Time: ${(results.minStepTimeMs ?? 0).toFixed(4)} ms`);
-    console.log(`Max Step Time: ${(results.maxStepTimeMs ?? 0).toFixed(4)} ms`);
-    console.log(
-      `Median Step Time: ${(results.medianStepTimeMs ?? 0).toFixed(4)} ms`
+      )} ms`
     );
     console.log(
-      `Std Dev Step Time: ${(results.stdDevStepTimeMs ?? 0).toFixed(4)} ms`
+      `Overall Average of AvgStepTimeMs: ${overallAverageStepTimeMs.toFixed(
+        4
+      )} ms`
     );
-    console.log(`Steps Per Second: ${results.stepsPerSecond.toFixed(2)} Hz`);
-    console.log("------------------------------");
+    console.log("-------------------------------------------");
 
-    // Primary assertion: average step time within expected value +/- delta
+    // Assertions on the overall average
     const lowerBound =
       EXPECTED_AVG_STEP_TIME_MS - PERFORMANCE_STEP_TIME_DELTA_MS;
     const upperBound =
       EXPECTED_AVG_STEP_TIME_MS + PERFORMANCE_STEP_TIME_DELTA_MS;
 
     console.log(
-      `Asserting avgStepTimeMs (${results.avgStepTimeMs.toFixed(
+      `Asserting Overall Average of AvgStepTimeMs (${overallAverageStepTimeMs.toFixed(
         4
       )}ms) is between ${lowerBound.toFixed(4)}ms and ${upperBound.toFixed(
         4
       )}ms.`
     );
-
-    expect(results.avgStepTimeMs).toBeGreaterThanOrEqual(lowerBound);
-    expect(results.avgStepTimeMs).toBeLessThanOrEqual(upperBound);
-
-    // Sanity check: ensure the simulation ran for the expected number of steps
-    expect(results.actualSteps).toBe(SIMULATION_TARGET_STEPS);
-
-    // Log performance statistics to a file instead of snapshotting
-    const performanceStatsToLog = {
-      timestamp: new Date().toISOString(), // Add a timestamp to each log entry
-      scenarioDescription: results.scenarioDescription,
-      seedUsed: results.seedUsed,
-      targetSteps: SIMULATION_TARGET_STEPS,
-      actualSteps: results.actualSteps,
-      actualDurationMs: parseFloat(results.actualDurationMs.toFixed(2)),
-      avgStepTimeMs: parseFloat(results.avgStepTimeMs.toFixed(4)),
-      minStepTimeMs:
-        results.minStepTimeMs !== undefined
-          ? parseFloat(results.minStepTimeMs.toFixed(4))
-          : 0,
-      maxStepTimeMs:
-        results.maxStepTimeMs !== undefined
-          ? parseFloat(results.maxStepTimeMs.toFixed(4))
-          : 0,
-      medianStepTimeMs:
-        results.medianStepTimeMs !== undefined
-          ? parseFloat(results.medianStepTimeMs.toFixed(4))
-          : 0,
-      stdDevStepTimeMs:
-        results.stdDevStepTimeMs !== undefined
-          ? parseFloat(results.stdDevStepTimeMs.toFixed(4))
-          : 0,
-      stepsPerSecond: parseFloat(results.stepsPerSecond.toFixed(2)),
-    };
-
-    try {
-      fs.appendFileSync(
-        PERFORMANCE_LOG_FILE,
-        JSON.stringify(performanceStatsToLog) + "\n"
-      );
-      console.log(`Performance stats appended to ${PERFORMANCE_LOG_FILE}`);
-    } catch (error) {
-      console.error(
-        `Failed to write performance log to ${PERFORMANCE_LOG_FILE}:`,
-        error
-      );
-    }
-
-    // expect(performanceStatsSnapshot).toMatchSnapshot(); // Removed snapshot assertion
-  }, 10000); // Increase timeout for this performance test to 10 seconds
+    expect(overallAverageStepTimeMs).toBeGreaterThanOrEqual(lowerBound);
+    expect(overallAverageStepTimeMs).toBeLessThanOrEqual(upperBound);
+  }, 25000); // Increased timeout (e.g., 5 runs * 2.5s = 12.5s sim time + setup/overhead)
 });
