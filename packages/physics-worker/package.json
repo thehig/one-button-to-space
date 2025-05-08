@@ -13,7 +13,8 @@
     "perf:report": "pnpm build && node ./scripts/generate-performance-report.mjs"
   },
   "dependencies": {
-    "matter-js": "catalog:"
+    "matter-js": "catalog:",
+    "@colyseus/schema": "catalog:"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

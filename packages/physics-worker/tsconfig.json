@@ -1,25 +1,41 @@
 {
-  "extends": "../../tsconfig.base.json",
+  // "extends": "../../tsconfig.base.json", // Temporarily commented out for testing
   "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "WebWorker", "DOM.Iterable"],
-    "module": "ESNext",
-    "skipLibCheck": true,
-    "types": ["vitest/globals", "@testing-library/jest-dom"],
+    // Base Options from root tsconfig.json (ensure these are appropriate for worker)
+    "esModuleInterop": true,
+    "skipLibCheck": true, // Already present, kept
+    // "target": "ESNext", // Overridden below
+    "allowJs": true, // From root, assuming it's desired
+    "moduleDetection": "force", // From root
+    "isolatedModules": true, // Already present, kept
 
-    /* Bundler mode - adjusted for library output */
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "declaration": true,
-    "outDir": "./dist",
+    /* Strictness from root tsconfig.json */
+    "strict": true, // Already present, kept
+    "noUncheckedIndexedAccess": true, // From root
+    "noImplicitAny": true, // From root
+    "strictNullChecks": true, // From root
+    "strictFunctionTypes": true, // From root
+    "strictPropertyInitialization": true, // From root
+    "noImplicitThis": true, // From root
+    "alwaysStrict": true, // From root
 
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    /* Decorator settings - CRUCIAL */
+    "experimentalDecorators": true, // Already present, kept
+    "emitDecoratorMetadata": true, // Already present, kept
+    "useDefineForClassFields": false, // Already present, kept
+
+    /* physics-worker specific overrides and additions */
+    "target": "ES2022", // Specific to physics-worker
+    "lib": ["ES2022", "WebWorker", "DOM.Iterable"], // Specific to physics-worker
+    "module": "ESNext", // Specific to physics-worker
+    "types": ["vitest/globals", "@testing-library/jest-dom"], // Specific to physics-worker
+    "moduleResolution": "node", // Specific to physics-worker
+    "resolveJsonModule": true, // Specific to physics-worker
+    "declaration": true, // Specific to physics-worker
+    "outDir": "./dist", // Specific to physics-worker
+    "noUnusedLocals": true, // Specific to physics-worker
+    "noUnusedParameters": true, // Specific to physics-worker
+    "noFallthroughCasesInSwitch": true // Specific to physics-worker
   },
   "include": ["src", "tests"],
   "exclude": ["node_modules", "dist", "demos"]

@@ -1,6 +1,11 @@
 import Phaser from "phaser";
 import { PhysicsWorkerClient } from "../../src/index.ts";
 import { CommandType } from "../../src/commands.ts";
+import {
+  PhysicsSyncState,
+  BodyState,
+  CollisionPair,
+} from "../../src/schemas.ts";
 
 class DemoUIManager {
   logOutput = null;
@@ -105,6 +110,7 @@ class DemoUIManager {
     this.stepButton.disabled = false;
     this.loopButton.disabled = false;
     // removeLastButton is enabled when a body is added
+    // No longer directly tied to WORLD_INITIALIZED as BODY_ADDED is removed
   }
 
   setBodyAddedButtonStates() {
@@ -115,6 +121,10 @@ class DemoUIManager {
     // If lastAddedBodyId is null (handled by scene logic), disable button
     // This might need scene to inform UIManager, or UIManager checks scene.lastAddedBodyId
     // For now, listener itself disables it directly.
+    // With schema, this state might be derived from the gameObjects map size
+    if (this.scene.gameObjects.size === 0) {
+      this.removeLastButton.disabled = true;
+    }
   }
 
   disableLoopControls(disable) {
@@ -273,167 +283,360 @@ class DemoScene extends Phaser.Scene {
   }
 
   preload() {
-    // No assets needed for simple shapes yet
+    this.uiManager = new DemoUIManager(this); // Initialize UIManager here
+    this.uiManager.log({ type: "PHASER_EVENT", event: "preload" });
   }
 
   create() {
-    this.uiManager = new DemoUIManager(this); // Pass scene instance
-    this.uiManager.setupUIListeners(); // Call it here
+    this.uiManager.log({ type: "PHASER_EVENT", event: "create_start" });
+    this.uiManager.setupUIListeners();
 
-    this.uiManager.log({
-      type: "PHASER_SCENE_CREATE",
-      note: "Phaser scene creating...",
-    });
     this.physicsClient = new PhysicsWorkerClient();
     this.uiManager.log({
-      // Use UIManager for logging
-      type: "CLIENT_ATTEMPT_INIT",
-      note: "PhysicsWorkerClient instantiated in scene.",
+      type: "WORKER_CLIENT_EVENT",
+      note: "PhysicsWorkerClient instantiated.",
     });
 
     this.physicsClient.onMessage((message) => {
-      this.uiManager.log(message); // Log all incoming worker messages
+      // Log all messages for debugging, then handle based on type
+      // this.uiManager.log({ type: "WORKER_MESSAGE_RAW", data: message });
 
       switch (message.type) {
         case CommandType.WORKER_READY:
+          this.uiManager.log({
+            type: "WORKER_MESSAGE",
+            command: CommandType.WORKER_READY,
+          });
           this.handleWorkerReady();
           break;
         case CommandType.WORLD_INITIALIZED:
+          this.uiManager.log({
+            type: "WORKER_MESSAGE",
+            command: CommandType.WORLD_INITIALIZED,
+            commandId: message.commandId,
+          });
           this.handleWorldInitialized(message.payload);
           break;
+
+        case CommandType.PHYSICS_STATE_UPDATE:
+          this.uiManager.log({
+            type: "WORKER_MESSAGE",
+            command: CommandType.PHYSICS_STATE_UPDATE,
+            note: "Received physics state update.",
+            commandId: message.commandId,
+          });
+          this.handlePhysicsStateUpdate(message.payload);
+          break;
+
+        /* // Old handlers - to be removed or fully replaced by PHYSICS_STATE_UPDATE
         case CommandType.BODY_ADDED:
+          this.uiManager.log({ type: "WORKER_MESSAGE", command: CommandType.BODY_ADDED, commandId: message.commandId });
           this.handleBodyAdded(message.payload);
           break;
         case CommandType.BODY_REMOVED:
+          this.uiManager.log({ type: "WORKER_MESSAGE", command: CommandType.BODY_REMOVED, commandId: message.commandId });
           this.handleBodyRemoved(message.payload);
           break;
         case CommandType.SIMULATION_STEPPED:
+          // Avoid spamming log for every step, but log if it has a commandId (manual step)
+          if (message.commandId) {
+            this.uiManager.log({ type: "WORKER_MESSAGE", command: CommandType.SIMULATION_STEPPED, commandId: message.commandId });
+          }
           this.handleSimulationStepped(message.payload);
           break;
         case CommandType.PHYSICS_EVENTS:
+          this.uiManager.log({ type: "WORKER_MESSAGE", command: CommandType.PHYSICS_EVENTS });
           this.handlePhysicsEvents(message.payload);
           break;
+        */
+
         case CommandType.ERROR:
-          console.error("Error from worker:", message.payload);
+          this.uiManager.log({
+            type: "WORKER_MESSAGE",
+            command: CommandType.ERROR,
+            error: message.payload,
+            commandId: message.commandId,
+          });
+          console.error("Error from physics worker:", message.payload);
           break;
+        default:
+          this.uiManager.log({
+            type: "WORKER_MESSAGE_UNKNOWN",
+            unknownType: message.type,
+            data: message,
+          });
+          console.warn(
+            "Unknown message type from physics worker:",
+            message.type
+          );
       }
     });
+
+    this.physicsClient.onError = (error) => {
+      this.uiManager.log({ type: "WORKER_CLIENT_ERROR", error });
+      console.error("Error with PhysicsWorkerClient:", error);
+      this.uiManager.setTerminatedButtonStates();
+    };
+
+    // Terminate button listener
+    if (this.uiManager.terminateButton) {
+      this.uiManager.terminateButton.onclick = () => {
+        this.uiManager.log({
+          type: "DEMO_ACTION",
+          note: "Terminate worker button clicked.",
+        });
+        this.physicsClient?.terminate();
+        this.uiManager.log({
+          type: "WORKER_CLIENT_EVENT",
+          note: "Worker terminated by client.",
+        });
+        this.uiManager.setTerminatedButtonStates();
+        this.isLooping = false; // Stop any active loops
+      };
+    }
+
+    this.uiManager.log({ type: "PHASER_EVENT", event: "create_end" });
   }
 
   clearVisuals() {
-    this.gameObjects.forEach((go) => go.destroy());
+    this.gameObjects.forEach((obj) => obj.destroy());
     this.gameObjects.clear();
     this.pendingBodies.clear();
+    this.lastAddedBodyId = null;
+    this.uiManager.log({ type: "DEMO_ACTION", note: "Visuals cleared." });
+    // Potentially disable removeLastButton if UIManager is aware of gameObjects size
+    if (this.uiManager.removeLastButton)
+      this.uiManager.removeLastButton.disabled = true;
   }
 
   handleWorkerReady() {
     this.uiManager.setWorkerReadyButtonStates();
-    this.uiManager.log({
-      type: "DEMO_ACTION",
-      note: "Worker ready. Auto-sending INIT_WORLD.",
-    });
-    this.physicsClient?.initWorld({
-      width: 800,
-      height: 600,
-      gravity: { x: 0, y: 1, scale: 0.001 },
-    });
   }
 
   handleWorldInitialized(payload) {
     if (payload.success) {
       this.uiManager.setWorldInitializedButtonStates();
-      const ground = this.add.rectangle(400, 590, 800, 20, 0x888888);
-      this.gameObjects.set("ground", ground);
+      // World is ready, existing bodies (if any from a previous state) should come via first state update.
+      // If clearVisuals was called before initWorld, this is fine.
+    } else {
+      this.uiManager.log({
+        type: "DEMO_ERROR",
+        note: "World initialization failed.",
+        payload,
+      });
     }
   }
 
+  handlePhysicsStateUpdate(encodedPayload) {
+    try {
+      const state = new PhysicsSyncState();
+      // Assuming encodedPayload is ArrayBuffer or similar, directly from worker
+      state.decode(encodedPayload);
+
+      this.uiManager.log({
+        type: CommandType.PHYSICS_STATE_UPDATE,
+        state: state.toJSON(),
+        note: "Decoded state",
+      });
+
+      // Update existing game objects and create new ones
+      state.bodies.forEach((bodyData, id) => {
+        let gameObject = this.gameObjects.get(id);
+        if (!gameObject) {
+          const initialPayload = this.pendingBodies.get(id);
+          if (initialPayload) {
+            this.uiManager.log({
+              type: "DEMO_LOGIC",
+              note: `Creating new visual for body ID: ${id}`,
+              shape: initialPayload.type,
+            });
+            if (initialPayload.type === "rectangle") {
+              gameObject = this.add.rectangle(
+                bodyData.x,
+                bodyData.y,
+                initialPayload.width,
+                initialPayload.height,
+                0x00cc00 // A slightly different green for new schema-driven bodies
+              );
+            } else if (initialPayload.type === "circle") {
+              gameObject = this.add.circle(
+                bodyData.x,
+                bodyData.y,
+                initialPayload.radius,
+                0xcc0000 // A slightly different red
+              );
+            }
+            if (gameObject) {
+              this.gameObjects.set(id, gameObject);
+              this.pendingBodies.delete(id); // Clean up from pending
+              this.uiManager.setBodyAddedButtonStates(); // Enable remove button if a body now exists
+            }
+          } else {
+            this.uiManager.log({
+              type: "DEMO_WARNING",
+              note: `No pending body info for new ID: ${id}. Cannot create visual.`,
+            });
+          }
+        }
+
+        if (gameObject) {
+          gameObject.setPosition(bodyData.x, bodyData.y);
+          gameObject.setAngle(Phaser.Math.RadToDeg(bodyData.angle));
+        }
+      });
+
+      // Remove game objects that are no longer in the state
+      const currentGameObjectIds = Array.from(this.gameObjects.keys());
+      for (const id of currentGameObjectIds) {
+        if (!state.bodies.has(id)) {
+          this.uiManager.log({
+            type: "DEMO_LOGIC",
+            note: `Removing visual for body ID: ${id}`,
+          });
+          const gameObject = this.gameObjects.get(id);
+          if (gameObject) {
+            gameObject.destroy();
+          }
+          this.gameObjects.delete(id);
+          if (this.lastAddedBodyId === id) {
+            // If the removed body was the last one added for UI tracking
+            this.lastAddedBodyId = null; // TODO: Need better way to track "last added" for remove button
+          }
+        }
+      }
+      if (this.gameObjects.size === 0 && this.uiManager.removeLastButton) {
+        this.uiManager.removeLastButton.disabled = true;
+      }
+
+      // Handle Collisions
+      state.collisionEvents.forEach((collision) => {
+        this.uiManager.log({
+          type: "DEMO_COLLISION",
+          bodyA: collision.bodyAId,
+          bodyB: collision.bodyBId,
+        });
+        const bodyAVisual = this.gameObjects.get(collision.bodyAId);
+        const bodyBVisual = this.gameObjects.get(collision.bodyBId);
+
+        if (bodyAVisual) {
+          bodyAVisual.setTint(0xffaa00); // Flash orange
+          setTimeout(() => bodyAVisual.clearTint(), 150);
+        }
+        if (bodyBVisual) {
+          bodyBVisual.setTint(0xffaa00); // Flash orange
+          setTimeout(() => bodyBVisual.clearTint(), 150);
+        }
+      });
+      state.collisionEvents.clear(); // Assuming collisions are per-step and should be cleared after processing
+    } catch (error) {
+      this.uiManager.log({
+        type: "DEMO_ERROR",
+        note: "Error decoding PHYSICS_STATE_UPDATE",
+        error: error.message,
+        stack: error.stack,
+      });
+      console.error("Error decoding PHYSICS_STATE_UPDATE:", error);
+    }
+  }
+
+  /* // Old handler methods - can be removed or kept for reference if useful during transition
   handleBodyAdded(payload) {
-    if (payload.success && this.pendingBodies.has(payload.id)) {
-      const initialProps = this.pendingBodies.get(payload.id);
-      let gameObject = null;
-      const color = Phaser.Display.Color.RandomRGB().color;
-
-      if (
-        initialProps.type === "rectangle" &&
-        initialProps.width &&
-        initialProps.height
-      ) {
-        gameObject = this.add.rectangle(
-          initialProps.x,
-          initialProps.y,
-          initialProps.width,
-          initialProps.height,
-          color
-        );
-      } else if (initialProps.type === "circle" && initialProps.radius) {
-        gameObject = this.add.circle(
-          initialProps.x,
-          initialProps.y,
-          initialProps.radius,
-          color
-        );
+    if (payload.success) {
+      this.uiManager.setBodyAddedButtonStates();
+      const originalBodyData = this.pendingBodies.get(payload.id);
+      if (originalBodyData) {
+        let gameObject;
+        if (originalBodyData.type === "rectangle") {
+          gameObject = this.add.rectangle(
+            originalBodyData.x,
+            originalBodyData.y,
+            originalBodyData.width,
+            originalBodyData.height,
+            0x00ff00
+          );
+        } else if (originalBodyData.type === "circle") {
+          gameObject = this.add.circle(
+            originalBodyData.x,
+            originalBodyData.y,
+            originalBodyData.radius,
+            0xff0000
+          );
+        }
+        if (gameObject) {
+          this.gameObjects.set(payload.id, gameObject);
+        }
+        this.pendingBodies.delete(payload.id);
+      } else {
+        this.uiManager.log({ type: "DEMO_ERROR", note: "BODY_ADDED success, but no pending data found for ID", id: payload.id });
       }
-      // TODO: Add polygon/vertex rendering if needed
-
-      if (gameObject) {
-        this.gameObjects.set(
-          payload.id,
-          Object.assign(gameObject, { bodyType: initialProps.type })
-        );
-        this.lastAddedBodyId = payload.id;
-        this.uiManager.setBodyAddedButtonStates();
+    } else {
+      this.uiManager.log({ type: "DEMO_ERROR", note: "BODY_ADDED failed", payload });
+      this.pendingBodies.delete(payload.id); // Clean up if add failed
+      if (this.lastAddedBodyId === payload.id) {
+        this.lastAddedBodyId = null; // Reset if the failed body was the last one
       }
-      this.pendingBodies.delete(payload.id); // Clean up
     }
   }
 
   handleBodyRemoved(payload) {
-    if (payload.success && payload.id) {
-      const go = this.gameObjects.get(payload.id);
-      if (go) {
-        go.destroy();
+    if (payload.success) {
+      const gameObject = this.gameObjects.get(payload.id);
+      if (gameObject) {
+        gameObject.destroy();
         this.gameObjects.delete(payload.id);
-        this.uiManager.log({
-          // Use UIManager for logging
-          type: "PHASER_ACTION",
-          note: `Destroyed visual for body ID: ${payload.id}`,
-        });
+        this.uiManager.log({ type: "DEMO_LOGIC", note: `Visual for body ID: ${payload.id} removed` });
+      } else {
+        this.uiManager.log({ type: "DEMO_WARNING", note: `BODY_REMOVED success, but no visual found for ID: ${payload.id}` });
       }
+      if (this.lastAddedBodyId === payload.id) {
+        this.lastAddedBodyId = null; // Clear if this was the one for UI
+      }
+      if (this.gameObjects.size === 0 && this.uiManager.removeLastButton) {
+        this.uiManager.removeLastButton.disabled = true;
+      }
+    } else {
+      this.uiManager.log({ type: "DEMO_ERROR", note: "BODY_REMOVED failed", payload });
     }
   }
 
   handleSimulationStepped(payload) {
-    if (payload.success) {
-      payload.bodies.forEach((bodyUpdate) => {
-        const go = this.gameObjects.get(bodyUpdate.id);
-
-        if (go) {
-          if (go.isTinted) {
-            go.clearTint();
-          }
-          go.setPosition(bodyUpdate.x, bodyUpdate.y);
-          go.rotation = bodyUpdate.angle;
+    if (payload.success && payload.bodies) {
+      payload.bodies.forEach((bodyData) => {
+        const gameObject = this.gameObjects.get(bodyData.id);
+        if (gameObject) {
+          gameObject.setPosition(bodyData.x, bodyData.y);
+          gameObject.setAngle(Phaser.Math.RadToDeg(bodyData.angle)); // Convert radians to degrees for Phaser
         }
       });
+    } else if (!payload.success) {
+       this.uiManager.log({ type: "DEMO_ERROR", note: "SIMULATION_STEPPED failed", payload });
     }
   }
 
   handlePhysicsEvents(payload) {
-    payload.collisions.forEach((collision) => {
-      const bodyA = this.gameObjects.get(collision.bodyAId);
-      const bodyB = this.gameObjects.get(collision.bodyBId);
+    if (payload.collisions) {
+      payload.collisions.forEach((collision) => {
+        this.uiManager.log({ type: "DEMO_COLLISION", bodyA: collision.bodyAId, bodyB: collision.bodyBId });
+        const bodyAVisual = this.gameObjects.get(collision.bodyAId);
+        const bodyBVisual = this.gameObjects.get(collision.bodyBId);
 
-      [bodyA, bodyB].forEach((go) => {
-        if (go && go.setTint) {
-          go.setTint(0xff0000);
+        // Example: make bodies flash on collision
+        if (bodyAVisual) {
+          bodyAVisual.setTint(0xffaa00); // Flash orange
+          setTimeout(() => bodyAVisual.clearTint(), 150);
+        }
+        if (bodyBVisual) {
+          bodyBVisual.setTint(0xffaa00); // Flash orange
+          setTimeout(() => bodyBVisual.clearTint(), 150);
         }
       });
-    });
+    }
   }
+  */
 
-  // Phaser's update loop
   update(time, delta) {
-    // We get physics updates from the worker via messages
+    // The simulation loop is now driven by requestAnimationFrame within the loopButton onclick
+    // or manual stepButton clicks. Main Phaser update loop is not directly stepping the physics worker here.
   }
 }
 
@@ -444,6 +647,7 @@ const config = {
   height: 600,
   parent: "phaser-container", // Render into the div
   scene: [DemoScene],
+  backgroundColor: "#f0f0f0",
 };
 
 // Start the game

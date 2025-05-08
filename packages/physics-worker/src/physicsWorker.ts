@@ -1,4 +1,6 @@
 import * as Matter from "matter-js";
+// Removed: import { Schema, MapSchema, ArraySchema, type } from "@colyseus/schema";
+import { BodyState, CollisionPair, PhysicsSyncState } from "./schemas";
 import {
   PhysicsCommand,
   CommandType,
@@ -9,29 +11,23 @@ import {
   // IBodyDefinition, // Removed as it's implicitly used via Matter.IBodyDefinition
 } from "./commands";
 
-// TODO: Define Command interfaces/classes
-// Example:
-// interface PhysicsCommand {
-//   type: string;
-//   payload?: any;
-// }
-
 console.log("Physics Worker: Script loaded");
 
-// TODO: Add Matter.js engine, world, and other necessary variables
 let engine: Matter.Engine | undefined;
 let world: Matter.World | undefined;
-// let runner: Matter.Runner | undefined; // For stepping the simulation
 
-// Keep track of bodies by ID for easier removal/update
-const bodies: Map<string | number, Matter.Body> = new Map();
+// Keep track of bodies by external ID for easier removal/update
+const bodies: Map<string, Matter.Body> = new Map();
+// Map Matter's internal numeric ID to our external string ID
+const matterIdToExternalIdMap: Map<number, string> = new Map();
+
+let syncState = new PhysicsSyncState();
 
 self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
   console.log("Physics Worker: Message received from main thread:", event.data);
   const command = event.data;
 
   if (!engine || !world) {
-    // Allow INIT_WORLD even if engine/world is not yet defined
     if (command.type !== CommandType.INIT_WORLD) {
       console.error(
         "Physics Worker: Engine not initialized. Please send INIT_WORLD command first."
@@ -54,9 +50,10 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
         const payload = command.payload as InitWorldCommandPayload;
         engine = Matter.Engine.create();
         world = engine.world;
-        bodies.clear(); // Clear any existing bodies from a previous init
+        bodies.clear();
+        matterIdToExternalIdMap.clear();
+        syncState = new PhysicsSyncState(); // Reset state
 
-        // Configure world based on payload
         if (payload.gravity) {
           world.gravity.x = payload.gravity.x;
           world.gravity.y = payload.gravity.y;
@@ -64,9 +61,7 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
             world.gravity.scale = payload.gravity.scale;
           }
         }
-        // TODO: Set world bounds if width/height are provided (e.g., for static boundaries)
 
-        // --- ADD STATIC BOUNDARIES ---
         const wallOptions: Matter.IBodyDefinition = { isStatic: true };
         const ground = Matter.Bodies.rectangle(
           payload.width / 2,
@@ -98,45 +93,30 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
         );
 
         Matter.World.add(world, [ground, leftWall, rightWall, ceiling]);
-        // We don't need to track these static bodies in our `bodies` map typically
-        // --- END STATIC BOUNDARIES ---
 
-        // --- ADD COLLISION LISTENER ---
         Matter.Events.on(engine, "collisionStart", (event) => {
           const pairs = event.pairs;
-          const collisionEvents: Array<{
-            bodyAId: string | number;
-            bodyBId: string | number;
-          }> = [];
+          syncState.collisionEvents.clear(); // Clear previous step's collisions
+
           for (let i = 0; i < pairs.length; i++) {
             const pair = pairs[i];
-            // Use the IDs we assigned to the bodies
-            if (pair.bodyA.id && pair.bodyB.id) {
-              collisionEvents.push({
-                bodyAId: pair.bodyA.id,
-                bodyBId: pair.bodyB.id,
-              });
+            const externalAId = matterIdToExternalIdMap.get(pair.bodyA.id);
+            const externalBId = matterIdToExternalIdMap.get(pair.bodyB.id);
+
+            if (externalAId && externalBId) {
+              syncState.collisionEvents.push(
+                new CollisionPair(externalAId, externalBId)
+              );
             }
           }
-          if (collisionEvents.length > 0) {
-            // Send collision events back to the main thread
-            self.postMessage({
-              type: CommandType.PHYSICS_EVENTS,
-              payload: { collisions: collisionEvents },
-              // Note: No commandId here as it's an event, not a response to a command
-            });
-          }
+          // Collision events will be sent with the next state update (e.g., after STEP_SIMULATION)
         });
-        // --- END COLLISION LISTENER ---
-
-        // Example: Create a simple runner for stepping the simulation
-        // runner = Matter.Runner.create();
-        // Matter.Runner.run(runner, engine); // This would run the simulation automatically
 
         console.log(
           "Physics Worker: World initialized with boundaries and collision listener",
           payload
         );
+        // Send WORLD_INITIALIZED as a direct ack; state will be synced separately
         self.postMessage({
           type: CommandType.WORLD_INITIALIZED,
           payload: { success: true },
@@ -153,12 +133,16 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
       break;
 
     case CommandType.ADD_BODY:
-      if (!engine || !world) break; // Should be caught by the check above, but as a safeguard
+      if (!engine || !world) break;
       try {
         const payload = command.payload as AddBodyCommandPayload;
+        const externalId = String(payload.id);
         let body: Matter.Body | undefined;
 
-        const bodyOptions = { ...payload.options, id: payload.id as number }; // Ensure ID is set on options if not native
+        // Ensure options don't try to set Matter's internal 'id' with a string
+        // Matter will assign its own numeric ID.
+        const { id, ...restOptions } = payload.options || {};
+        const bodyOptions: Matter.IBodyDefinition = restOptions;
 
         switch (payload.type) {
           case "rectangle":
@@ -184,7 +168,6 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
             break;
           case "polygon":
             if (payload.sides && payload.radius) {
-              // Matter.Bodies.polygon needs radius and sides
               body = Matter.Bodies.polygon(
                 payload.x,
                 payload.y,
@@ -193,13 +176,12 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
                 bodyOptions
               );
             } else if (payload.vertices) {
-              // Or can be created from vertices directly
               body = Matter.Bodies.fromVertices(
                 payload.x,
                 payload.y,
                 [payload.vertices],
                 bodyOptions
-              ); // fromVertices expects Vector[][]
+              );
             }
             break;
           case "fromVertices":
@@ -216,11 +198,22 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
 
         if (body) {
           Matter.World.add(world, body);
-          bodies.set(payload.id, body); // Track the body
-          console.log("Physics Worker: Body added", payload.id, body);
+          bodies.set(externalId, body);
+          matterIdToExternalIdMap.set(body.id, externalId); // Map Matter's internal ID
+
+          // Update syncState
+          const newBodyState = new BodyState(
+            externalId,
+            body.position.x,
+            body.position.y,
+            body.angle
+          );
+          syncState.bodies.set(externalId, newBodyState);
+
+          console.log("Physics Worker: Body added", externalId, body);
           self.postMessage({
-            type: CommandType.BODY_ADDED,
-            payload: { id: payload.id, success: true },
+            type: CommandType.PHYSICS_STATE_UPDATE, // Use the new type
+            payload: syncState.encode(), // Send full encoded state
             commandId: command.commandId,
           });
         } else {
@@ -240,19 +233,25 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
       if (!engine || !world) break;
       try {
         const payload = command.payload as RemoveBodyCommandPayload;
-        const bodyToRemove = bodies.get(payload.id);
+        const externalId = String(payload.id);
+        const bodyToRemove = bodies.get(externalId);
 
         if (bodyToRemove) {
           Matter.World.remove(world, bodyToRemove);
-          bodies.delete(payload.id);
-          console.log("Physics Worker: Body removed", payload.id);
+          bodies.delete(externalId);
+          matterIdToExternalIdMap.delete(bodyToRemove.id); // Clean up mapping
+
+          // Update syncState
+          syncState.bodies.delete(externalId);
+
+          console.log("Physics Worker: Body removed", externalId);
           self.postMessage({
-            type: CommandType.BODY_REMOVED,
-            payload: { id: payload.id, success: true },
+            type: CommandType.PHYSICS_STATE_UPDATE, // Use the new type
+            payload: syncState.encode(), // Send full encoded state
             commandId: command.commandId,
           });
         } else {
-          throw new Error(`Body with ID ${payload.id} not found for removal.`);
+          throw new Error(`Body with ID ${externalId} not found for removal.`);
         }
       } catch (e: any) {
         console.error("Physics Worker: Error removing body", e);
@@ -268,28 +267,33 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
       if (!engine || !world) break;
       try {
         const payload = command.payload as StepSimulationCommandPayload;
-        if (engine && world) {
-          Matter.Engine.update(engine, payload.deltaTime); // Update the physics engine
-        }
+        Matter.Engine.update(engine, payload.deltaTime); // Update the physics engine
 
-        const updatedBodiesInfo: Array<{
-          id: string | number;
-          x: number;
-          y: number;
-          angle: number;
-        }> = [];
-        bodies.forEach((body, id) => {
-          updatedBodiesInfo.push({
-            id,
-            x: body.position.x,
-            y: body.position.y,
-            angle: body.angle,
-          });
+        // The collision listener (Matter.Events.on("collisionStart",...))
+        // will have updated syncState.collisionEvents during the Matter.Engine.update call.
+
+        // Update all body states in syncState
+        bodies.forEach((body, externalId) => {
+          let bodyState = syncState.bodies.get(externalId);
+          if (bodyState) {
+            bodyState.x = body.position.x;
+            bodyState.y = body.position.y;
+            bodyState.angle = body.angle;
+          } else {
+            // This case should ideally not happen if bodies map and syncState.bodies are in sync
+            const newBodyState = new BodyState(
+              externalId,
+              body.position.x,
+              body.position.y,
+              body.angle
+            );
+            syncState.bodies.set(externalId, newBodyState);
+          }
         });
 
         self.postMessage({
-          type: CommandType.SIMULATION_STEPPED,
-          payload: { success: true, bodies: updatedBodiesInfo },
+          type: CommandType.PHYSICS_STATE_UPDATE, // Use the new type
+          payload: syncState.encode(), // Send full encoded state (with updated bodies and collisions)
           commandId: command.commandId,
         });
       } catch (e: any) {
@@ -301,8 +305,6 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
         });
       }
       break;
-
-    // TODO: Implement UPDATE_BODY, APPLY_FORCE etc.
 
     default:
       console.warn(
@@ -318,9 +320,4 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
   }
 };
 
-// Optional: Initial message to main thread to indicate worker is ready
 self.postMessage({ type: CommandType.WORKER_READY });
-
-// TODO: Add Matter.js engine, world, and other necessary variables
-// let engine: Matter.Engine;
-// let world: Matter.World;

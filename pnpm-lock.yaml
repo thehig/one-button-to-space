@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@colyseus/schema':
+      specifier: '*'
+      version: 3.0.36
     '@eslint/js':
       specifier: '*'
       version: 9.26.0
@@ -221,6 +224,9 @@ importers:
 
   packages/physics-worker:
     dependencies:
+      '@colyseus/schema':
+        specifier: 'catalog:'
+        version: 3.0.36
       matter-js:
         specifier: 'catalog:'
         version: 0.20.0
@@ -391,6 +397,10 @@ packages:
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
+
+  '@colyseus/schema@3.0.36':
+    resolution: {integrity: sha512-tl0dOYK+5ZZ9jzWqt1zuvgb7/dUIq3OWylP4amyEPq8cuV8AsWqJLLPsvladOPUdxEyEiJtRKumJaFNrn2Ygrw==}
+    hasBin: true
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -2755,6 +2765,8 @@ snapshots:
       '@babel/helper-validator-identifier': 7.27.1
 
   '@bcoe/v8-coverage@1.0.2': {}
+
+  '@colyseus/schema@3.0.36': {}
 
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
