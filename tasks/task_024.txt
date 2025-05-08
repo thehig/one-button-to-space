@@ -91,7 +91,7 @@ The command should be optimized for performance since it may be called frequentl
 ### Dependencies: None
 ### Description: Create efficient methods to package and transfer physics body data from the main thread to the worker and trajectory results back, considering Transferable Objects for performance optimization.
 ### Details:
-"Implement data marshalling and unmarshalling between the main thread and the worker using @colyseus/schema. This includes defining the necessary schemas for prediction input (dynamic body properties, static bodies data, simulation configuration) and prediction output (trajectory points). Utilize the @colyseus/schema Encoder on the sending side and the Decoder on the receiving side. The resulting Uint8Array from the encoder should have its underlying ArrayBuffer transferred as a Transferable Object via postMessage to optimize performance, maintaining the existing consideration for Transferable Objects but now framed within this @colyseus/schema context."
+
 
 ## 24.3. Implement worker-side simulation logic [pending]
 ### Dependencies: None

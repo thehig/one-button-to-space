@@ -338,6 +338,390 @@ Error handling specifics:
 - Implement stress tests with hundreds/thousands of bodies
 </info added on 2025-05-07T20:05:02.193Z>
 
+<info added on 2025-05-08T18:03:57.096Z>
+<info added on 2025-05-08T14:30:15.000Z>
+## Performance Testing Implementation Details
+
+### Performance Test Structure
+- Create a dedicated `performance-tests` directory with the following files:
+  - `performance-test.html`: Main test harness page
+  - `performance-test.css`: Styling for test controls and results display
+  - `performance-test.js`: Core testing logic
+  - `test-scenarios.js`: Reusable physics test scenarios
+
+### Test Scenarios Implementation
+```javascript
+// Example scenario definition in test-scenarios.js
+const TestScenarios = {
+  fallingBoxes: function(engine, count) {
+    const world = engine.world;
+    // Clear existing bodies
+    Matter.Composite.clear(world, false);
+    
+    // Add ground
+    const ground = Matter.Bodies.rectangle(400, 600, 800, 50, { isStatic: true });
+    
+    // Add specified number of boxes with random properties
+    const bodies = [];
+    for (let i = 0; i < count; i++) {
+      bodies.push(Matter.Bodies.rectangle(
+        Math.random() * 800,
+        Math.random() * 300,
+        20 + Math.random() * 30,
+        20 + Math.random() * 30,
+        { restitution: 0.6, friction: 0.1 }
+      ));
+    }
+    
+    Matter.Composite.add(world, [ground, ...bodies]);
+    return { bodies: bodies.length + 1 };
+  },
+  
+  chainReaction: function(engine, count) {
+    // Implementation of chain reaction scenario
+    // ...
+  },
+  
+  collisionStress: function(engine, count) {
+    // Implementation of collision-heavy scenario
+    // ...
+  }
+};
+```
+
+### Performance Metrics Collection
+```javascript
+class PerformanceMetrics {
+  constructor() {
+    this.reset();
+  }
+  
+  reset() {
+    this.frameCount = 0;
+    this.totalPhysicsTime = 0;
+    this.minPhysicsTime = Number.MAX_VALUE;
+    this.maxPhysicsTime = 0;
+    this.startTime = 0;
+    this.endTime = 0;
+    this.lastFrameTime = 0;
+    this.frameTimes = [];
+  }
+  
+  startRun() {
+    this.reset();
+    this.startTime = performance.now();
+    this.lastFrameTime = this.startTime;
+  }
+  
+  recordFrame(physicsTime) {
+    const now = performance.now();
+    this.frameCount++;
+    this.totalPhysicsTime += physicsTime;
+    this.minPhysicsTime = Math.min(this.minPhysicsTime, physicsTime);
+    this.maxPhysicsTime = Math.max(this.maxPhysicsTime, physicsTime);
+    
+    const frameTime = now - this.lastFrameTime;
+    this.frameTimes.push(frameTime);
+    this.lastFrameTime = now;
+  }
+  
+  endRun() {
+    this.endTime = performance.now();
+  }
+  
+  getResults() {
+    const totalTime = this.endTime - this.startTime;
+    const avgPhysicsTime = this.totalPhysicsTime / this.frameCount;
+    
+    // Calculate FPS (excluding first few frames for warm-up)
+    const warmupFrames = Math.min(10, Math.floor(this.frameTimes.length * 0.1));
+    const steadyFrameTimes = this.frameTimes.slice(warmupFrames);
+    const avgFrameTime = steadyFrameTimes.reduce((sum, time) => sum + time, 0) / steadyFrameTimes.length;
+    const fps = 1000 / avgFrameTime;
+    
+    return {
+      totalTime,
+      frameCount: this.frameCount,
+      avgPhysicsTime,
+      minPhysicsTime: this.minPhysicsTime,
+      maxPhysicsTime: this.maxPhysicsTime,
+      fps: Math.round(fps * 100) / 100
+    };
+  }
+}
+```
+
+### Main Thread vs Worker Implementation
+```javascript
+// Main thread implementation
+function runMainThreadTest(scenarioName, bodyCount, duration) {
+  const metrics = new PerformanceMetrics();
+  const engine = Matter.Engine.create();
+  
+  // Set up scenario
+  const scenario = TestScenarios[scenarioName](engine, bodyCount);
+  
+  // Set up renderer (minimal for performance testing)
+  const render = Matter.Render.create({
+    element: document.getElementById('main-thread-canvas-container'),
+    engine: engine,
+    options: {
+      width: 800,
+      height: 600,
+      wireframes: true
+    }
+  });
+  
+  Matter.Render.run(render);
+  
+  // Start metrics collection
+  metrics.startRun();
+  
+  // Run engine with timing
+  let lastTime = performance.now();
+  const runner = Matter.Runner.create();
+  
+  // Override the tick function to measure physics time
+  const originalTick = runner.tick;
+  runner.tick = function(time) {
+    const beforePhysics = performance.now();
+    originalTick.call(this, time);
+    const physicsTime = performance.now() - beforePhysics;
+    metrics.recordFrame(physicsTime);
+    
+    // Check if test duration has elapsed
+    if (performance.now() - metrics.startTime >= duration) {
+      Matter.Runner.stop(runner);
+      Matter.Render.stop(render);
+      metrics.endRun();
+      displayResults('main-thread', metrics.getResults(), scenario);
+    }
+  };
+  
+  Matter.Runner.run(runner, engine);
+}
+
+// Worker implementation
+function runWorkerTest(scenarioName, bodyCount, duration) {
+  const metrics = new PerformanceMetrics();
+  const workerClient = new PhysicsWorkerClient();
+  
+  // Set up canvas for rendering
+  const canvas = document.getElementById('worker-canvas');
+  const ctx = canvas.getContext('2d');
+  
+  // Initialize worker
+  workerClient.initialize()
+    .then(() => {
+      // Create engine in worker
+      return workerClient.createEngine();
+    })
+    .then(() => {
+      // Set up scenario in worker
+      return workerClient.executeScenario(scenarioName, bodyCount);
+    })
+    .then((scenario) => {
+      metrics.startRun();
+      
+      // Start update loop
+      let animationId;
+      const updateLoop = () => {
+        const beforePhysics = performance.now();
+        
+        workerClient.update()
+          .then((worldState) => {
+            const physicsTime = performance.now() - beforePhysics;
+            metrics.recordFrame(physicsTime);
+            
+            // Render the world state
+            renderWorldState(ctx, worldState);
+            
+            // Check if test duration has elapsed
+            if (performance.now() - metrics.startTime >= duration) {
+              cancelAnimationFrame(animationId);
+              metrics.endRun();
+              workerClient.terminate();
+              displayResults('worker', metrics.getResults(), scenario);
+            } else {
+              animationId = requestAnimationFrame(updateLoop);
+            }
+          });
+      };
+      
+      animationId = requestAnimationFrame(updateLoop);
+    });
+}
+```
+
+### Test Execution and Results Visualization
+```javascript
+// Run multiple tests and average results
+function runBenchmarkSuite(config) {
+  const { scenario, bodyCount, duration, iterations } = config;
+  const mainThreadResults = [];
+  const workerResults = [];
+  let currentIteration = 0;
+  
+  function runNextIteration() {
+    if (currentIteration >= iterations) {
+      // All iterations complete, display averaged results
+      displayAveragedResults(mainThreadResults, workerResults, config);
+      return;
+    }
+    
+    // Update progress indicator
+    document.getElementById('progress').textContent = 
+      `Running iteration ${currentIteration + 1}/${iterations}...`;
+    
+    // Run main thread test first, then worker test
+    runMainThreadTest(scenario, bodyCount, duration)
+      .then(mainThreadResult => {
+        mainThreadResults.push(mainThreadResult);
+        return runWorkerTest(scenario, bodyCount, duration);
+      })
+      .then(workerResult => {
+        workerResults.push(workerResult);
+        currentIteration++;
+        
+        // Add delay between iterations to let browser recover
+        setTimeout(runNextIteration, 1000);
+      });
+  }
+  
+  runNextIteration();
+}
+
+// Create charts for visualizing results
+function createPerformanceCharts(mainThreadData, workerData) {
+  // Use Chart.js or similar library to create:
+  // 1. Bar chart comparing FPS
+  // 2. Bar chart comparing physics update time
+  // 3. Line chart showing performance scaling with body count
+  
+  const fpsChart = new Chart(
+    document.getElementById('fps-chart'),
+    {
+      type: 'bar',
+      data: {
+        labels: ['Main Thread', 'Web Worker'],
+        datasets: [{
+          label: 'Frames Per Second',
+          data: [mainThreadData.fps, workerData.fps],
+          backgroundColor: ['rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'FPS Comparison'
+          }
+        }
+      }
+    }
+  );
+  
+  // Additional charts implementation...
+}
+```
+
+### Worker-Specific Performance Measurements
+```javascript
+// Add to PhysicsWorkerClient class
+class PhysicsWorkerClient {
+  // ... existing implementation ...
+  
+  // Method to measure message passing overhead
+  async measureMessageOverhead(iterations = 100) {
+    const times = [];
+    
+    for (let i = 0; i < iterations; i++) {
+      const start = performance.now();
+      await this.sendCommand('ping', {});
+      const end = performance.now();
+      times.push(end - start);
+    }
+    
+    return {
+      avgTime: times.reduce((sum, time) => sum + time, 0) / times.length,
+      minTime: Math.min(...times),
+      maxTime: Math.max(...times)
+    };
+  }
+  
+  // Method to measure serialization overhead
+  async measureSerializationOverhead(bodyCount = 100) {
+    // Create a complex world
+    await this.createEngine();
+    await this.executeScenario('fallingBoxes', bodyCount);
+    
+    // Measure time to get world state
+    const serializationTimes = [];
+    for (let i = 0; i < 20; i++) {
+      const start = performance.now();
+      await this.getWorldState();
+      const end = performance.now();
+      serializationTimes.push(end - start);
+    }
+    
+    return {
+      avgSerializationTime: serializationTimes.reduce((sum, time) => sum + time, 0) / serializationTimes.length
+    };
+  }
+}
+```
+
+### Test Automation Integration
+```javascript
+// Add to package.json scripts
+// "performance-test": "node performance-tests/run-automated-tests.js",
+
+// run-automated-tests.js
+const puppeteer = require('puppeteer');
+const fs = require('fs');
+
+async function runAutomatedPerformanceTests() {
+  const browser = await puppeteer.launch();
+  const page = await browser.newPage();
+  
+  // Navigate to performance test page
+  await page.goto('http://localhost:8080/performance-tests/performance-test.html');
+  
+  // Configure test parameters
+  await page.evaluate(() => {
+    document.getElementById('scenario-select').value = 'fallingBoxes';
+    document.getElementById('body-count').value = '500';
+    document.getElementById('test-duration').value = '5000';
+    document.getElementById('iterations').value = '3';
+  });
+  
+  // Start test
+  await page.click('#run-benchmark');
+  
+  // Wait for tests to complete
+  await page.waitForSelector('#test-complete', { timeout: 60000 });
+  
+  // Extract results
+  const results = await page.evaluate(() => {
+    return {
+      mainThread: JSON.parse(document.getElementById('main-thread-results').textContent),
+      worker: JSON.parse(document.getElementById('worker-results').textContent)
+    };
+  });
+  
+  // Save results to file
+  fs.writeFileSync('performance-test-results.json', JSON.stringify(results, null, 2));
+  
+  await browser.close();
+  console.log('Performance tests completed and results saved.');
+}
+
+runAutomatedPerformanceTests();
+```
+</info added on 2025-05-08T14:30:15.000Z>
+</info added on 2025-05-08T18:03:57.096Z>
+
 ## 4. Develop Demo Pages with Matter.js Visual Representations [pending]
 ### Dependencies: 23.2, 23.3
 ### Description: Create interactive demo pages that showcase the physics worker's capabilities with Matter.js visual representations and performance metrics.

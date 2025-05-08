@@ -1,0 +1,103 @@
+body {
+  font-family: sans-serif;
+  margin: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+#controls-area,
+#results-area {
+  border: 1px solid #ccc;
+  padding: 15px;
+  margin-bottom: 20px;
+  width: 90%;
+  max-width: 900px;
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+#controls-area div {
+  margin-bottom: 10px;
+}
+
+label {
+  margin-right: 10px;
+  min-width: 150px;
+  display: inline-block;
+}
+
+input[type="number"],
+select {
+  padding: 5px;
+  margin-right: 10px;
+  width: 150px;
+}
+
+button {
+  margin: 5px;
+  padding: 8px 15px;
+  cursor: pointer;
+}
+
+.results-comparison {
+  display: flex;
+  justify-content: space-around;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.results-column {
+  width: 48%;
+}
+
+pre {
+  background-color: #f4f4f4;
+  border: 1px solid #ddd;
+  padding: 10px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  min-height: 100px;
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+#logOutputPerformance {
+  width: 90%;
+  max-width: 900px;
+  max-height: 200px;
+}
+
+.charts-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  width: 100%;
+}
+
+.chart-wrapper {
+  width: 100%;
+  max-width: 400px; /* Adjust as needed */
+  margin-bottom: 20px;
+  border: 1px solid #eee;
+  padding: 10px;
+}
+
+#phaser-container-main,
+#phaser-container-worker {
+  width: 800px; /* Match canvas if used */
+  height: 630px; /* Accommodate paragraph and canvas */
+  border: 1px solid black;
+  margin-bottom: 10px;
+  padding: 5px;
+}
+
+canvas {
+  /* Styles for canvases if needed, e.g., border */
+  /* Matter.js Render might create its own canvas, ensure it fits */
+}
+
+#progress {
+  font-style: italic;
+  margin-bottom: 10px;
+  color: #337ab7;
+}

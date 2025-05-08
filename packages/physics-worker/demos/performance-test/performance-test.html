@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Physics Worker - Performance Test</title>
+    <link rel="stylesheet" href="./performance-test.css" />
+  </head>
+  <body>
+    <h1>Physics Worker - Performance Comparison</h1>
+
+    <div id="controls-area">
+      <div>
+        <label for="numBodies">Number of Bodies:</label>
+        <input type="number" id="numBodies" value="100" min="1" />
+      </div>
+      <div>
+        <label for="scenarioSelect">Test Scenario:</label>
+        <select id="scenarioSelect">
+          <option value="fallingBoxes">Falling Boxes</option>
+          <option value="chainReaction">
+            Chain Reaction (Heavy Constraints)
+          </option>
+          <option value="manySmallCircles">
+            Many Small Circles (Collision Intensive)
+          </option>
+          <!-- Add more scenarios later -->
+        </select>
+      </div>
+      <div>
+        <label for="testDuration">Test Duration (ms):</label>
+        <input type="number" id="testDuration" value="5000" min="1000" />
+      </div>
+      <div>
+        <button id="runMainThread">Run on Main Thread</button>
+        <button id="runWorker">Run on Worker</button>
+        <button
+          id="runBenchmarkSuite"
+          title="Run multiple iterations of Main Thread vs Worker for selected scenario"
+        >
+          Run Benchmark Suite
+        </button>
+      </div>
+    </div>
+
+    <div id="results-area">
+      <h2>Results:</h2>
+      <div id="progress"></div>
+
+      <div class="results-comparison">
+        <div class="results-column">
+          <h3>Main Thread Metrics:</h3>
+          <pre id="mainThreadResultsOutput">Not run yet.</pre>
+        </div>
+        <div class="results-column">
+          <h3>Worker Metrics:</h3>
+          <pre id="workerResultsOutput">Not run yet.</pre>
+        </div>
+      </div>
+
+      <h3>Charts:</h3>
+      <div class="charts-container">
+        <div class="chart-wrapper">
+          <canvas id="fpsChart"></canvas>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="avgPhysicsTimeChart"></canvas>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="totalTimeChart"></canvas>
+        </div>
+      </div>
+      <p id="test-complete-indicator" style="display: none">
+        Benchmark Complete
+      </p>
+    </div>
+
+    <div id="phaser-container-main" style="display: none; margin-top: 10px">
+      <p>Main Thread Simulation Render:</p>
+      <!-- Canvas for main thread rendering will be created here by Matter.js Render -->
+    </div>
+    <div id="phaser-container-worker" style="display: none; margin-top: 10px">
+      <p>Worker Simulation Render:</p>
+      <canvas id="worker-render-canvas" width="800" height="600"></canvas>
+    </div>
+
+    <h2>Log:</h2>
+    <pre id="logOutputPerformance">Initializing...</pre>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="./performance-test.js"></script>
+  </body>
+</html>
