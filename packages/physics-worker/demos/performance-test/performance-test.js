@@ -150,27 +150,78 @@ async function runMainThreadTest(scenarioKey, numBodies, durationMs) {
     `Starting Main Thread Test: Scenario=${scenarioKey}, Bodies=${numBodies}, Duration=${durationMs}ms`
   );
   mainThreadResultsOutput.textContent = "Running...";
-  // TODO: Implement main thread test logic
-  // 1. Initialize Matter.js engine
-  // 2. Load scenario (e.g., using a TestScenarios object - to be created)
-  // 3. Setup renderer if needed (e.g., Matter.Render)
-  // 4. Run simulation loop for durationMs, collecting metrics
-  // 5. Display results
+  progressOutput.textContent = `Running Main Thread Test: ${scenarioKey} (${numBodies} bodies)...`;
+  mainThreadRenderContainer.style.display = "block";
 
-  // Placeholder result
-  await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate work
-  const placeholderResults = new PerformanceMetrics();
-  placeholderResults.startRun();
-  for (let i = 0; i < 100; i++) placeholderResults.recordFrame(16);
-  placeholderResults.endRun();
+  const metrics = new PerformanceMetrics();
+  const engine = Matter.Engine.create();
+  const worldOptions = {
+    width: 800,
+    height: 600,
+    gravity: { x: 0, y: 1, scale: 0.001 },
+  };
+  engine.world.gravity = worldOptions.gravity;
 
-  mainThreadResultsOutput.textContent = JSON.stringify(
-    placeholderResults.getResults(),
-    null,
-    2
-  );
-  logPerformanceMessage("Main Thread Test Finished (Placeholder).");
-  return placeholderResults.getResults();
+  while (
+    mainThreadRenderContainer.firstChild &&
+    mainThreadRenderContainer.firstChild.tagName !== "P"
+  ) {
+    mainThreadRenderContainer.removeChild(mainThreadRenderContainer.firstChild);
+  }
+
+  const render = Matter.Render.create({
+    element: mainThreadRenderContainer,
+    engine: engine,
+    options: {
+      width: worldOptions.width,
+      height: worldOptions.height,
+      wireframes: true,
+      showAngleIndicator: false,
+      showCollisions: false,
+      showVelocity: false,
+    },
+  });
+
+  await TestScenarios[scenarioKey](engine, numBodies, worldOptions);
+  logPerformanceMessage(`Main thread scenario ${scenarioKey} loaded.`);
+
+  Matter.Render.run(render);
+
+  metrics.startRun();
+  let simulationRunning = true;
+
+  function runSimulationStep() {
+    if (!simulationRunning) return;
+
+    if (metrics.getTotalTime() >= durationMs) {
+      simulationRunning = false;
+      Matter.Render.stop(render);
+      metrics.endRun();
+      mainThreadResultsOutput.textContent = JSON.stringify(
+        metrics.getResults(),
+        null,
+        2
+      );
+      logPerformanceMessage("Main Thread Test Finished.");
+      progressOutput.textContent = "Main Thread Test Complete.";
+      return;
+    }
+
+    const beforeEngineUpdate = performance.now();
+    Matter.Engine.update(engine, 1000 / 60);
+    const afterEngineUpdate = performance.now();
+    const physicsTime = afterEngineUpdate - beforeEngineUpdate;
+
+    metrics.recordFrame(physicsTime);
+
+    if (simulationRunning) {
+      requestAnimationFrame(runSimulationStep);
+    }
+  }
+  requestAnimationFrame(runSimulationStep); // Start the loop
+
+  await new Promise((resolve) => setTimeout(resolve, durationMs + 500));
+  return metrics.getResults();
 }
 
 async function runWorkerTest(scenarioKey, numBodies, durationMs) {
@@ -178,52 +229,289 @@ async function runWorkerTest(scenarioKey, numBodies, durationMs) {
     `Starting Worker Test: Scenario=${scenarioKey}, Bodies=${numBodies}, Duration=${durationMs}ms`
   );
   workerResultsOutput.textContent = "Running...";
+  progressOutput.textContent = `Running Worker Test: ${scenarioKey} (${numBodies} bodies)...`;
+  const workerRenderCtx = workerRenderCanvas.getContext("2d");
+
+  const metrics = new PerformanceMetrics();
   const physicsClient = new PhysicsWorkerClient();
-  // TODO: Implement worker test logic
-  // 1. Initialize physicsClient
-  // 2. Send commands to setup scenario in worker (INIT_WORLD, ADD_BODY for scenario)
-  // 3. Run simulation loop (sending STEP_SIMULATION) for durationMs, collecting metrics
-  //    - Metric for physics step time: time from sending STEP to receiving STEP_COMPLETE
-  // 4. Display results
-  // 5. Terminate worker
 
-  // Placeholder result
-  await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate work
-  const placeholderResults = new PerformanceMetrics();
-  placeholderResults.startRun();
-  for (let i = 0; i < 100; i++) placeholderResults.recordFrame(10);
-  placeholderResults.endRun();
+  let simulationRunning = true; // Moved up for broader scope
 
-  workerResultsOutput.textContent = JSON.stringify(
-    placeholderResults.getResults(),
-    null,
-    2
-  );
-  await physicsClient.terminate();
-  logPerformanceMessage("Worker Test Finished (Placeholder).");
-  return placeholderResults.getResults();
+  try {
+    logPerformanceMessage(
+      "PhysicsWorkerClient instance created. Proceeding with scenario setup."
+    );
+    const worldOptions = {
+      width: workerRenderCanvas.width,
+      height: workerRenderCanvas.height,
+      gravity: { x: 0, y: 1, scale: 0.001 },
+    };
+
+    await TestScenarios[scenarioKey](physicsClient, numBodies, worldOptions);
+    logPerformanceMessage(
+      `Worker scenario ${scenarioKey} setup commands sent.`
+    );
+
+    metrics.startRun();
+
+    function stepWorker() {
+      if (!simulationRunning) return;
+
+      if (metrics.getTotalTime() >= durationMs) {
+        simulationRunning = false;
+        metrics.endRun();
+        workerResultsOutput.textContent = JSON.stringify(
+          metrics.getResults(),
+          null,
+          2
+        );
+        logPerformanceMessage("Worker Test Finished.");
+        progressOutput.textContent = "Worker Test Complete.";
+        if (physicsClient && typeof physicsClient.terminate === "function") {
+          physicsClient.terminate();
+        }
+        return;
+      }
+
+      const beforeStepCommand = performance.now();
+      physicsClient
+        .sendMessage(
+          {
+            type: CommandType.STEP_SIMULATION,
+            payload: { deltaTime: 1000 / 60 },
+          },
+          CommandType.SIMULATION_STEPPED
+        )
+        .then((response) => {
+          if (!simulationRunning) return;
+
+          const afterStepResponse = performance.now();
+          const physicsTime = afterStepResponse - beforeStepCommand;
+          metrics.recordFrame(physicsTime);
+
+          if (response && response.payload && response.payload.bodies) {
+            renderWorkerBodies(
+              workerRenderCtx,
+              response.payload.bodies,
+              worldOptions.width,
+              worldOptions.height
+            );
+          }
+          // Only request next frame if still running
+          if (simulationRunning) {
+            requestAnimationFrame(stepWorker);
+          }
+        })
+        .catch((error) => {
+          if (!simulationRunning) return; // Avoid double logging if already stopped
+          logPerformanceMessage(
+            `Error during worker simulation step: ${error.message}`,
+            "ERROR"
+          );
+          if (error.stack) {
+            logPerformanceMessage(error.stack, "STACK");
+          }
+          simulationRunning = false;
+          metrics.endRun();
+          workerResultsOutput.textContent = JSON.stringify(
+            metrics.getResults(),
+            null,
+            2
+          ); // Show partial results
+          if (physicsClient && typeof physicsClient.terminate === "function") {
+            physicsClient.terminate();
+          }
+        });
+    }
+
+    requestAnimationFrame(stepWorker); // Start the loop
+
+    await new Promise((resolve) => setTimeout(resolve, durationMs + 500));
+  } catch (error) {
+    simulationRunning = false; // Ensure loop stops on outer error too
+    logPerformanceMessage(
+      `Error in runWorkerTest setup: ${error.message}`,
+      "ERROR"
+    );
+    if (error.stack) {
+      logPerformanceMessage(error.stack, "STACK");
+    }
+    workerResultsOutput.textContent = `Error: ${error.message}`;
+    metrics.endRun();
+    if (physicsClient && typeof physicsClient.terminate === "function") {
+      physicsClient.terminate();
+    }
+  }
+  return metrics.getResults();
+}
+
+function renderWorkerBodies(ctx, bodies, canvasWidth, canvasHeight) {
+  ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.1)"; // For static boundaries if they are sent back
+  ctx.strokeStyle = "black";
+
+  bodies.forEach((body) => {
+    // A simple renderer. Assumes bodies have id, x, y, angle.
+    // And for simplicity, assumes all are rectangles for now if no type info.
+    // This needs to be more robust based on what SIMULATION_STEPPED sends.
+    // Let's assume SIMULATION_STEPPED might also send width/height/radius and type if available.
+
+    ctx.save();
+    ctx.translate(body.x, body.y);
+    ctx.rotate(body.angle);
+
+    // Example: if body has a known type and dimensions (worker should send these)
+    if (body.label && body.label.startsWith("ground")) {
+      // Example for ground, assuming label is passed
+      // This won't be called if ground is not part of dynamic bodies from worker
+    } else if (body.type === "rectangle" && body.width && body.height) {
+      ctx.fillStyle = "blue";
+      ctx.fillRect(-body.width / 2, -body.height / 2, body.width, body.height);
+      ctx.strokeRect(
+        -body.width / 2,
+        -body.height / 2,
+        body.width,
+        body.height
+      );
+    } else if (body.type === "circle" && body.radius) {
+      ctx.fillStyle = "green";
+      ctx.beginPath();
+      ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      // Default fallback rendering if type/dims unknown (e.g. small square)
+      // The worker's SIMULATION_STEPPED payload should include type and dimensions for proper rendering.
+      // For now, if body.width and body.height are part of the payload, use them.
+      const w = body.width || 20; // Default if not provided
+      const h = body.height || 20;
+      ctx.fillStyle = "grey";
+      ctx.fillRect(-w / 2, -h / 2, w, h);
+      ctx.strokeRect(-w / 2, -h / 2, w, h);
+    }
+    ctx.restore();
+  });
 }
 
 const TestScenarios = {
-  fallingBoxes: (engineOrClient, numBodies) => {
+  fallingBoxes: async (
+    engineOrClient,
+    numBodies,
+    worldOptions = {
+      width: 800,
+      height: 600,
+      gravity: { x: 0, y: 1, scale: 0.001 },
+    }
+  ) => {
     logPerformanceMessage(
       `Setting up scenario: fallingBoxes with ${numBodies} bodies`
     );
-    // This function will need to be adapted to work with both a direct Matter.js engine
-    // and the PhysicsWorkerClient (by sending commands).
-    // For now, a conceptual placeholder.
+    const addedBodyDetails = {
+      scenarioName: "fallingBoxes",
+      dynamicBodies: 0,
+      staticBodies: 0,
+    };
+
     if (engineOrClient instanceof PhysicsWorkerClient) {
-      // Send commands to worker
-      // engineOrClient.sendMessage({ type: CommandType.INIT_WORLD, payload: { ... } });
-      // for (let i = 0; i < numBodies; i++) { ... send ADD_BODY ... }
+      const client = engineOrClient;
+      // INIT_WORLD in the worker already creates 4 boundary walls (ground, ceiling, left, right).
+      // It uses the width/height from worldOptions for this.
+      await client.sendMessage({
+        type: CommandType.INIT_WORLD,
+        payload: worldOptions,
+      });
+      logPerformanceMessage(
+        `INIT_WORLD command sent to worker. Worker will create its own boundaries.`
+      );
+      addedBodyDetails.staticBodies = 4; // Worker creates 4 walls
+
+      // Add Dynamic Bodies to Worker
+      const boxPromises = [];
+      for (let i = 0; i < numBodies; i++) {
+        const bodyId = `box-worker-${i}`;
+        const boxPayload = {
+          id: bodyId,
+          type: "rectangle",
+          x: Math.random() * (worldOptions.width - 60) + 30, // Keep away from edges
+          y: Math.random() * (worldOptions.height / 2 - 50) + 25, // Drop from top half, away from ceiling
+          width: Math.random() * 20 + 10,
+          height: Math.random() * 20 + 10,
+          options: { restitution: 0.5, friction: 0.1, label: bodyId },
+        };
+        boxPromises.push(
+          client.sendMessage({
+            type: CommandType.ADD_BODY,
+            payload: boxPayload,
+          })
+        );
+      }
+      await Promise.all(boxPromises); // Send all add body commands and wait for them
+      addedBodyDetails.dynamicBodies = numBodies;
+      logPerformanceMessage(
+        `${numBodies} dynamic boxes ADD_BODY commands sent to worker.`
+      );
     } else {
       // Direct Matter.js engine manipulation
-      // Matter.Composite.clear(engineOrClient.world, false);
-      // const ground = Matter.Bodies.rectangle(400, 580, 810, 60, { isStatic: true });
-      // Matter.World.add(engineOrClient.world, [ground]);
-      // for (let i = 0; i < numBodies; i++) { ... Matter.World.add ... }
+      const engine = engineOrClient;
+      Matter.Composite.clear(engine.world, false);
+      engine.world.gravity.x = worldOptions.gravity.x;
+      engine.world.gravity.y = worldOptions.gravity.y;
+      engine.world.gravity.scale = worldOptions.gravity.scale;
+
+      // Add 4 boundary walls for parity with worker's INIT_WORLD behavior
+      const wallOptions = { isStatic: true, label: "wall" };
+      Matter.World.add(engine.world, [
+        Matter.Bodies.rectangle(
+          worldOptions.width / 2,
+          worldOptions.height - 25,
+          worldOptions.width,
+          50,
+          { ...wallOptions, label: "ground" }
+        ), // Ground
+        Matter.Bodies.rectangle(
+          worldOptions.width / 2,
+          25,
+          worldOptions.width,
+          50,
+          { ...wallOptions, label: "ceiling" }
+        ), // Ceiling
+        Matter.Bodies.rectangle(
+          25,
+          worldOptions.height / 2,
+          50,
+          worldOptions.height,
+          { ...wallOptions, label: "leftWall" }
+        ), // Left wall
+        Matter.Bodies.rectangle(
+          worldOptions.width - 25,
+          worldOptions.height / 2,
+          50,
+          worldOptions.height,
+          { ...wallOptions, label: "rightWall" }
+        ), // Right wall
+      ]);
+      addedBodyDetails.staticBodies = 4;
+      logPerformanceMessage(`4 boundary walls added directly to engine.`);
+
+      const dynamicBodies = [];
+      for (let i = 0; i < numBodies; i++) {
+        const bodyId = `box-main-${i}`;
+        const box = Matter.Bodies.rectangle(
+          Math.random() * (worldOptions.width - 60) + 30,
+          Math.random() * (worldOptions.height / 2 - 50) + 25,
+          Math.random() * 20 + 10,
+          Math.random() * 20 + 10,
+          { restitution: 0.5, friction: 0.1, label: bodyId }
+        );
+        dynamicBodies.push(box);
+      }
+      Matter.World.add(engine.world, dynamicBodies);
+      addedBodyDetails.dynamicBodies = numBodies;
+      logPerformanceMessage(
+        `${numBodies} dynamic boxes added directly to engine.`
+      );
     }
-    return { bodiesAdded: numBodies, scenarioName: "fallingBoxes" }; // Example return
+    return addedBodyDetails;
   },
   chainReaction: (engineOrClient, numBodies) => {
     logPerformanceMessage(
