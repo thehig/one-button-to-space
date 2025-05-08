@@ -4,7 +4,8 @@ import { Rnd } from "react-rnd";
 
 import { useCommunicationContext } from "../../contexts/CommunicationContext";
 // Import the JSON viewer component
-import ReactJson from "react-json-view";
+import ReactJson from "react18-json-view";
+import "react18-json-view/src/style.css";
 // Import the CSS file
 import "./GameEventLog.css";
 // Import configuration CLASS and TYPE
