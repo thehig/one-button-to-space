@@ -33,11 +33,48 @@ function generateDeterministicColor(randomFunc) {
 const scenarioSelect = document.getElementById("scenarioSelect");
 const runScenarioButton = document.getElementById("runScenarioButton");
 const renderContainer = document.getElementById("renderContainer");
+const seedInput = document.getElementById("seedInput");
+const runModeDurationRadio = document.getElementById("runModeDuration");
+const runModeStepsRadio = document.getElementById("runModeSteps");
+const targetDurationInput = document.getElementById("targetDurationInput");
+const targetStepsInput = document.getElementById("targetStepsInput");
+const resultsTableBody = document.getElementById("resultsTableBody");
 
 // Matter.js instance variables
 let engine = null;
 let render = null;
 let runner = null;
+
+let runCounter = 0; // To number rows in the results table
+
+// Render loop variables
+let renderLoopId = null;
+let currentRenderInstance = null;
+
+/** Starts the rendering loop */
+function startRenderLoop(renderInstance) {
+  if (renderLoopId) {
+    stopRenderLoop(); // Stop previous loop if any
+  }
+  currentRenderInstance = renderInstance;
+  function loop() {
+    if (!currentRenderInstance) return; // Stop if instance is cleared
+    Matter.Render.world(currentRenderInstance);
+    renderLoopId = requestAnimationFrame(loop);
+  }
+  renderLoopId = requestAnimationFrame(loop);
+  console.log("Render loop started.");
+}
+
+/** Stops the rendering loop */
+function stopRenderLoop() {
+  if (renderLoopId) {
+    cancelAnimationFrame(renderLoopId);
+    renderLoopId = null;
+    currentRenderInstance = null; // Clear reference
+    console.log("Render loop stopped.");
+  }
+}
 
 /**
  * Populates the scenario dropdown menu from the imported scenarios.
@@ -62,6 +99,7 @@ function populateScenarioDropdown() {
  * Stops and cleans up any existing Matter.js simulation instances and removes the canvas.
  */
 function cleanupPreviousSimulation() {
+  stopRenderLoop(); // Ensure render loop is stopped
   console.log("Cleaning up previous simulation instance...");
   if (runner) {
     Matter.Runner.stop(runner);
@@ -69,7 +107,7 @@ function cleanupPreviousSimulation() {
     runner = null;
   }
   if (render) {
-    Matter.Render.stop(render);
+    Matter.Render.stop(render); // Should already be stopped by stopRenderLoop
     if (render.canvas) {
       render.canvas.remove();
       console.log("Removed Matter Render canvas.");
@@ -81,7 +119,6 @@ function cleanupPreviousSimulation() {
     console.log("Cleared Matter Engine.");
     engine = null;
   }
-  // Clear the container explicitly
   if (renderContainer) {
     renderContainer.innerHTML = "";
   }
@@ -286,71 +323,274 @@ async function setupScenarioInEngine(currentEngine, scenarioData) {
 }
 
 /**
- * Cleans up the previous simulation and starts a new one based on the selected scenario data.
- * @param {object} scenarioData - The data object for the scenario to run.
+ * Handles changes to the run mode radio buttons.
  */
-function runScenario(scenarioData) {
-  if (!scenarioData) {
-    console.warn("runScenario called with invalid scenario data.");
+function handleRunModeChange() {
+  if (runModeDurationRadio?.checked) {
+    targetDurationInput.disabled = false;
+    targetStepsInput.disabled = true;
+  } else {
+    targetDurationInput.disabled = true;
+    targetStepsInput.disabled = false;
+  }
+}
+
+/**
+ * Appends a result row to the performance log table.
+ * @param {object} resultData - Object containing metrics for the run.
+ */
+function logResultsToTable(resultData) {
+  if (!resultsTableBody) return;
+  runCounter++;
+
+  const row = resultsTableBody.insertRow(); // Append row to the end
+
+  // Define columns in order
+  const columns = [
+    runCounter,
+    new Date().toLocaleTimeString(),
+    resultData.scenarioDescription,
+    resultData.seedUsed,
+    resultData.runMode,
+    resultData.targetValue,
+    resultData.actualDurationMs.toFixed(2),
+    resultData.actualSteps,
+    resultData.stepsPerSecond.toFixed(2),
+    resultData.avgStepTimeMs.toFixed(3),
+  ];
+
+  columns.forEach((text) => {
+    const cell = row.insertCell();
+    cell.textContent = text;
+  });
+}
+
+/**
+ * Runs the simulation loop at a fixed interval based on selected mode (duration or steps)
+ * Calculates performance metrics based on actual Engine.update execution time.
+ * Returns a Promise that resolves when the simulation finishes.
+ * @param {Matter.Engine} engine - The configured Matter engine.
+ * @param {object} scenarioData - The scenario definition.
+ * @param {string} runMode - 'duration' or 'steps'
+ * @param {number} targetValue - Target duration (ms) or target steps.
+ * @param {number} seedUsed - The actual seed value used for this run.
+ * @returns {Promise<object>} A promise that resolves with the performance results.
+ */
+async function runSimulationPerformance(
+  engine,
+  scenarioData,
+  runMode,
+  targetValue,
+  seedUsed
+) {
+  console.log(
+    `Starting performance run: Mode=${runMode}, Target=${targetValue}, Seed=${seedUsed}`
+  );
+
+  return new Promise((resolve, reject) => {
+    const startTime = performance.now();
+    let steps = 0;
+    const deltaTime = scenarioData.simulationParameters.deltaTime || 1000 / 60;
+    const intervalTime = deltaTime; // Run physics step at this interval
+    let totalPhysicsTime = 0;
+    let simulationRunning = true;
+
+    const intervalId = setInterval(() => {
+      if (!simulationRunning) return; // Exit if stopped externally or by error
+
+      const now = performance.now();
+      let shouldStop = false;
+
+      // Check termination condition
+      if (runMode === "duration") {
+        if (now - startTime >= targetValue) {
+          shouldStop = true;
+        }
+      } else {
+        // runMode === 'steps'
+        if (steps >= targetValue) {
+          shouldStop = true;
+        }
+      }
+
+      if (shouldStop) {
+        simulationRunning = false;
+        clearInterval(intervalId);
+        const endTime = performance.now();
+        const actualDurationMs = endTime - startTime;
+        const actualSteps = steps;
+        const stepsPerSecond = actualSteps / (actualDurationMs / 1000);
+        const avgStepTimeMs = totalPhysicsTime / actualSteps;
+
+        const results = {
+          scenarioDescription: scenarioData.description,
+          seedUsed: seedUsed,
+          runMode: runMode === "duration" ? "Duration" : "Steps",
+          targetValue:
+            runMode === "duration"
+              ? `${targetValue} ms`
+              : `${targetValue} steps`,
+          actualDurationMs: actualDurationMs,
+          actualSteps: actualSteps,
+          stepsPerSecond: stepsPerSecond || 0,
+          avgStepTimeMs: avgStepTimeMs || 0,
+        };
+        console.log("Performance Run Results:", results);
+        logResultsToTable(results);
+        resolve(results); // Resolve the promise with results
+        return;
+      }
+
+      // Perform physics step and measure time
+      try {
+        const stepStart = performance.now();
+        Matter.Engine.update(engine, deltaTime);
+        const stepEnd = performance.now();
+        totalPhysicsTime += stepEnd - stepStart;
+        steps++;
+      } catch (error) {
+        console.error("Error during Matter.Engine.update:", error);
+        simulationRunning = false; // Stop on error
+        clearInterval(intervalId);
+        reject(error); // Reject the promise on error
+      }
+    }, intervalTime);
+  });
+}
+
+/**
+ * Main function called when the Run button is clicked.
+ * Sets up the scenario, starts rendering, runs the performance test, stops rendering, and logs results.
+ */
+async function runScenarioAndMeasure() {
+  const selectedKey = scenarioSelect.value;
+  if (!selectedKey || !scenarios[selectedKey]) {
+    console.warn("No valid scenario selected.");
+    alert("Please select a valid scenario.");
     return;
   }
-  console.log(`Running scenario: ${scenarioData.description}`);
-  cleanupPreviousSimulation();
+  const scenarioData = scenarios[selectedKey];
 
-  // --- Create Matter.js instances ---
-  engine = Matter.Engine.create();
-  render = Matter.Render.create({
-    element: renderContainer,
-    engine: engine,
-    options: {
-      width: scenarioData.worldOptions?.width || 800,
-      height: scenarioData.worldOptions?.height || 600,
-      wireframes: false, // Use solid colors
-      showAngleIndicator: true,
-      // Add other rendering options if desired
-    },
-  });
-  runner = Matter.Runner.create();
+  const runMode = runModeDurationRadio.checked ? "duration" : "steps";
+  const targetValue =
+    runMode === "duration"
+      ? parseInt(targetDurationInput.value)
+      : parseInt(targetStepsInput.value);
 
-  // --- Setup and Run ---
-  // Populate the engine based on the scenario definition
-  // Note: setupScenarioInEngine is async but we don't necessarily need to wait
-  // for it here if the setup is fast enough relative to starting the runner.
-  // If setup involved complex async ops, we might await it.
-  setupScenarioInEngine(engine, scenarioData);
+  if (isNaN(targetValue) || targetValue <= 0) {
+    alert(
+      "Please enter a valid positive target value for the selected run mode."
+    );
+    return;
+  }
 
-  console.log("Starting Matter Runner and Render...");
-  Matter.Runner.run(runner, engine);
-  Matter.Render.run(render);
+  const userSeed = seedInput.value.trim();
+  const seedUsed =
+    userSeed !== "" ? parseInt(userSeed) : scenarioData.seed || 1;
+  if (isNaN(seedUsed)) {
+    alert(
+      "Invalid seed value. Please enter a number or leave blank to use scenario default."
+    );
+    return;
+  }
+
+  console.log(
+    `Preparing to run scenario: ${scenarioData.description}, Mode: ${runMode}, Target: ${targetValue}, Seed: ${seedUsed}`
+  );
+  cleanupPreviousSimulation(); // Clears old instances AND stops previous render loop
+
+  try {
+    runScenarioButton.disabled = true;
+    runScenarioButton.textContent = "Running...";
+
+    // Create engine & renderer
+    engine = Matter.Engine.create();
+    render = Matter.Render.create({
+      element: renderContainer,
+      engine: engine,
+      options: {
+        width: scenarioData.worldOptions?.width || 800,
+        height: scenarioData.worldOptions?.height || 600,
+        wireframes: false,
+        showAngleIndicator: true,
+      },
+    });
+
+    // Setup the initial state
+    await setupScenarioInEngine(engine, { ...scenarioData, seed: seedUsed });
+    console.log("Initial scenario state setup complete.");
+
+    // Start rendering the simulation state
+    startRenderLoop(render);
+    console.log("Started render loop.");
+
+    // Run the performance measurement loop (which now uses setInterval)
+    // This returns a promise that resolves with the results when finished.
+    console.log("Starting performance measurement loop...");
+    const results = await runSimulationPerformance(
+      engine,
+      scenarioData,
+      runMode,
+      targetValue,
+      seedUsed
+    );
+    console.log("Performance measurement loop finished.");
+  } catch (error) {
+    console.error("Error during scenario run and measurement:", error);
+    alert(`An error occurred during performance run: ${error.message}`);
+    // Results logging might have already occurred in runSimulationPerformance's catch,
+    // but ensure UI reflects failure.
+    resultsTableBody.insertAdjacentHTML(
+      "beforeend",
+      `<tr><td colspan="10" style="color:red;">Run ${++runCounter} failed: ${
+        error.message
+      }</td></tr>`
+    );
+  } finally {
+    // Stop rendering AFTER the performance run completes or errors
+    stopRenderLoop();
+
+    // Re-enable button
+    runScenarioButton.disabled = false;
+    runScenarioButton.textContent = "Load & Run Scenario";
+
+    // Keep engine and render for inspection? Or clean up?
+    // cleanupPreviousSimulation(); // Uncomment to clear state immediately after run
+  }
 }
 
 // --- Initialization ---
 function initializeViewer() {
   console.log("Initializing Scenario Viewer...");
-  if (!scenarioSelect || !runScenarioButton || !renderContainer) {
+  // Check for all required elements
+  if (
+    !scenarioSelect ||
+    !runScenarioButton ||
+    !renderContainer ||
+    !seedInput ||
+    !runModeDurationRadio ||
+    !runModeStepsRadio ||
+    !targetDurationInput ||
+    !targetStepsInput ||
+    !resultsTableBody
+  ) {
     console.error(
-      "Scenario Viewer Error: Could not find required DOM elements. Aborting."
+      "Scenario Viewer Error: Could not find all required DOM elements. Aborting."
     );
+    if (renderContainer)
+      renderContainer.innerHTML =
+        "<p style='color:red;'>Initialization Error: Missing critical UI elements. Check console.</p>";
     return;
   }
   try {
     populateScenarioDropdown();
-    runScenarioButton.addEventListener("click", () => {
-      const selectedKey = scenarioSelect.value;
-      if (selectedKey && scenarios[selectedKey]) {
-        runScenario(scenarios[selectedKey]);
-      } else {
-        console.warn("No valid scenario selected or scenario data missing.");
-        cleanupPreviousSimulation(); // Clear display if selection invalid
-      }
-    });
-    console.log("Scenario Viewer Initialized. Ready to load scenarios.");
+    // Setup listeners
+    runModeDurationRadio.addEventListener("change", handleRunModeChange);
+    runModeStepsRadio.addEventListener("change", handleRunModeChange);
+    runScenarioButton.addEventListener("click", runScenarioAndMeasure); // Changed listener target
 
-    // Optional: Auto-run the first scenario on load
-    // const firstScenarioKey = Object.keys(scenarios)[0];
-    // if (firstScenarioKey) {
-    //     runScenario(scenarios[firstScenarioKey]);
-    // }
+    handleRunModeChange(); // Initialize input disabled states
+    console.log("Scenario Viewer Initialized. Ready to load scenarios.");
   } catch (error) {
     console.error("Error during viewer initialization:", error);
     renderContainer.innerHTML =

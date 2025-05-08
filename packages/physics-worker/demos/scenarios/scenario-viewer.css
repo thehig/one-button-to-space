@@ -29,6 +29,26 @@ body {
   cursor: pointer;
 }
 
+#controls fieldset {
+  border: 1px solid #ddd;
+  margin-top: 10px;
+  padding: 10px;
+}
+
+#controls legend {
+  font-weight: bold;
+  padding: 0 5px;
+}
+
+#controls input[type="radio"] {
+  margin-right: 5px;
+}
+
+#controls input[type="number"] {
+  width: 100px; /* Adjust width for new inputs */
+  padding: 3px;
+}
+
 #renderContainer {
   width: 800px; /* Match worldOptions width if possible */
   height: 600px; /* Match worldOptions height */
@@ -41,4 +61,37 @@ body {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+#resultsLog {
+  margin-top: 20px;
+  width: 90%;
+  max-width: 1000px;
+}
+
+#resultsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  font-size: 0.9em;
+}
+
+#resultsTable th,
+#resultsTable td {
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+#resultsTable th {
+  background-color: #f2f2f2;
+  white-space: nowrap;
+}
+
+#resultsTable tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+#resultsTable tbody tr:hover {
+  background-color: #e8f4ff;
 }

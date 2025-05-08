@@ -3,22 +3,83 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Physics Scenario Viewer</title>
+    <title>Physics Scenario Viewer & Runner</title>
     <link rel="stylesheet" href="./scenario-viewer.css" />
   </head>
   <body>
-    <h1>Physics Scenario Viewer</h1>
+    <h1>Physics Scenario Viewer & Runner</h1>
 
     <div id="controls">
-      <label for="scenarioSelect">Select Scenario:</label>
-      <select id="scenarioSelect">
-        <option value="">-- Loading Scenarios --</option>
-      </select>
-      <button id="runScenarioButton">Load & Run Scenario</button>
+      <div>
+        <label for="scenarioSelect">Select Scenario:</label>
+        <select id="scenarioSelect">
+          <option value="">-- Loading Scenarios --</option>
+        </select>
+      </div>
+      <div>
+        <label for="seedInput">Seed (override):</label>
+        <input
+          type="number"
+          id="seedInput"
+          placeholder="Uses scenario seed if blank"
+        />
+      </div>
+      <fieldset>
+        <legend>Run Mode:</legend>
+        <input
+          type="radio"
+          id="runModeDuration"
+          name="runMode"
+          value="duration"
+          checked
+        />
+        <label for="runModeDuration">Target Duration (ms):</label>
+        <input type="number" id="targetDurationInput" value="5000" min="100" />
+        <br />
+        <input type="radio" id="runModeSteps" name="runMode" value="steps" />
+        <label for="runModeSteps">Target Steps:</label>
+        <input
+          type="number"
+          id="targetStepsInput"
+          value="300"
+          min="1"
+          disabled
+        />
+      </fieldset>
+      <div>
+        <button id="runScenarioButton">Load & Run Scenario</button>
+      </div>
     </div>
 
     <div id="renderContainer">
-      <!-- Matter.js canvas will be created here -->
+      <!-- Matter.js canvas will be created here for setup visualization -->
+      <p style="padding: 10px; color: grey">
+        Scenario will be rendered here after setup. Performance runs may not
+        update rendering in real-time.
+      </p>
+    </div>
+
+    <div id="resultsLog">
+      <h2>Run Log:</h2>
+      <table id="resultsTable">
+        <thead>
+          <tr>
+            <th>Run #</th>
+            <th>Timestamp</th>
+            <th>Scenario</th>
+            <th>Seed Used</th>
+            <th>Run Mode</th>
+            <th>Target</th>
+            <th>Actual Duration (ms)</th>
+            <th>Actual Steps</th>
+            <th>Steps/Sec</th>
+            <th>Avg. Step (ms)</th>
+          </tr>
+        </thead>
+        <tbody id="resultsTableBody">
+          <!-- Results rows will be added here -->
+        </tbody>
+      </table>
     </div>
 
     <!-- Include Matter.js library (choose one method) -->
