@@ -19,6 +19,9 @@ class DemoUIManager {
   constructor(scene) {
     this.scene = scene;
     this.logOutput = document.getElementById("logOutput");
+    if (this.logOutput) {
+      this.logOutput.textContent = ""; // Clear initial "Initializing..." text
+    }
 
     // Get button elements
     this.initWorldButton = document.getElementById("initWorldButton");
@@ -38,14 +41,38 @@ class DemoUIManager {
 
   _logMessage(message) {
     this.logCount++;
+    const formattedMessage = `${this.logCount}: ${JSON.stringify(
+      message,
+      null,
+      2
+    )}\n\n`;
     console.log(`[Demo Page UI Manager] ${this.logCount}:`, message);
+
     if (this.logOutput) {
-      this.logOutput.textContent =
-        `${this.logCount}: ${JSON.stringify(message, null, 2)}\\n\\n` +
-        this.logOutput.textContent;
+      this.logOutput.textContent += formattedMessage; // Append new message
+
+      // Scroll to the bottom to show the latest log
+      this.logOutput.scrollTop = this.logOutput.scrollHeight;
+
       if (this.logCount > 100) {
-        const lines = this.logOutput.textContent.split("\\n");
-        this.logOutput.textContent = lines.slice(0, 200).join("\\n");
+        // If log gets too long, trim from the top
+        const lines = this.logOutput.textContent.split("\n");
+        // Estimate lines per message (JSON stringify can vary, avg ~5-7 lines with double spacing)
+        // Let's aim to keep around 50 messages, so ~250-350 lines.
+        // If we remove first 50 lines (approx 10 messages) when count is 100, it's a bit aggressive.
+        // Better to trim a smaller number of lines more frequently or a larger chunk less often.
+        // For simplicity, let's trim a fixed number of lines from the top if it exceeds a certain threshold.
+        // This example keeps it simple: if lines > ~200 (roughly 40-50 messages with spacing), trim.
+        // Count 100 messages, each is roughly 4 lines (id: {},
+        // If we want to keep 50 messages, that's 200 lines.
+        // So if lines > 400, slice to keep the last 200 lines.
+        const maxLines = 400; // Approximate max lines for ~100 messages with their formatting
+        const linesToKeep = 200; // Approximate lines for ~50 messages
+        if (lines.length > maxLines) {
+          this.logOutput.textContent = lines
+            .slice(lines.length - linesToKeep)
+            .join("\n");
+        }
       }
     } else {
       console.warn("Log output element not found by UIManager.");
