@@ -2,44 +2,244 @@ import Phaser from "phaser";
 import { PhysicsWorkerClient } from "../src/index.ts";
 import { CommandType } from "../src/commands.ts";
 
-const logOutput = document.getElementById("logOutput");
-const initWorldButton = document.getElementById("initWorldButton");
-const addRectButton = document.getElementById("addRectButton");
-const addCircleButton = document.getElementById("addCircleButton");
-const removeLastButton = document.getElementById("removeLastButton");
-const stepButton = document.getElementById("stepButton");
-const loopButton = document.getElementById("loopButton");
-const terminateButton = document.getElementById("terminateButton");
+class DemoUIManager {
+  logOutput = null;
+  logCount = 0;
+  scene = null; // To call methods on DemoScene
 
-let logCount = 0;
-function logMessage(message) {
-  logCount++;
-  console.log(`[Demo Page] ${logCount}:`, message);
-  logOutput.textContent =
-    `${logCount}: ${JSON.stringify(message, null, 2)}\n\n` +
-    logOutput.textContent;
-  if (logCount > 100) {
-    // Prevent excessively long log on page
-    const lines = logOutput.textContent.split("\n");
-    logOutput.textContent = lines.slice(0, 200).join("\n"); // Keep ~50 messages
+  // Button elements
+  initWorldButton = null;
+  addRectButton = null;
+  addCircleButton = null;
+  removeLastButton = null;
+  stepButton = null;
+  loopButton = null;
+  terminateButton = null;
+
+  constructor(scene) {
+    this.scene = scene;
+    this.logOutput = document.getElementById("logOutput");
+
+    // Get button elements
+    this.initWorldButton = document.getElementById("initWorldButton");
+    this.addRectButton = document.getElementById("addRectButton");
+    this.addCircleButton = document.getElementById("addCircleButton");
+    this.removeLastButton = document.getElementById("removeLastButton");
+    this.stepButton = document.getElementById("stepButton");
+    this.loopButton = document.getElementById("loopButton");
+    this.terminateButton = document.getElementById("terminateButton");
+
+    this._logMessage({
+      type: "CLIENT_SCRIPT_LOADED",
+      note: "Demo page script and UIManager initialized.",
+    });
+    this.setInitialButtonStates(); // Initial state before worker ready
+  }
+
+  _logMessage(message) {
+    this.logCount++;
+    console.log(`[Demo Page UI Manager] ${this.logCount}:`, message);
+    if (this.logOutput) {
+      this.logOutput.textContent =
+        `${this.logCount}: ${JSON.stringify(message, null, 2)}\\n\\n` +
+        this.logOutput.textContent;
+      if (this.logCount > 100) {
+        const lines = this.logOutput.textContent.split("\\n");
+        this.logOutput.textContent = lines.slice(0, 200).join("\\n");
+      }
+    } else {
+      console.warn("Log output element not found by UIManager.");
+    }
+  }
+
+  log(message) {
+    this._logMessage(message);
+  }
+
+  // --- Button State Management ---
+  setInitialButtonStates() {
+    this.initWorldButton.disabled = true;
+    this.addRectButton.disabled = true;
+    this.addCircleButton.disabled = true;
+    this.removeLastButton.disabled = true;
+    this.stepButton.disabled = true;
+    this.loopButton.disabled = true;
+    this.terminateButton.disabled = true; // Enabled once worker is ready
+  }
+
+  setWorkerReadyButtonStates() {
+    this.initWorldButton.disabled = false;
+    this.terminateButton.disabled = false;
+  }
+
+  setWorldInitializedButtonStates() {
+    this.addRectButton.disabled = false;
+    this.addCircleButton.disabled = false;
+    this.stepButton.disabled = false;
+    this.loopButton.disabled = false;
+    // removeLastButton is enabled when a body is added
+  }
+
+  setBodyAddedButtonStates() {
+    this.removeLastButton.disabled = false;
+  }
+
+  setBodyRemovedButtonStates() {
+    // If lastAddedBodyId is null (handled by scene logic), disable button
+    // This might need scene to inform UIManager, or UIManager checks scene.lastAddedBodyId
+    // For now, listener itself disables it directly.
+  }
+
+  disableLoopControls(disable) {
+    this.initWorldButton.disabled = disable;
+    this.addRectButton.disabled = disable;
+    this.addCircleButton.disabled = disable;
+    this.removeLastButton.disabled = disable; // Should be careful here if a body exists
+    this.stepButton.disabled = disable;
+    this.loopButton.disabled = disable; // The loop button itself
+  }
+
+  setTerminatedButtonStates() {
+    this.initWorldButton.disabled = true;
+    this.addRectButton.disabled = true;
+    this.addCircleButton.disabled = true;
+    this.removeLastButton.disabled = true;
+    this.stepButton.disabled = true;
+    this.loopButton.disabled = true;
+    this.terminateButton.disabled = true;
+  }
+
+  // --- UI Event Listeners ---
+  setupUIListeners() {
+    this.initWorldButton.onclick = () => {
+      this.log({ type: "DEMO_ACTION", note: "INIT_WORLD button clicked." });
+      this.scene.physicsClient?.initWorld({
+        width: 800,
+        height: 600,
+        gravity: { x: 0, y: 1, scale: 0.001 },
+      });
+      this.scene.clearVisuals();
+    };
+
+    let bodyIdCounter = 0;
+    this.addRectButton.onclick = () => {
+      const id = `rect-${bodyIdCounter++}`;
+      this.scene.lastAddedBodyId = id;
+      const payload = {
+        id,
+        type: "rectangle",
+        x: Math.random() * 700 + 50,
+        y: Math.random() * 100,
+        width: Math.random() * 30 + 20,
+        height: Math.random() * 30 + 20,
+        options: { restitution: 0.7 },
+      };
+      this.log({
+        type: "DEMO_ACTION",
+        note: `Sending ADD_BODY (rectangle). ID: ${id}`,
+      });
+      this.scene.pendingBodies.set(id, payload);
+      this.scene.physicsClient?.sendMessage({
+        type: CommandType.ADD_BODY,
+        payload,
+      });
+    };
+
+    this.addCircleButton.onclick = () => {
+      const id = `circle-${bodyIdCounter++}`;
+      this.scene.lastAddedBodyId = id;
+      const payload = {
+        id,
+        type: "circle",
+        x: Math.random() * 700 + 50,
+        y: Math.random() * 100,
+        radius: Math.random() * 15 + 10,
+        options: { restitution: 0.7 },
+      };
+      this.log({
+        type: "DEMO_ACTION",
+        note: `Sending ADD_BODY (circle). ID: ${id}`,
+      });
+      this.scene.pendingBodies.set(id, payload);
+      this.scene.physicsClient?.sendMessage({
+        type: CommandType.ADD_BODY,
+        payload,
+      });
+    };
+
+    this.removeLastButton.onclick = () => {
+      if (this.scene.lastAddedBodyId !== null) {
+        this.log({
+          type: "DEMO_ACTION",
+          note: `Sending REMOVE_BODY. ID: ${this.scene.lastAddedBodyId}`,
+        });
+        this.scene.physicsClient?.sendMessage({
+          type: CommandType.REMOVE_BODY,
+          payload: { id: this.scene.lastAddedBodyId },
+        });
+        this.scene.lastAddedBodyId = null;
+        this.removeLastButton.disabled = true; // Managed by listener for now
+      } else {
+        this.log({
+          type: "DEMO_ACTION",
+          note: "No body ID tracked to remove.",
+        });
+      }
+    };
+
+    this.stepButton.onclick = () => {
+      if (this.scene.isLooping) return;
+      this.scene.physicsClient?.sendMessage({
+        type: CommandType.STEP_SIMULATION,
+        payload: { deltaTime: 16.666 },
+      });
+    };
+
+    this.loopButton.onclick = () => {
+      if (this.scene.isLooping) return;
+      this.log({
+        type: "DEMO_ACTION",
+        note: "Starting simulation loop for 5 seconds.",
+      });
+      this.scene.isLooping = true;
+      this.scene.loopEndTime = Date.now() + 5000;
+      this.disableLoopControls(true);
+
+      const runStep = () => {
+        if (!this.scene.isLooping || Date.now() >= this.scene.loopEndTime) {
+          this.scene.isLooping = false;
+          this.disableLoopControls(false);
+          this.log({ type: "DEMO_ACTION", note: "Simulation loop finished." });
+          return;
+        }
+        this.scene.physicsClient?.sendMessage({
+          type: CommandType.STEP_SIMULATION,
+          payload: { deltaTime: 16.666 },
+        });
+        requestAnimationFrame(runStep);
+      };
+      requestAnimationFrame(runStep);
+    };
+
+    this.terminateButton.onclick = () => {
+      this.scene.isLooping = false;
+      this.log({ type: "DEMO_ACTION", note: "Terminate button clicked." });
+      this.scene.physicsClient?.terminate();
+      this.scene.clearVisuals();
+      this.setTerminatedButtonStates();
+    };
   }
 }
-
-logMessage({
-  type: "CLIENT_SCRIPT_LOADED",
-  note: "Demo page script running.",
-});
 
 // --- Phaser Scene ---
 class DemoScene extends Phaser.Scene {
   physicsClient = null;
-  // Map to store Phaser game objects corresponding to physics bodies
   gameObjects = new Map();
-  // Store initial properties needed for rendering
   pendingBodies = new Map();
   lastAddedBodyId = null;
   isLooping = false;
   loopEndTime = 0;
+  uiManager = null;
 
   constructor() {
     super({ key: "DemoScene" });
@@ -50,18 +250,22 @@ class DemoScene extends Phaser.Scene {
   }
 
   create() {
-    logMessage({
+    this.uiManager = new DemoUIManager(this); // Pass scene instance
+    this.uiManager.setupUIListeners(); // Call it here
+
+    this.uiManager.log({
       type: "PHASER_SCENE_CREATE",
       note: "Phaser scene creating...",
     });
     this.physicsClient = new PhysicsWorkerClient();
-    logMessage({
+    this.uiManager.log({
+      // Use UIManager for logging
       type: "CLIENT_ATTEMPT_INIT",
       note: "PhysicsWorkerClient instantiated in scene.",
     });
 
     this.physicsClient.onMessage((message) => {
-      logMessage(message);
+      this.uiManager.log(message); // Log all incoming worker messages
 
       switch (message.type) {
         case CommandType.WORKER_READY:
@@ -87,164 +291,17 @@ class DemoScene extends Phaser.Scene {
           break;
       }
     });
-
-    this.setupUIListeners();
   }
 
-  setupUIListeners() {
-    initWorldButton.onclick = () => {
-      logMessage({
-        type: "DEMO_ACTION",
-        note: "INIT_WORLD button clicked.",
-      });
-      this.physicsClient?.initWorld({
-        width: 800,
-        height: 600,
-        gravity: { x: 0, y: 1, scale: 0.001 },
-      });
-      // Clear existing visuals
-      this.gameObjects.forEach((go) => go.destroy());
-      this.gameObjects.clear();
-      this.pendingBodies.clear();
-    };
-
-    let bodyIdCounter = 0;
-    addRectButton.onclick = () => {
-      const id = `rect-${bodyIdCounter++}`;
-      this.lastAddedBodyId = id;
-      const payload = {
-        id: id,
-        type: "rectangle",
-        x: Math.random() * 700 + 50,
-        y: Math.random() * 100,
-        width: Math.random() * 30 + 20,
-        height: Math.random() * 30 + 20,
-        options: { restitution: 0.7 },
-      };
-      logMessage({
-        type: "DEMO_ACTION",
-        note: `Sending ADD_BODY (rectangle). ID: ${id}`,
-      });
-      this.pendingBodies.set(id, payload); // Store properties needed for rendering
-      this.physicsClient?.sendMessage({
-        type: CommandType.ADD_BODY,
-        payload,
-      });
-    };
-
-    addCircleButton.onclick = () => {
-      const id = `circle-${bodyIdCounter++}`;
-      this.lastAddedBodyId = id;
-      const payload = {
-        id: id,
-        type: "circle",
-        x: Math.random() * 700 + 50,
-        y: Math.random() * 100,
-        radius: Math.random() * 15 + 10,
-        options: { restitution: 0.7 },
-      };
-      logMessage({
-        type: "DEMO_ACTION",
-        note: `Sending ADD_BODY (circle). ID: ${id}`,
-      });
-      this.pendingBodies.set(id, payload); // Store properties needed for rendering
-      this.physicsClient?.sendMessage({
-        type: CommandType.ADD_BODY,
-        payload,
-      });
-    };
-
-    removeLastButton.onclick = () => {
-      if (this.lastAddedBodyId !== null) {
-        logMessage({
-          type: "DEMO_ACTION",
-          note: `Sending REMOVE_BODY. ID: ${this.lastAddedBodyId}`,
-        });
-        this.physicsClient?.sendMessage({
-          type: CommandType.REMOVE_BODY,
-          payload: { id: this.lastAddedBodyId },
-        });
-        this.lastAddedBodyId = null;
-        removeLastButton.disabled = true;
-      } else {
-        logMessage({
-          type: "DEMO_ACTION",
-          note: "No body ID tracked to remove.",
-        });
-      }
-    };
-
-    stepButton.onclick = () => {
-      if (this.isLooping) return;
-      this.physicsClient?.sendMessage({
-        type: CommandType.STEP_SIMULATION,
-        payload: { deltaTime: 16.666 },
-      });
-    };
-
-    loopButton.onclick = () => {
-      if (this.isLooping) return;
-
-      logMessage({
-        type: "DEMO_ACTION",
-        note: "Starting simulation loop for 5 seconds.",
-      });
-      this.isLooping = true;
-      this.loopEndTime = Date.now() + 5000;
-      this.disableLoopControls(true);
-
-      const runStep = () => {
-        if (!this.isLooping || Date.now() >= this.loopEndTime) {
-          this.isLooping = false;
-          this.disableLoopControls(false);
-          logMessage({
-            type: "DEMO_ACTION",
-            note: "Simulation loop finished.",
-          });
-          return;
-        }
-        this.physicsClient?.sendMessage({
-          type: CommandType.STEP_SIMULATION,
-          payload: { deltaTime: 16.666 },
-        });
-        requestAnimationFrame(runStep);
-      };
-      requestAnimationFrame(runStep);
-    };
-
-    terminateButton.onclick = () => {
-      this.isLooping = false;
-      logMessage({
-        type: "DEMO_ACTION",
-        note: "Terminate button clicked.",
-      });
-      this.physicsClient?.terminate();
-      // Disable UI, clear visuals
-      initWorldButton.disabled = true;
-      addRectButton.disabled = true;
-      addCircleButton.disabled = true;
-      stepButton.disabled = true;
-      loopButton.disabled = true;
-      terminateButton.disabled = true;
-      this.gameObjects.forEach((go) => go.destroy());
-      this.gameObjects.clear();
-      this.pendingBodies.clear();
-    };
-  }
-
-  disableLoopControls(disable) {
-    initWorldButton.disabled = disable;
-    addRectButton.disabled = disable;
-    addCircleButton.disabled = disable;
-    removeLastButton.disabled = disable;
-    stepButton.disabled = disable;
-    loopButton.disabled = disable;
+  clearVisuals() {
+    this.gameObjects.forEach((go) => go.destroy());
+    this.gameObjects.clear();
+    this.pendingBodies.clear();
   }
 
   handleWorkerReady() {
-    initWorldButton.disabled = false;
-    terminateButton.disabled = false;
-    logMessage({
+    this.uiManager.setWorkerReadyButtonStates();
+    this.uiManager.log({
       type: "DEMO_ACTION",
       note: "Worker ready. Auto-sending INIT_WORLD.",
     });
@@ -257,13 +314,9 @@ class DemoScene extends Phaser.Scene {
 
   handleWorldInitialized(payload) {
     if (payload.success) {
-      addRectButton.disabled = false;
-      addCircleButton.disabled = false;
-      stepButton.disabled = false;
-      loopButton.disabled = false;
-      // Optional: Add static ground in Phaser visuals
+      this.uiManager.setWorldInitializedButtonStates();
       const ground = this.add.rectangle(400, 590, 800, 20, 0x888888);
-      this.gameObjects.set("ground", ground); // Track it if needed
+      this.gameObjects.set("ground", ground);
     }
   }
 
@@ -301,7 +354,7 @@ class DemoScene extends Phaser.Scene {
           Object.assign(gameObject, { bodyType: initialProps.type })
         );
         this.lastAddedBodyId = payload.id;
-        removeLastButton.disabled = false;
+        this.uiManager.setBodyAddedButtonStates();
       }
       this.pendingBodies.delete(payload.id); // Clean up
     }
@@ -313,7 +366,8 @@ class DemoScene extends Phaser.Scene {
       if (go) {
         go.destroy();
         this.gameObjects.delete(payload.id);
-        logMessage({
+        this.uiManager.log({
+          // Use UIManager for logging
           type: "PHASER_ACTION",
           note: `Destroyed visual for body ID: ${payload.id}`,
         });
@@ -367,4 +421,11 @@ const config = {
 
 // Start the game
 const game = new Phaser.Game(config);
-logMessage({ type: "PHASER_INIT", note: "Phaser game instantiated." });
+// logMessage({ type: "PHASER_INIT", note: "Phaser game instantiated." }); // Will be logged by UIManager if needed, or scene
+// The DemoUIManager's constructor now handles the initial script load message.
+// The final Phaser init message can be logged by the scene after game creation if desired.
+// For now, DemoScene.create logs its own creation.
+// If a global "Phaser game instantiated" log is critical, it can be added via uiManager after game creation.
+// Example: if (game) { uiManagerInstanceFromSomewhere.log({ type: "PHASER_INIT", note: "Phaser game instantiated." }); }
+// However, the current script structure makes a global uiManager instance tricky without further refactoring.
+// The DemoScene's uiManager is the most straightforward way to log now.
