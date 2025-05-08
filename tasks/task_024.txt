@@ -1,0 +1,64 @@
+# Task ID: 24
+# Title: Implement 'predict' Command for Physics Trajectory Prediction
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Create a new command that simulates physics for a specified number of cycles and returns prediction data points at intervals to enable trajectory visualization.
+# Details:
+Implement a new 'predict' command in the command system with the following specifications:
+
+1. Input Parameters Structure:
+   - dynamicBody: Object containing position, velocity, angle, angularVelocity, and other relevant physical properties
+   - staticBodies: Array of objects defining static collision bodies in the world
+   - simulationCycles: Integer (X) specifying how many physics update cycles to simulate
+   - predictionPoints: Integer (Y) specifying how many data points to return
+   - timeStep: Optional parameter to override default physics timestep
+
+2. Simulation Architecture:
+   - Create a dedicated Matter.js instance within the physics worker to avoid affecting the main simulation
+   - Clone the relevant bodies from the input parameters into this temporary instance
+   - Run the simulation in batches with requestAnimationFrame to avoid blocking the main thread
+   - Use a higher time-step if possible to speed up simulation
+
+3. Prediction Data Structure (for each point):
+   - position: {x, y}
+   - velocity: {x, y}
+   - angle: number
+   - angularVelocity: number
+   - timestamp: number (simulation time)
+
+4. Output Format:
+   - Return an array of Y prediction data points, evenly distributed across the X simulation cycles
+   - Include a success flag and any relevant metadata about the simulation
+
+5. Error Handling:
+   - Validate all input parameters before simulation
+   - Handle cases where bodies might go out of bounds
+   - Implement timeout protection for simulations that take too long
+   - Return appropriate error messages for invalid inputs or simulation failures
+
+The command should be optimized for performance since it may be called frequently for real-time trajectory visualization.
+
+# Test Strategy:
+1. Unit Tests:
+   - Test the command handler with various valid and invalid input parameters
+   - Verify the simulation correctly applies physics for simple cases (e.g., projectile motion)
+   - Test edge cases like zero velocity, extreme velocities, and boundary conditions
+   - Ensure the correct number of prediction points are returned
+
+2. Integration Tests:
+   - Test with complex static body arrangements to verify collision handling
+   - Compare results with actual physics simulation to ensure prediction accuracy
+   - Verify performance by measuring execution time for different simulation lengths
+   - Test concurrent calls to ensure isolation between different prediction simulations
+
+3. Specific Test Cases:
+   - Simple projectile motion with no obstacles
+   - Projectile with bounces off static surfaces
+   - Object moving through narrow passages between static bodies
+   - Edge case: object starting in collision with static body
+   - Performance test with maximum reasonable simulation cycles
+
+4. Visual Validation:
+   - Create a test harness that visualizes the predicted trajectory alongside the actual movement
+   - Implement a debug visualization that shows prediction points and the resulting spline
