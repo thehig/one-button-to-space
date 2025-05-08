@@ -9,7 +9,8 @@
     "build": "tsc",
     "dev": "vite",
     "lint": "tsc --noEmit && eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
-    "test": "vitest run --coverage"
+    "test": "vitest run --coverage",
+    "perf:report": "node ./scripts/generate-performance-report.mjs"
   },
   "dependencies": {
     "matter-js": "catalog:"
