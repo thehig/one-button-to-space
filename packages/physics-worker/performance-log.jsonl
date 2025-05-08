@@ -1,0 +1,1 @@
+{"timestamp":"2025-05-08T20:21:32.672Z","scenarioDescription":"Standard Performance Test Scenario","seedUsed":98765,"targetSteps":200,"actualSteps":200,"actualDurationMs":4885.7,"avgStepTimeMs":0.5452,"minStepTimeMs":0.1158,"maxStepTimeMs":5.9121,"medianStepTimeMs":0.4879,"stdDevStepTimeMs":0.5535,"stepsPerSecond":40.94}

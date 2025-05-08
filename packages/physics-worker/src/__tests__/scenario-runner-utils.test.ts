@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import Matter from "matter-js";
 import {
   setupScenarioInEngine,
@@ -117,6 +117,51 @@ describe("Scenario Runner Utilities", () => {
           `Body ${body1.label} (index ${i}) should be identical`
         ).toBe(true);
       }
+    });
+
+    it("should warn for unsupported static body types", async () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn");
+      const engine = Matter.Engine.create();
+      const scenarioWithUnsupportedStatic: ScenarioData = {
+        ...baseScenarioData,
+        description: "Test Unsupported Static",
+        staticBodies: [
+          {
+            type: "triangle",
+            x: 100,
+            y: 100,
+            size: 20,
+            options: { label: "unsupported-static" },
+          },
+        ],
+      };
+      await setupScenarioInEngine(engine, scenarioWithUnsupportedStatic);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Unsupported static body type: triangle")
+      );
+      consoleWarnSpy.mockRestore();
+    });
+
+    it("should warn if dynamic body generation fails for a type", async () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn");
+      const engine = Matter.Engine.create();
+      const scenarioWithUnsupportedDynamic: ScenarioData = {
+        ...baseScenarioData,
+        description: "Test Unsupported Dynamic",
+        bodyGeneration: {
+          ...baseScenarioData.bodyGeneration,
+          type: "pentagon",
+          count: 1,
+          idPrefix: "unsupportedDynamic",
+        },
+      };
+      await setupScenarioInEngine(engine, scenarioWithUnsupportedDynamic);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          "Failed to generate dynamic body of type pentagon"
+        )
+      );
+      consoleWarnSpy.mockRestore();
     });
   });
 
@@ -240,6 +285,44 @@ describe("runSimulationPerformance", () => {
     const finalBodyStates = getSerializableBodyStates(engine);
     expect(finalBodyStates.length).toBeGreaterThan(0); // Ensure we have bodies
     expect(finalBodyStates).toMatchSnapshot();
+  });
+
+  it("should run simulation for a target duration and produce plausible results", async () => {
+    const engine = Matter.Engine.create();
+    await setupScenarioInEngine(engine, scenarioDataForSim);
+    const targetDurationMs = 100; // Short duration for testing
+    const results = await runSimulationPerformance(
+      engine,
+      scenarioDataForSim,
+      "duration",
+      targetDurationMs,
+      scenarioDataForSim.seed || 0
+    );
+
+    expect(results.runMode).toBe("Duration");
+    expect(results.targetValue).toBe(`${targetDurationMs} ms`);
+    expect(results.actualDurationMs).toBeGreaterThanOrEqual(targetDurationMs);
+    expect(results.actualDurationMs).toBeLessThan(targetDurationMs + 100); // Allow some buffer for setInterval inaccuracies
+    expect(results.actualSteps).toBeGreaterThan(0);
+    expect(results.stepsPerSecond).toBeGreaterThan(0);
+    expect(results.avgStepTimeMs).toBeGreaterThan(0);
+  });
+
+  it("should correctly handle zero target steps", async () => {
+    const engine = Matter.Engine.create();
+    await setupScenarioInEngine(engine, scenarioDataForSim);
+    const results = await runSimulationPerformance(
+      engine,
+      scenarioDataForSim,
+      "steps",
+      0,
+      scenarioDataForSim.seed || 0
+    );
+
+    expect(results.actualSteps).toBe(0);
+    expect(results.stepsPerSecond).toBe(0);
+    expect(results.avgStepTimeMs).toBe(0);
+    expect(results.actualDurationMs).toBeGreaterThanOrEqual(0); // Duration should be minimal
   });
 
   // Optional: Test with runMode 'duration' if needed, though 'actualSteps' might vary more.

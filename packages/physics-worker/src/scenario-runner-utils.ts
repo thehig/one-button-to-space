@@ -255,6 +255,10 @@ export interface PerformanceRunResults {
   actualSteps: number;
   stepsPerSecond: number;
   avgStepTimeMs: number;
+  minStepTimeMs?: number;
+  maxStepTimeMs?: number;
+  medianStepTimeMs?: number;
+  stdDevStepTimeMs?: number;
 }
 
 /**
@@ -286,6 +290,7 @@ export function runSimulationPerformance(
     const intervalTime = deltaTime; // Run physics step at this interval
     let totalPhysicsTime = 0;
     let simulationRunning = true;
+    const allStepTimesMs: number[] = [];
 
     const intervalId = setInterval(() => {
       if (!simulationRunning) return;
@@ -318,6 +323,38 @@ export function runSimulationPerformance(
         const avgStepTimeMs =
           actualSteps > 0 ? totalPhysicsTime / actualSteps : 0;
 
+        let minStepTimeMs: number | undefined;
+        let maxStepTimeMs: number | undefined;
+        let medianStepTimeMs: number | undefined;
+        let stdDevStepTimeMs: number | undefined;
+
+        if (actualSteps > 0 && allStepTimesMs.length > 0) {
+          minStepTimeMs = Math.min(...allStepTimesMs);
+          maxStepTimeMs = Math.max(...allStepTimesMs);
+
+          // Median
+          const sortedStepTimes = [...allStepTimesMs].sort((a, b) => a - b);
+          const mid = Math.floor(sortedStepTimes.length / 2);
+          medianStepTimeMs =
+            sortedStepTimes.length % 2 !== 0
+              ? sortedStepTimes[mid]
+              : (sortedStepTimes[mid - 1] + sortedStepTimes[mid]) / 2;
+
+          // Standard Deviation (Population)
+          const mean = avgStepTimeMs; // Already calculated
+          const squaredDifferences = sortedStepTimes.map(
+            (time) => (time - mean) ** 2
+          );
+          const avgSquaredDifference =
+            squaredDifferences.reduce((sum, val) => sum + val, 0) / actualSteps;
+          stdDevStepTimeMs = Math.sqrt(avgSquaredDifference);
+        } else {
+          minStepTimeMs = 0;
+          maxStepTimeMs = 0;
+          medianStepTimeMs = 0;
+          stdDevStepTimeMs = 0;
+        }
+
         const results: PerformanceRunResults = {
           scenarioDescription: scenarioData.description,
           seedUsed: seedUsed,
@@ -330,6 +367,10 @@ export function runSimulationPerformance(
           actualSteps: actualSteps,
           stepsPerSecond: stepsPerSecond,
           avgStepTimeMs: avgStepTimeMs,
+          minStepTimeMs: minStepTimeMs,
+          maxStepTimeMs: maxStepTimeMs,
+          medianStepTimeMs: medianStepTimeMs,
+          stdDevStepTimeMs: stdDevStepTimeMs,
         };
         console.log("Performance Run Results:", results);
         resolve(results);
@@ -342,6 +383,7 @@ export function runSimulationPerformance(
         Matter.Engine.update(engine, deltaTime);
         const stepEnd = performance.now();
         totalPhysicsTime += stepEnd - stepStart;
+        allStepTimesMs.push(stepEnd - stepStart);
         steps++;
       } catch (error) {
         console.error("Error during Matter.Engine.update:", error);
