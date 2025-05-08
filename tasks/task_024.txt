@@ -3,35 +3,45 @@
 # Status: pending
 # Dependencies: None
 # Priority: medium
-# Description: Create a new command that simulates physics for a specified number of cycles and returns prediction data points at intervals to enable trajectory visualization.
+# Description: Create a new command that simulates physics for a specified number of cycles and returns prediction data points at intervals to enable trajectory visualization, using a dedicated Web Worker with its own Matter.js instance.
 # Details:
 Implement a new 'predict' command in the command system with the following specifications:
 
 1. Input Parameters Structure:
-   - dynamicBody: Object containing position, velocity, angle, angularVelocity, and other relevant physical properties
-   - staticBodies: Array of objects defining static collision bodies in the world
-   - simulationCycles: Integer (X) specifying how many physics update cycles to simulate
-   - predictionPoints: Integer (Y) specifying how many data points to return
-   - timeStep: Optional parameter to override default physics timestep
+   - dynamicBodyData: Object containing position, velocity, angle, angularVelocity, vertices/shape, mass, inertia, friction, restitution, density, collisionFilter, and other relevant physical properties
+   - staticBodiesData: Array of objects defining static collision bodies in the world with their vertices/shape, position, angle, friction, restitution, and collisionFilter
+   - simulationConfig: Object containing:
+     - simulationCycles: Integer (X) specifying how many physics update cycles to simulate
+     - predictionPoints: Integer (Y) specifying how many data points to return
+     - timeStep: Optional parameter to override default physics timestep
 
-2. Simulation Architecture:
-   - Create a dedicated Matter.js instance within the physics worker to avoid affecting the main simulation
-   - Clone the relevant bodies from the input parameters into this temporary instance
-   - Run the simulation in batches with requestAnimationFrame to avoid blocking the main thread
-   - Use a higher time-step if possible to speed up simulation
+2. Worker-based Simulation Architecture:
+   - Use a persistent Web Worker dedicated to physics predictions, initialized early in the application lifecycle
+   - Create a dedicated Matter.js engine instance within the worker to avoid affecting the main simulation
+   - The worker will maintain its own Matter.Engine instance exclusively for running predictive simulations
+   - Implement efficient data marshalling between main thread and worker, considering Transferable Objects for performance
 
-3. Prediction Data Structure (for each point):
+3. Simulation Flow:
+   - Main Thread: Marshal input data (dynamicBodyData, staticBodiesData, simulationConfig) and send to worker
+   - Worker: 
+     - Clear previous simulation bodies from the worker's world
+     - Reconstruct dynamic and static bodies using Matter.Body.create()
+     - Run simulation loop for specified cycles, collecting trajectory data at intervals
+     - Package and return trajectory data to main thread
+   - Main Thread: Process received trajectory data for visualization or game logic
+
+4. Prediction Data Structure (for each point):
    - position: {x, y}
    - velocity: {x, y}
    - angle: number
    - angularVelocity: number
    - timestamp: number (simulation time)
 
-4. Output Format:
+5. Output Format:
    - Return an array of Y prediction data points, evenly distributed across the X simulation cycles
    - Include a success flag and any relevant metadata about the simulation
 
-5. Error Handling:
+6. Error Handling:
    - Validate all input parameters before simulation
    - Handle cases where bodies might go out of bounds
    - Implement timeout protection for simulations that take too long
@@ -45,12 +55,16 @@ The command should be optimized for performance since it may be called frequentl
    - Verify the simulation correctly applies physics for simple cases (e.g., projectile motion)
    - Test edge cases like zero velocity, extreme velocities, and boundary conditions
    - Ensure the correct number of prediction points are returned
+   - Test the worker communication and message passing mechanisms
+   - Verify proper cleanup of previous simulation bodies in the worker
 
 2. Integration Tests:
    - Test with complex static body arrangements to verify collision handling
    - Compare results with actual physics simulation to ensure prediction accuracy
    - Verify performance by measuring execution time for different simulation lengths
    - Test concurrent calls to ensure isolation between different prediction simulations
+   - Verify the worker properly initializes and maintains its Matter.js instance
+   - Test the persistence of the worker across multiple prediction requests
 
 3. Specific Test Cases:
    - Simple projectile motion with no obstacles
@@ -58,7 +72,48 @@ The command should be optimized for performance since it may be called frequentl
    - Object moving through narrow passages between static bodies
    - Edge case: object starting in collision with static body
    - Performance test with maximum reasonable simulation cycles
+   - Test with various timeStep values to verify simulation consistency
+   - Test worker communication overhead compared to direct simulation
 
 4. Visual Validation:
    - Create a test harness that visualizes the predicted trajectory alongside the actual movement
    - Implement a debug visualization that shows prediction points and the resulting spline
+   - Add visualization tools to compare worker-based prediction with direct simulation results
+
+# Subtasks:
+## 24.1. Set up persistent Web Worker for physics predictions [pending]
+### Dependencies: None
+### Description: Create and initialize a dedicated Web Worker that will handle all physics prediction requests and maintain its own Matter.js engine instance.
+### Details:
+
+
+## 24.2. Implement data marshalling between main thread and worker [pending]
+### Dependencies: None
+### Description: Create efficient methods to package and transfer physics body data from the main thread to the worker and trajectory results back, considering Transferable Objects for performance optimization.
+### Details:
+"Implement data marshalling and unmarshalling between the main thread and the worker using @colyseus/schema. This includes defining the necessary schemas for prediction input (dynamic body properties, static bodies data, simulation configuration) and prediction output (trajectory points). Utilize the @colyseus/schema Encoder on the sending side and the Decoder on the receiving side. The resulting Uint8Array from the encoder should have its underlying ArrayBuffer transferred as a Transferable Object via postMessage to optimize performance, maintaining the existing consideration for Transferable Objects but now framed within this @colyseus/schema context."
+
+## 24.3. Implement worker-side simulation logic [pending]
+### Dependencies: None
+### Description: Develop the worker-side code that receives prediction requests, sets up the Matter.js world with the provided bodies, runs the simulation loop, and collects trajectory data points.
+### Details:
+
+
+## 24.4. Create predict command handler in main thread [pending]
+### Dependencies: None
+### Description: Implement the main thread command handler that prepares input data, communicates with the worker, and processes the returned trajectory data.
+### Details:
+
+
+## 24.5. Implement error handling and timeout mechanisms [pending]
+### Dependencies: None
+### Description: Add robust error handling for invalid inputs, simulation failures, and implement timeout protection for simulations that take too long.
+### Details:
+
+
+## 24.6. Create test suite for worker-based prediction [pending]
+### Dependencies: None
+### Description: Develop comprehensive tests that verify the accuracy, performance, and reliability of the worker-based prediction system compared to direct simulation.
+### Details:
+
+
