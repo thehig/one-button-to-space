@@ -1,21 +1,10 @@
 import Matter from "matter-js";
-import { scenarios } from "../../scenarios/scenario-definitions.js";
-
-// --- Seeded PRNG (Mulberry32) ---
-/**
- * Creates a pseudo-random number generator based on the Mulberry32 algorithm.
- * @param {number} seed - The initial seed value.
- * @returns {function(): number} A function that returns a pseudo-random float between 0 (inclusive) and 1 (exclusive).
- */
-function mulberry32(seed) {
-  return function () {
-    let t = (seed += 0x6d2b79f5); // Increase seed
-    t = Math.imul(t ^ (t >>> 15), t | 1); // Bitwise operations
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    // Return a float between 0 (inclusive) and 1 (exclusive)
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+import { scenarios } from "../../scenarios/scenario-definitions";
+import {
+  mulberry32,
+  setupScenarioInEngine as utilSetupScenarioInEngine,
+  runSimulationPerformance as utilRunSimulationPerformance,
+} from "../../src/scenario-runner-utils";
 
 /**
  * Generates a deterministic color string in HSL format using a seeded PRNG.
@@ -43,7 +32,6 @@ const resultsTableBody = document.getElementById("resultsTableBody");
 // Matter.js instance variables
 let engine = null;
 let render = null;
-let runner = null;
 
 let runCounter = 0; // To number rows in the results table
 
@@ -101,11 +89,6 @@ function populateScenarioDropdown() {
 function cleanupPreviousSimulation() {
   stopRenderLoop(); // Ensure render loop is stopped
   console.log("Cleaning up previous simulation instance...");
-  if (runner) {
-    Matter.Runner.stop(runner);
-    console.log("Stopped Matter Runner.");
-    runner = null;
-  }
   if (render) {
     Matter.Render.stop(render); // Should already be stopped by stopRenderLoop
     if (render.canvas) {
@@ -132,194 +115,53 @@ function cleanupPreviousSimulation() {
  * @param {object} scenarioData - The scenario definition object.
  */
 async function setupScenarioInEngine(currentEngine, scenarioData) {
-  console.log(`Setting up scenario in engine: ${scenarioData.description}`);
-  const {
-    worldOptions,
-    staticBodies = [],
-    bodyGeneration,
-    seed,
-  } = scenarioData;
-  let dynamicBodiesCreated = 0;
-  let staticBodiesCreated = 0;
-
-  // Initialize the seeded PRNG for this specific scenario run
-  const scenarioSeed = seed || 1; // Default seed if not provided
-  const random = mulberry32(scenarioSeed);
-  console.log(`Using PRNG with seed: ${scenarioSeed}`);
-
-  // Updated helper to use the specific PRNG instance
-  const randomInRange = (min = 0, max = 1) => random() * (max - min) + min;
-
-  // --- World Configuration ---
-  currentEngine.world.gravity = {
-    ...(worldOptions?.gravity || { x: 0, y: 1, scale: 0.001 }),
-  };
-  console.log("Configured world gravity:", currentEngine.world.gravity);
-
-  // --- Static Bodies ---
-  const width = worldOptions?.width || 800;
-  const height = worldOptions?.height || 600;
-  const wallThickness = 50;
-  const wallOpts = {
-    isStatic: true,
-    label: "wall",
-    restitution: 0.1,
-    friction: 0.5,
-  };
-
-  Matter.World.add(currentEngine.world, [
-    Matter.Bodies.rectangle(
-      width / 2,
-      height + wallThickness / 2,
-      width,
-      wallThickness,
-      { ...wallOpts, label: "ground", id: "ground-main" }
-    ),
-    Matter.Bodies.rectangle(
-      width / 2,
-      -(wallThickness / 2),
-      width,
-      wallThickness,
-      { ...wallOpts, label: "ceiling", id: "ceiling-main" }
-    ),
-    Matter.Bodies.rectangle(
-      -(wallThickness / 2),
-      height / 2,
-      wallThickness,
-      height,
-      { ...wallOpts, label: "leftWall", id: "leftWall-main" }
-    ),
-    Matter.Bodies.rectangle(
-      width + wallThickness / 2,
-      height / 2,
-      wallThickness,
-      height,
-      { ...wallOpts, label: "rightWall", id: "rightWall-main" }
-    ),
-  ]);
-  staticBodiesCreated = 4;
-  console.log(`Added 4 standard boundary walls to engine.`);
-
-  if (staticBodies.length > 0) {
-    const matterStaticBodies = staticBodies
-      .map((bodyDef, index) => {
-        const staticId =
-          bodyDef.id || `static-main-${staticBodiesCreated + index}`;
-        const label = bodyDef.options?.label || staticId;
-        if (bodyDef.type === "rectangle") {
-          return Matter.Bodies.rectangle(
-            bodyDef.x,
-            bodyDef.y,
-            bodyDef.width,
-            bodyDef.height,
-            { isStatic: true, ...(bodyDef.options || {}), id: staticId, label }
-          );
-        } else if (bodyDef.type === "circle") {
-          return Matter.Bodies.circle(bodyDef.x, bodyDef.y, bodyDef.radius, {
-            isStatic: true,
-            ...(bodyDef.options || {}),
-            id: staticId,
-            label,
-          });
-        }
-        console.warn(
-          `Unsupported static body type: ${bodyDef.type} in scenario ${scenarioData.description}`
-        );
-        return null;
-      })
-      .filter((body) => body !== null);
-
-    if (matterStaticBodies.length > 0) {
-      Matter.World.add(currentEngine.world, matterStaticBodies);
-      console.log(
-        `${matterStaticBodies.length} additional static bodies added from scenario definition.`
-      );
-      staticBodiesCreated += matterStaticBodies.length;
-    }
-  }
-
-  // --- Dynamic Bodies ---
-  if (bodyGeneration) {
-    const matterDynamicBodies = [];
-    for (let i = 0; i < bodyGeneration.count; i++) {
-      const id = `${bodyGeneration.idPrefix || "dynamic"}-main-${i}`;
-      let body = null;
-
-      // Generate deterministic color for this body
-      const fillColor = generateDeterministicColor(random); // Use the scenario's PRNG
-
-      const templateOpts = {
-        ...(bodyGeneration.templateOptions || {}),
-        id,
-        label: id,
-        render: {
-          // Add render options with deterministic color
-          fillStyle: fillColor,
-          strokeStyle: "black",
-          lineWidth: 1,
-        },
-      };
-      const type = bodyGeneration.type;
-
-      try {
-        if (bodyGeneration.placement) {
-          // Specific placement
-          const p = bodyGeneration.placement;
-          const x = p.startX;
-          const itemHeight =
-            p.boxHeight || (p.boxRadius ? p.boxRadius * 2 : 20);
-          const y = p.startY - i * (itemHeight + (p.spacingY || 0));
-          if (type === "rectangle") {
-            body = Matter.Bodies.rectangle(
-              x,
-              y,
-              p.boxWidth || 20,
-              p.boxHeight || 20,
-              templateOpts
-            );
-          } else if (type === "circle") {
-            body = Matter.Bodies.circle(x, y, p.boxRadius || 10, templateOpts);
-          }
-        } else if (bodyGeneration.positioning) {
-          // Random positioning
-          const p = bodyGeneration.positioning;
-          const x = randomInRange(p.x?.min, p.x?.max); // Uses seeded randomInRange
-          const y = randomInRange(p.y?.min, p.y?.max);
-          if (type === "rectangle") {
-            const w = randomInRange(p.width?.min, p.width?.max);
-            const h = randomInRange(p.height?.min, p.height?.max);
-            body = Matter.Bodies.rectangle(x, y, w, h, templateOpts);
-          } else if (type === "circle") {
-            const r = randomInRange(p.radius?.min, p.radius?.max);
-            body = Matter.Bodies.circle(x, y, r, templateOpts);
-          }
-        }
-      } catch (e) {
-        console.error(`Error creating dynamic body ${id}:`, e);
-      }
-
-      if (body) {
-        matterDynamicBodies.push(body);
-      } else {
-        console.warn(
-          `Failed to generate dynamic body of type ${type} for id ${id}.`
-        );
-      }
-    }
-
-    if (matterDynamicBodies.length > 0) {
-      Matter.World.add(currentEngine.world, matterDynamicBodies);
-      dynamicBodiesCreated = matterDynamicBodies.length;
-      console.log(
-        `${dynamicBodiesCreated} dynamic bodies added to engine from generation rules.`
-      );
-    }
-  }
-
   console.log(
-    `Scenario setup complete. Static bodies: ${staticBodiesCreated}, Dynamic bodies: ${dynamicBodiesCreated}`
+    `Calling UTIL setupScenarioInEngine for: ${scenarioData.description} with seed ${scenarioData.seed}`
   );
-  return { dynamicBodiesCreated, staticBodiesCreated };
+  // The imported utilSetupScenarioInEngine takes (engine, scenarioData)
+  // scenarioData for the util should contain the seed property directly.
+  const setupResults = await utilSetupScenarioInEngine(
+    currentEngine,
+    scenarioData
+  );
+
+  console.log("Util setup complete. Applying viewer-specific rendering...");
+
+  // Now, apply deterministic colors. We need our own PRNG instance for this, seeded identically.
+  const scenarioSeed = scenarioData.seed; // The seed is already in scenarioData from the caller
+  const localRandomForColors = mulberry32(scenarioSeed); // Uses IMPORTED mulberry32
+
+  const bodyGeneration = scenarioData.bodyGeneration;
+  let coloredBodyCount = 0;
+
+  if (bodyGeneration && bodyGeneration.count > 0) {
+    const dynamicBodyPrefix = bodyGeneration.idPrefix || "dynamic";
+    // Iterate all bodies to find the ones created by the util based on naming convention
+    // The util sets both `id` and `label` for dynamic bodies.
+    Matter.Composite.allBodies(currentEngine.world).forEach((body) => {
+      if (
+        body.label &&
+        body.label.startsWith(`${dynamicBodyPrefix}-main-`) &&
+        !body.isStatic
+      ) {
+        const fillColor = generateDeterministicColor(localRandomForColors); // generateDeterministicColor remains local
+        Matter.Body.set(body, "render", {
+          ...(body.render || {}), // Preserve existing render options if any
+          fillStyle: fillColor,
+          strokeStyle: "black", // Keep consistent styling
+          lineWidth: 1,
+        });
+        coloredBodyCount++;
+      }
+    });
+    console.log(
+      `Applied deterministic colors to ${coloredBodyCount} dynamic bodies.`
+    );
+  }
+  // The original function returned counts. The util function also returns counts.
+  // The caller of this viewer's setupScenarioInEngine doesn't actually use the return value.
+  // So we can just return the util's results for consistency.
+  return setupResults;
 }
 
 /**
@@ -517,23 +359,25 @@ async function runScenarioAndMeasure() {
     });
 
     // Setup the initial state
-    await setupScenarioInEngine(engine, { ...scenarioData, seed: seedUsed });
+    const scenarioDataWithSeed = { ...scenarioData, seed: seedUsed };
+    await setupScenarioInEngine(engine, scenarioDataWithSeed);
     console.log("Initial scenario state setup complete.");
 
     // Start rendering the simulation state
     startRenderLoop(render);
     console.log("Started render loop.");
 
-    // Run the performance measurement loop (which now uses setInterval)
+    // Run the performance measurement loop (which now uses setInterval via the utility)
     // This returns a promise that resolves with the results when finished.
     console.log("Starting performance measurement loop...");
-    const results = await runSimulationPerformance(
+    const results = await utilRunSimulationPerformance(
       engine,
-      scenarioData,
+      scenarioDataWithSeed, // Pass scenarioData that includes .seed and .simulationParameters.deltaTime
       runMode,
       targetValue,
-      seedUsed
+      seedUsed // utilRunSimulationPerformance also takes seedUsed for reporting
     );
+    logResultsToTable(results); // Log results after the promise resolves
     console.log("Performance measurement loop finished.");
   } catch (error) {
     console.error("Error during scenario run and measurement:", error);
