@@ -783,12 +783,9 @@ export const GameEventLog: React.FC<GameEventLogProps> = ({
                     <div style={{ textAlign: "left" }}>
                       <ReactJson
                         src={filteredEvents[selectedEventIndex].data as object}
-                        theme="ocean"
+                        theme="vscode"
                         collapsed={false}
                         enableClipboard={true}
-                        displayDataTypes={true}
-                        displayObjectSize={true}
-                        name={false}
                         style={{
                           padding: "5px",
                           backgroundColor: "transparent",
