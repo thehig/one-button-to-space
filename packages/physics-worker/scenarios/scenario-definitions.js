@@ -2,6 +2,7 @@ export const scenarios = {
   "falling-100-boxes": {
     description:
       "100 random boxes falling onto a static ground with 4 boundary walls.",
+    seed: 12345,
     worldOptions: {
       width: 800,
       height: 600,
@@ -37,6 +38,7 @@ export const scenarios = {
   },
   "stack-of-10-boxes": {
     description: "A stack of 10 boxes to test stability and stacking.",
+    seed: 9876,
     worldOptions: {
       width: 800,
       height: 600,

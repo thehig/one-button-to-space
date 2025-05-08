@@ -1,6 +1,34 @@
 import Matter from "matter-js";
 import { scenarios } from "../../scenarios/scenario-definitions.js";
 
+// --- Seeded PRNG (Mulberry32) ---
+/**
+ * Creates a pseudo-random number generator based on the Mulberry32 algorithm.
+ * @param {number} seed - The initial seed value.
+ * @returns {function(): number} A function that returns a pseudo-random float between 0 (inclusive) and 1 (exclusive).
+ */
+function mulberry32(seed) {
+  return function () {
+    let t = (seed += 0x6d2b79f5); // Increase seed
+    t = Math.imul(t ^ (t >>> 15), t | 1); // Bitwise operations
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    // Return a float between 0 (inclusive) and 1 (exclusive)
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Generates a deterministic color string in HSL format using a seeded PRNG.
+ * @param {function(): number} randomFunc - The seeded PRNG function (e.g., mulberry32 instance).
+ * @returns {string} An HSL color string (e.g., "hsl(120, 70%, 50%)").
+ */
+function generateDeterministicColor(randomFunc) {
+  const hue = Math.floor(randomFunc() * 360); // Random hue (0-359)
+  const saturation = 70; // Fixed saturation
+  const lightness = 60; // Fixed lightness
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
 // DOM Elements
 const scenarioSelect = document.getElementById("scenarioSelect");
 const runScenarioButton = document.getElementById("runScenarioButton");
@@ -62,28 +90,37 @@ function cleanupPreviousSimulation() {
 /**
  * Sets up the Matter.js world within the provided engine based on the scenario definition.
  * Creates boundary walls and populates with static/dynamic bodies defined in the scenario.
+ * Uses a seeded PRNG for deterministic procedural generation.
  * @param {Matter.Engine} currentEngine - The Matter.js engine to set up.
  * @param {object} scenarioData - The scenario definition object.
  */
 async function setupScenarioInEngine(currentEngine, scenarioData) {
   console.log(`Setting up scenario in engine: ${scenarioData.description}`);
-  const { worldOptions, staticBodies = [], bodyGeneration } = scenarioData;
+  const {
+    worldOptions,
+    staticBodies = [],
+    bodyGeneration,
+    seed,
+  } = scenarioData;
   let dynamicBodiesCreated = 0;
   let staticBodiesCreated = 0;
 
-  // Helper for random numbers
-  const randomInRange = (min = 0, max = 1) => Math.random() * (max - min) + min;
+  // Initialize the seeded PRNG for this specific scenario run
+  const scenarioSeed = seed || 1; // Default seed if not provided
+  const random = mulberry32(scenarioSeed);
+  console.log(`Using PRNG with seed: ${scenarioSeed}`);
+
+  // Updated helper to use the specific PRNG instance
+  const randomInRange = (min = 0, max = 1) => random() * (max - min) + min;
 
   // --- World Configuration ---
-  // Use provided gravity or default
   currentEngine.world.gravity = {
     ...(worldOptions?.gravity || { x: 0, y: 1, scale: 0.001 }),
   };
   console.log("Configured world gravity:", currentEngine.world.gravity);
 
   // --- Static Bodies ---
-  // 1. Standard boundary walls (assuming width/height are in worldOptions)
-  const width = worldOptions?.width || 800; // Default dimensions if not specified
+  const width = worldOptions?.width || 800;
   const height = worldOptions?.height || 600;
   const wallThickness = 50;
   const wallOpts = {
@@ -91,7 +128,7 @@ async function setupScenarioInEngine(currentEngine, scenarioData) {
     label: "wall",
     restitution: 0.1,
     friction: 0.5,
-  }; // Basic wall properties
+  };
 
   Matter.World.add(currentEngine.world, [
     Matter.Bodies.rectangle(
@@ -100,40 +137,38 @@ async function setupScenarioInEngine(currentEngine, scenarioData) {
       width,
       wallThickness,
       { ...wallOpts, label: "ground", id: "ground-main" }
-    ), // Ground (below view)
+    ),
     Matter.Bodies.rectangle(
       width / 2,
       -(wallThickness / 2),
       width,
       wallThickness,
       { ...wallOpts, label: "ceiling", id: "ceiling-main" }
-    ), // Ceiling (above view)
+    ),
     Matter.Bodies.rectangle(
       -(wallThickness / 2),
       height / 2,
       wallThickness,
       height,
       { ...wallOpts, label: "leftWall", id: "leftWall-main" }
-    ), // Left wall
+    ),
     Matter.Bodies.rectangle(
       width + wallThickness / 2,
       height / 2,
       wallThickness,
       height,
       { ...wallOpts, label: "rightWall", id: "rightWall-main" }
-    ), // Right wall
+    ),
   ]);
   staticBodiesCreated = 4;
   console.log(`Added 4 standard boundary walls to engine.`);
 
-  // 2. Additional static bodies from scenario definition
   if (staticBodies.length > 0) {
     const matterStaticBodies = staticBodies
       .map((bodyDef, index) => {
         const staticId =
           bodyDef.id || `static-main-${staticBodiesCreated + index}`;
         const label = bodyDef.options?.label || staticId;
-        // Basic shape creation - extend this if scenarios define more types
         if (bodyDef.type === "rectangle") {
           return Matter.Bodies.rectangle(
             bodyDef.x,
@@ -155,7 +190,7 @@ async function setupScenarioInEngine(currentEngine, scenarioData) {
         );
         return null;
       })
-      .filter((body) => body !== null); // Filter out nulls from unsupported types
+      .filter((body) => body !== null);
 
     if (matterStaticBodies.length > 0) {
       Matter.World.add(currentEngine.world, matterStaticBodies);
@@ -172,10 +207,20 @@ async function setupScenarioInEngine(currentEngine, scenarioData) {
     for (let i = 0; i < bodyGeneration.count; i++) {
       const id = `${bodyGeneration.idPrefix || "dynamic"}-main-${i}`;
       let body = null;
+
+      // Generate deterministic color for this body
+      const fillColor = generateDeterministicColor(random); // Use the scenario's PRNG
+
       const templateOpts = {
         ...(bodyGeneration.templateOptions || {}),
         id,
         label: id,
+        render: {
+          // Add render options with deterministic color
+          fillStyle: fillColor,
+          strokeStyle: "black",
+          lineWidth: 1,
+        },
       };
       const type = bodyGeneration.type;
 
@@ -184,11 +229,9 @@ async function setupScenarioInEngine(currentEngine, scenarioData) {
           // Specific placement
           const p = bodyGeneration.placement;
           const x = p.startX;
-          // Calculate y based on index, height/radius, and spacing
           const itemHeight =
             p.boxHeight || (p.boxRadius ? p.boxRadius * 2 : 20);
           const y = p.startY - i * (itemHeight + (p.spacingY || 0));
-
           if (type === "rectangle") {
             body = Matter.Bodies.rectangle(
               x,
@@ -200,13 +243,11 @@ async function setupScenarioInEngine(currentEngine, scenarioData) {
           } else if (type === "circle") {
             body = Matter.Bodies.circle(x, y, p.boxRadius || 10, templateOpts);
           }
-          // Add other type checks here if needed
         } else if (bodyGeneration.positioning) {
           // Random positioning
           const p = bodyGeneration.positioning;
-          const x = randomInRange(p.x?.min, p.x?.max);
+          const x = randomInRange(p.x?.min, p.x?.max); // Uses seeded randomInRange
           const y = randomInRange(p.y?.min, p.y?.max);
-
           if (type === "rectangle") {
             const w = randomInRange(p.width?.min, p.width?.max);
             const h = randomInRange(p.height?.min, p.height?.max);
@@ -215,7 +256,6 @@ async function setupScenarioInEngine(currentEngine, scenarioData) {
             const r = randomInRange(p.radius?.min, p.radius?.max);
             body = Matter.Bodies.circle(x, y, r, templateOpts);
           }
-          // Add other type checks here if needed
         }
       } catch (e) {
         console.error(`Error creating dynamic body ${id}:`, e);
