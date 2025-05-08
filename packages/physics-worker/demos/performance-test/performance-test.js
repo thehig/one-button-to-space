@@ -2,6 +2,7 @@ import { PhysicsWorkerClient } from "../../src/index.ts"; // Adjust path if need
 import { CommandType } from "../../src/commands.ts"; // Adjust path if needed
 import Matter from "matter-js"; // If using npm package and bundler
 // Otherwise, ensure Matter is globally available (e.g., via CDN in HTML)
+import { scenarios } from "../../scenarios/scenario-definitions.js"; // Import defined scenarios
 
 // DOM Elements
 const numBodiesInput = document.getElementById("numBodies");
@@ -145,22 +146,21 @@ class PerformanceMetrics {
   }
 }
 
-async function runMainThreadTest(scenarioKey, numBodies, durationMs) {
+async function runMainThreadTest(scenarioData) {
+  const { description, simulationParameters, worldOptions } = scenarioData;
+  const numBodies = scenarioData.bodyGeneration?.count || 0;
+  const durationMs = simulationParameters.durationMs;
+  const deltaTime = simulationParameters.deltaTime;
+
   logPerformanceMessage(
-    `Starting Main Thread Test: Scenario=${scenarioKey}, Bodies=${numBodies}, Duration=${durationMs}ms`
+    `Starting Main Thread Test: Scenario=${description}, Bodies=${numBodies}, Duration=${durationMs}ms`
   );
   mainThreadResultsOutput.textContent = "Running...";
-  progressOutput.textContent = `Running Main Thread Test: ${scenarioKey} (${numBodies} bodies)...`;
+  progressOutput.textContent = `Running Main Thread Test: ${description} (${numBodies} bodies)...`;
   mainThreadRenderContainer.style.display = "block";
 
   const metrics = new PerformanceMetrics();
   const engine = Matter.Engine.create();
-  const worldOptions = {
-    width: 800,
-    height: 600,
-    gravity: { x: 0, y: 1, scale: 0.001 },
-  };
-  engine.world.gravity = worldOptions.gravity;
 
   while (
     mainThreadRenderContainer.firstChild &&
@@ -182,8 +182,8 @@ async function runMainThreadTest(scenarioKey, numBodies, durationMs) {
     },
   });
 
-  await TestScenarios[scenarioKey](engine, numBodies, worldOptions);
-  logPerformanceMessage(`Main thread scenario ${scenarioKey} loaded.`);
+  await setupScenarioFromDefinition(engine, scenarioData);
+  logPerformanceMessage(`Main thread scenario '${description}' loaded.`);
 
   Matter.Render.run(render);
 
@@ -192,7 +192,6 @@ async function runMainThreadTest(scenarioKey, numBodies, durationMs) {
 
   function runSimulationStep() {
     if (!simulationRunning) return;
-
     if (metrics.getTotalTime() >= durationMs) {
       simulationRunning = false;
       Matter.Render.stop(render);
@@ -206,57 +205,50 @@ async function runMainThreadTest(scenarioKey, numBodies, durationMs) {
       progressOutput.textContent = "Main Thread Test Complete.";
       return;
     }
-
     const beforeEngineUpdate = performance.now();
-    Matter.Engine.update(engine, 1000 / 60);
+    Matter.Engine.update(engine, deltaTime);
     const afterEngineUpdate = performance.now();
     const physicsTime = afterEngineUpdate - beforeEngineUpdate;
-
     metrics.recordFrame(physicsTime);
-
     if (simulationRunning) {
       requestAnimationFrame(runSimulationStep);
     }
   }
-  requestAnimationFrame(runSimulationStep); // Start the loop
-
+  requestAnimationFrame(runSimulationStep);
   await new Promise((resolve) => setTimeout(resolve, durationMs + 500));
   return metrics.getResults();
 }
 
-async function runWorkerTest(scenarioKey, numBodies, durationMs) {
+async function runWorkerTest(scenarioData) {
+  const { description, simulationParameters, worldOptions } = scenarioData;
+  const numBodies = scenarioData.bodyGeneration?.count || 0;
+  const durationMs = simulationParameters.durationMs;
+  const deltaTime = simulationParameters.deltaTime;
+
   logPerformanceMessage(
-    `Starting Worker Test: Scenario=${scenarioKey}, Bodies=${numBodies}, Duration=${durationMs}ms`
+    `Starting Worker Test: Scenario=${description}, Bodies=${numBodies}, Duration=${durationMs}ms`
   );
   workerResultsOutput.textContent = "Running...";
-  progressOutput.textContent = `Running Worker Test: ${scenarioKey} (${numBodies} bodies)...`;
+  progressOutput.textContent = `Running Worker Test: ${description} (${numBodies} bodies)...`;
   const workerRenderCtx = workerRenderCanvas.getContext("2d");
 
   const metrics = new PerformanceMetrics();
   const physicsClient = new PhysicsWorkerClient();
-
-  let simulationRunning = true; // Moved up for broader scope
+  let simulationRunning = true;
 
   try {
     logPerformanceMessage(
       "PhysicsWorkerClient instance created. Proceeding with scenario setup."
     );
-    const worldOptions = {
-      width: workerRenderCanvas.width,
-      height: workerRenderCanvas.height,
-      gravity: { x: 0, y: 1, scale: 0.001 },
-    };
-
-    await TestScenarios[scenarioKey](physicsClient, numBodies, worldOptions);
+    await setupScenarioFromDefinition(physicsClient, scenarioData);
     logPerformanceMessage(
-      `Worker scenario ${scenarioKey} setup commands sent.`
+      `Worker scenario '${description}' setup commands sent.`
     );
 
     metrics.startRun();
 
     function stepWorker() {
       if (!simulationRunning) return;
-
       if (metrics.getTotalTime() >= durationMs) {
         simulationRunning = false;
         metrics.endRun();
@@ -272,23 +264,17 @@ async function runWorkerTest(scenarioKey, numBodies, durationMs) {
         }
         return;
       }
-
       const beforeStepCommand = performance.now();
       physicsClient
         .sendMessage(
-          {
-            type: CommandType.STEP_SIMULATION,
-            payload: { deltaTime: 1000 / 60 },
-          },
+          { type: CommandType.STEP_SIMULATION, payload: { deltaTime } },
           CommandType.SIMULATION_STEPPED
         )
         .then((response) => {
           if (!simulationRunning) return;
-
           const afterStepResponse = performance.now();
           const physicsTime = afterStepResponse - beforeStepCommand;
           metrics.recordFrame(physicsTime);
-
           if (response && response.payload && response.payload.bodies) {
             renderWorkerBodies(
               workerRenderCtx,
@@ -297,45 +283,38 @@ async function runWorkerTest(scenarioKey, numBodies, durationMs) {
               worldOptions.height
             );
           }
-          // Only request next frame if still running
           if (simulationRunning) {
             requestAnimationFrame(stepWorker);
           }
         })
         .catch((error) => {
-          if (!simulationRunning) return; // Avoid double logging if already stopped
+          if (!simulationRunning) return;
           logPerformanceMessage(
             `Error during worker simulation step: ${error.message}`,
             "ERROR"
           );
-          if (error.stack) {
-            logPerformanceMessage(error.stack, "STACK");
-          }
+          if (error.stack) logPerformanceMessage(error.stack, "STACK");
           simulationRunning = false;
           metrics.endRun();
           workerResultsOutput.textContent = JSON.stringify(
             metrics.getResults(),
             null,
             2
-          ); // Show partial results
+          );
           if (physicsClient && typeof physicsClient.terminate === "function") {
             physicsClient.terminate();
           }
         });
     }
-
-    requestAnimationFrame(stepWorker); // Start the loop
-
+    requestAnimationFrame(stepWorker);
     await new Promise((resolve) => setTimeout(resolve, durationMs + 500));
   } catch (error) {
-    simulationRunning = false; // Ensure loop stops on outer error too
+    simulationRunning = false;
     logPerformanceMessage(
       `Error in runWorkerTest setup: ${error.message}`,
       "ERROR"
     );
-    if (error.stack) {
-      logPerformanceMessage(error.stack, "STACK");
-    }
+    if (error.stack) logPerformanceMessage(error.stack, "STACK");
     workerResultsOutput.textContent = `Error: ${error.message}`;
     metrics.endRun();
     if (physicsClient && typeof physicsClient.terminate === "function") {
@@ -393,144 +372,10 @@ function renderWorkerBodies(ctx, bodies, canvasWidth, canvasHeight) {
   });
 }
 
-const TestScenarios = {
-  fallingBoxes: async (
-    engineOrClient,
-    numBodies,
-    worldOptions = {
-      width: 800,
-      height: 600,
-      gravity: { x: 0, y: 1, scale: 0.001 },
-    }
-  ) => {
-    logPerformanceMessage(
-      `Setting up scenario: fallingBoxes with ${numBodies} bodies`
-    );
-    const addedBodyDetails = {
-      scenarioName: "fallingBoxes",
-      dynamicBodies: 0,
-      staticBodies: 0,
-    };
-
-    if (engineOrClient instanceof PhysicsWorkerClient) {
-      const client = engineOrClient;
-      // INIT_WORLD in the worker already creates 4 boundary walls (ground, ceiling, left, right).
-      // It uses the width/height from worldOptions for this.
-      await client.sendMessage({
-        type: CommandType.INIT_WORLD,
-        payload: worldOptions,
-      });
-      logPerformanceMessage(
-        `INIT_WORLD command sent to worker. Worker will create its own boundaries.`
-      );
-      addedBodyDetails.staticBodies = 4; // Worker creates 4 walls
-
-      // Add Dynamic Bodies to Worker
-      const boxPromises = [];
-      for (let i = 0; i < numBodies; i++) {
-        const bodyId = `box-worker-${i}`;
-        const boxPayload = {
-          id: bodyId,
-          type: "rectangle",
-          x: Math.random() * (worldOptions.width - 60) + 30, // Keep away from edges
-          y: Math.random() * (worldOptions.height / 2 - 50) + 25, // Drop from top half, away from ceiling
-          width: Math.random() * 20 + 10,
-          height: Math.random() * 20 + 10,
-          options: { restitution: 0.5, friction: 0.1, label: bodyId },
-        };
-        boxPromises.push(
-          client.sendMessage({
-            type: CommandType.ADD_BODY,
-            payload: boxPayload,
-          })
-        );
-      }
-      await Promise.all(boxPromises); // Send all add body commands and wait for them
-      addedBodyDetails.dynamicBodies = numBodies;
-      logPerformanceMessage(
-        `${numBodies} dynamic boxes ADD_BODY commands sent to worker.`
-      );
-    } else {
-      // Direct Matter.js engine manipulation
-      const engine = engineOrClient;
-      Matter.Composite.clear(engine.world, false);
-      engine.world.gravity.x = worldOptions.gravity.x;
-      engine.world.gravity.y = worldOptions.gravity.y;
-      engine.world.gravity.scale = worldOptions.gravity.scale;
-
-      // Add 4 boundary walls for parity with worker's INIT_WORLD behavior
-      const wallOptions = { isStatic: true, label: "wall" };
-      Matter.World.add(engine.world, [
-        Matter.Bodies.rectangle(
-          worldOptions.width / 2,
-          worldOptions.height - 25,
-          worldOptions.width,
-          50,
-          { ...wallOptions, label: "ground" }
-        ), // Ground
-        Matter.Bodies.rectangle(
-          worldOptions.width / 2,
-          25,
-          worldOptions.width,
-          50,
-          { ...wallOptions, label: "ceiling" }
-        ), // Ceiling
-        Matter.Bodies.rectangle(
-          25,
-          worldOptions.height / 2,
-          50,
-          worldOptions.height,
-          { ...wallOptions, label: "leftWall" }
-        ), // Left wall
-        Matter.Bodies.rectangle(
-          worldOptions.width - 25,
-          worldOptions.height / 2,
-          50,
-          worldOptions.height,
-          { ...wallOptions, label: "rightWall" }
-        ), // Right wall
-      ]);
-      addedBodyDetails.staticBodies = 4;
-      logPerformanceMessage(`4 boundary walls added directly to engine.`);
-
-      const dynamicBodies = [];
-      for (let i = 0; i < numBodies; i++) {
-        const bodyId = `box-main-${i}`;
-        const box = Matter.Bodies.rectangle(
-          Math.random() * (worldOptions.width - 60) + 30,
-          Math.random() * (worldOptions.height / 2 - 50) + 25,
-          Math.random() * 20 + 10,
-          Math.random() * 20 + 10,
-          { restitution: 0.5, friction: 0.1, label: bodyId }
-        );
-        dynamicBodies.push(box);
-      }
-      Matter.World.add(engine.world, dynamicBodies);
-      addedBodyDetails.dynamicBodies = numBodies;
-      logPerformanceMessage(
-        `${numBodies} dynamic boxes added directly to engine.`
-      );
-    }
-    return addedBodyDetails;
-  },
-  chainReaction: (engineOrClient, numBodies) => {
-    logPerformanceMessage(
-      `Setting up scenario: chainReaction with ${numBodies} elements`
-    );
-    // Similar logic for chain reaction
-    return { bodiesAdded: numBodies, scenarioName: "chainReaction" };
-  },
-  manySmallCircles: (engineOrClient, numBodies) => {
-    logPerformanceMessage(
-      `Setting up scenario: manySmallCircles with ${numBodies} circles`
-    );
-    // Similar logic for many small circles
-    return { bodiesAdded: numBodies, scenarioName: "manySmallCircles" };
-  },
-};
-
-function updateCharts(mainThreadData, workerData, scenarioName, numBodies) {
+function updateCharts(mainThreadData, workerData, scenarioData) {
   const labels = ["Main Thread", "Worker"];
+  const scenarioName = scenarioData?.description || "N/A";
+  const numBodies = scenarioData?.bodyGeneration?.count || "N/A";
 
   const commonChartOptions = (titleText) => ({
     responsive: true,
@@ -632,12 +477,18 @@ function updateCharts(mainThreadData, workerData, scenarioName, numBodies) {
 
 async function runBenchmarkSuite() {
   const scenarioKey = scenarioSelect.value;
-  const numBodies = parseInt(numBodiesInput.value);
-  const durationMs = parseInt(testDurationInput.value);
-  const iterations = 1; // For now, just one iteration. Can be made configurable.
+  if (!scenarios[scenarioKey]) {
+    logPerformanceMessage(
+      `Error: Scenario with key '${scenarioKey}' not found.`,
+      "ERROR"
+    );
+    return;
+  }
+  const selectedScenarioData = scenarios[scenarioKey];
+  const iterations = 1; // For now
 
   logPerformanceMessage(
-    `Starting Benchmark Suite: Scenario=${scenarioKey}, Bodies=${numBodies}, Duration=${durationMs}ms, Iterations=${iterations}`
+    `Starting Benchmark Suite: Scenario=${selectedScenarioData.description}, Iterations=${iterations}`
   );
   progressOutput.textContent = "Benchmark running...";
   runMainThreadButton.disabled = true;
@@ -653,28 +504,23 @@ async function runBenchmarkSuite() {
     progressOutput.textContent = `Iteration ${
       i + 1
     }/${iterations}... Main Thread Test...`;
-    const mtResults = await runMainThreadTest(
-      scenarioKey,
-      numBodies,
-      durationMs
-    );
+    const mtResults = await runMainThreadTest(selectedScenarioData);
     mainThreadAggregatedResults.push(mtResults);
 
     progressOutput.textContent = `Iteration ${
       i + 1
     }/${iterations}... Worker Test...`;
-    const wResults = await runWorkerTest(scenarioKey, numBodies, durationMs);
+    const wResults = await runWorkerTest(selectedScenarioData);
     workerAggregatedResults.push(wResults);
 
-    // Simple averaging for now. Could be more sophisticated.
     const avgMainThread = averageResults(mainThreadAggregatedResults);
     const avgWorker = averageResults(workerAggregatedResults);
 
-    updateCharts(avgMainThread, avgWorker, scenarioKey, numBodies);
+    updateCharts(avgMainThread, avgWorker, selectedScenarioData);
 
     if (i < iterations - 1) {
       logPerformanceMessage("Waiting a bit before next iteration...");
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Short pause
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
   }
 
@@ -683,10 +529,9 @@ async function runBenchmarkSuite() {
   runMainThreadButton.disabled = false;
   runWorkerButton.disabled = false;
   runBenchmarkSuiteButton.disabled = false;
-  testCompleteIndicator.style.display = "block"; // For Puppeteer
+  testCompleteIndicator.style.display = "block";
 }
 
-// Simple averaging function - can be expanded
 function averageResults(resultsArray) {
   if (!resultsArray || resultsArray.length === 0) return {};
   const summed = resultsArray.reduce((acc, current) => {
@@ -709,16 +554,18 @@ function averageResults(resultsArray) {
   return averaged;
 }
 
-// Event Listeners
 runMainThreadButton.addEventListener("click", async () => {
   const scenarioKey = scenarioSelect.value;
-  const numBodies = parseInt(numBodiesInput.value);
-  const durationMs = parseInt(testDurationInput.value);
+  if (!scenarios[scenarioKey]) return;
+  const selectedScenarioData = scenarios[scenarioKey];
+
   runMainThreadButton.disabled = true;
   runWorkerButton.disabled = true;
   runBenchmarkSuiteButton.disabled = true;
-  const results = await runMainThreadTest(scenarioKey, numBodies, durationMs);
-  updateCharts(results, null, scenarioKey, numBodies); // Update with only main thread data for now
+
+  const results = await runMainThreadTest(selectedScenarioData);
+  updateCharts(results, null, selectedScenarioData);
+
   runMainThreadButton.disabled = false;
   runWorkerButton.disabled = false;
   runBenchmarkSuiteButton.disabled = false;
@@ -726,13 +573,16 @@ runMainThreadButton.addEventListener("click", async () => {
 
 runWorkerButton.addEventListener("click", async () => {
   const scenarioKey = scenarioSelect.value;
-  const numBodies = parseInt(numBodiesInput.value);
-  const durationMs = parseInt(testDurationInput.value);
+  if (!scenarios[scenarioKey]) return;
+  const selectedScenarioData = scenarios[scenarioKey];
+
   runMainThreadButton.disabled = true;
   runWorkerButton.disabled = true;
   runBenchmarkSuiteButton.disabled = true;
-  const results = await runWorkerTest(scenarioKey, numBodies, durationMs);
-  updateCharts(null, results, scenarioKey, numBodies); // Update with only worker data for now
+
+  const results = await runWorkerTest(selectedScenarioData);
+  updateCharts(null, results, selectedScenarioData);
+
   runMainThreadButton.disabled = false;
   runWorkerButton.disabled = false;
   runBenchmarkSuiteButton.disabled = false;
@@ -740,7 +590,254 @@ runWorkerButton.addEventListener("click", async () => {
 
 runBenchmarkSuiteButton.addEventListener("click", runBenchmarkSuite);
 
-// Initial log message
+// Initial log message & chart
 logPerformanceMessage("Performance test script loaded. Ready to run tests.");
-// Initial chart display (empty)
-updateCharts(null, null, scenarioSelect.value, parseInt(numBodiesInput.value));
+if (scenarioSelect.value && scenarios[scenarioSelect.value]) {
+  updateCharts(null, null, scenarios[scenarioSelect.value]);
+} else if (Object.keys(scenarios).length > 0) {
+  updateCharts(null, null, scenarios[Object.keys(scenarios)[0]]); // Use first scenario if current selection invalid
+} else {
+  updateCharts(null, null, {
+    description: "No scenarios loaded",
+    bodyGeneration: { count: 0 },
+  }); // Fallback for empty charts
+}
+
+// Function to populate the scenario dropdown
+function populateScenarioDropdown() {
+  if (!scenarioSelect) return;
+  scenarioSelect.innerHTML = ""; // Clear existing options
+  Object.keys(scenarios).forEach((key) => {
+    const option = document.createElement("option");
+    option.value = key;
+    option.textContent = scenarios[key].description || key;
+    scenarioSelect.appendChild(option);
+  });
+  // Update related inputs based on the first scenario initially
+  updateInputsFromSelectedScenario();
+}
+
+// Function to update numBodies and duration based on selected scenario
+function updateInputsFromSelectedScenario() {
+  if (!scenarioSelect || !scenarios[scenarioSelect.value]) return;
+  const selectedScenarioData = scenarios[scenarioSelect.value];
+  if (
+    selectedScenarioData.bodyGeneration &&
+    selectedScenarioData.bodyGeneration.count &&
+    numBodiesInput
+  ) {
+    numBodiesInput.value = selectedScenarioData.bodyGeneration.count;
+    numBodiesInput.disabled = true; // Disable as it's driven by scenario
+  } else if (numBodiesInput) {
+    numBodiesInput.disabled = false; // Enable if scenario doesn't define count
+  }
+
+  if (
+    selectedScenarioData.simulationParameters &&
+    selectedScenarioData.simulationParameters.durationMs &&
+    testDurationInput
+  ) {
+    testDurationInput.value =
+      selectedScenarioData.simulationParameters.durationMs;
+    testDurationInput.disabled = true; // Disable as it's driven by scenario
+  } else if (testDurationInput) {
+    testDurationInput.disabled = false;
+  }
+}
+
+// Listener for scenario changes to update inputs
+if (scenarioSelect) {
+  scenarioSelect.addEventListener("change", updateInputsFromSelectedScenario);
+}
+
+// Initial population
+populateScenarioDropdown();
+
+// Placeholder for the new setup function
+async function setupScenarioFromDefinition(engineOrClient, scenarioData) {
+  logPerformanceMessage(`Setting up scenario: ${scenarioData.description}`);
+  const { worldOptions, staticBodies, bodyGeneration } = scenarioData;
+  let dynamicBodiesCreated = 0;
+  let staticBodiesCreated = 0;
+
+  // Helper to generate a random number in a range
+  const randomInRange = (min, max) => Math.random() * (max - min) + min;
+
+  if (engineOrClient instanceof PhysicsWorkerClient) {
+    const client = engineOrClient;
+    // 1. INIT_WORLD (worker creates 4 boundary walls by default)
+    await client.sendMessage({
+      type: CommandType.INIT_WORLD,
+      payload: worldOptions,
+    });
+    logPerformanceMessage(
+      `INIT_WORLD sent to worker. Worker creates its own 4 boundary walls.`
+    );
+    staticBodiesCreated = 4; // Account for worker's internal walls
+
+    // 2. Add any *additional* explicit static bodies from scenarioData.staticBodies
+    if (staticBodies && staticBodies.length > 0) {
+      const staticPromises = staticBodies.map((bodyDef) => {
+        const payload = {
+          ...bodyDef,
+          id: bodyDef.id || `static-${staticBodiesCreated++}`,
+        };
+        return client.sendMessage({ type: CommandType.ADD_BODY, payload });
+      });
+      await Promise.all(staticPromises);
+      logPerformanceMessage(
+        `${staticBodies.length} additional static bodies ADD_BODY commands sent to worker.`
+      );
+      // staticBodiesCreated += staticBodies.length; // Already counted if they have unique IDs
+    }
+
+    // 3. Generate and add dynamic bodies
+    if (bodyGeneration) {
+      const dynamicBodyPromises = [];
+      for (let i = 0; i < bodyGeneration.count; i++) {
+        const id = `${bodyGeneration.idPrefix}-${i}`;
+        let bodyPayload;
+        if (bodyGeneration.placement) {
+          // Specific placement (e.g., for stacks)
+          const p = bodyGeneration.placement;
+          bodyPayload = {
+            id,
+            type: bodyGeneration.type,
+            x: p.startX,
+            y: p.startY - i * (p.boxHeight + p.spacingY), // Stack upwards
+            width: p.boxWidth,
+            height: p.boxHeight,
+            options: { ...(bodyGeneration.templateOptions || {}), label: id },
+          };
+        } else {
+          // Random positioning
+          const p = bodyGeneration.positioning;
+          bodyPayload = {
+            id,
+            type: bodyGeneration.type,
+            x: randomInRange(p.x.min, p.x.max),
+            y: randomInRange(p.y.min, p.y.max),
+            width: randomInRange(p.width.min, p.width.max),
+            height: randomInRange(p.height.min, p.height.max),
+            options: { ...(bodyGeneration.templateOptions || {}), label: id },
+          };
+        }
+        dynamicBodyPromises.push(
+          client.sendMessage({
+            type: CommandType.ADD_BODY,
+            payload: bodyPayload,
+          })
+        );
+      }
+      await Promise.all(dynamicBodyPromises);
+      dynamicBodiesCreated = bodyGeneration.count;
+      logPerformanceMessage(
+        `${dynamicBodiesCreated} dynamic bodies ADD_BODY commands sent to worker.`
+      );
+    }
+  } else {
+    // Direct Matter.js Engine manipulation
+    const engine = engineOrClient;
+    Matter.Composite.clear(engine.world, false);
+    engine.world.gravity = { ...worldOptions.gravity }; // Set gravity
+
+    // 1. Add 4 boundary walls for parity with worker
+    const wallOpts = { isStatic: true, label: "wall" };
+    Matter.World.add(engine.world, [
+      Matter.Bodies.rectangle(
+        worldOptions.width / 2,
+        worldOptions.height - 25,
+        worldOptions.width,
+        50,
+        { ...wallOpts, label: "ground", id: "ground-main" }
+      ),
+      Matter.Bodies.rectangle(
+        worldOptions.width / 2,
+        25,
+        worldOptions.width,
+        50,
+        { ...wallOpts, label: "ceiling", id: "ceiling-main" }
+      ),
+      Matter.Bodies.rectangle(
+        25,
+        worldOptions.height / 2,
+        50,
+        worldOptions.height,
+        { ...wallOpts, label: "leftWall", id: "leftWall-main" }
+      ),
+      Matter.Bodies.rectangle(
+        worldOptions.width - 25,
+        worldOptions.height / 2,
+        50,
+        worldOptions.height,
+        { ...wallOpts, label: "rightWall", id: "rightWall-main" }
+      ),
+    ]);
+    staticBodiesCreated = 4;
+    logPerformanceMessage(
+      `4 boundary walls added directly to engine for parity.`
+    );
+
+    // 2. Add any *additional* explicit static bodies
+    if (staticBodies && staticBodies.length > 0) {
+      const matterStaticBodies = staticBodies.map((bodyDef) => {
+        // Create Matter body based on bodyDef (simplified: assumes rectangle for now)
+        return Matter.Bodies.rectangle(
+          bodyDef.x,
+          bodyDef.y,
+          bodyDef.width,
+          bodyDef.height,
+          {
+            ...(bodyDef.options || {}),
+            id: bodyDef.id || `static-main-${staticBodiesCreated++}`,
+            label: bodyDef.options?.label || bodyDef.id,
+          }
+        );
+      });
+      Matter.World.add(engine.world, matterStaticBodies);
+      logPerformanceMessage(
+        `${matterStaticBodies.length} additional static bodies added to engine.`
+      );
+      // staticBodiesCreated += matterStaticBodies.length; // Already counted if they have unique IDs
+    }
+
+    // 3. Generate and add dynamic bodies
+    if (bodyGeneration) {
+      const matterDynamicBodies = [];
+      for (let i = 0; i < bodyGeneration.count; i++) {
+        const id = `${bodyGeneration.idPrefix}-main-${i}`;
+        let body;
+        if (bodyGeneration.placement) {
+          const p = bodyGeneration.placement;
+          body = Matter.Bodies.rectangle(
+            p.startX,
+            p.startY - i * (p.boxHeight + p.spacingY),
+            p.boxWidth,
+            p.boxHeight,
+            { ...(bodyGeneration.templateOptions || {}), id, label: id }
+          );
+        } else {
+          const p = bodyGeneration.positioning;
+          body = Matter.Bodies.rectangle(
+            randomInRange(p.x.min, p.x.max),
+            randomInRange(p.y.min, p.y.max),
+            randomInRange(p.width.min, p.width.max),
+            randomInRange(p.height.min, p.height.max),
+            { ...(bodyGeneration.templateOptions || {}), id, label: id }
+          );
+        }
+        matterDynamicBodies.push(body);
+      }
+      Matter.World.add(engine.world, matterDynamicBodies);
+      dynamicBodiesCreated = bodyGeneration.count;
+      logPerformanceMessage(
+        `${dynamicBodiesCreated} dynamic bodies added directly to engine.`
+      );
+    }
+  }
+  return {
+    dynamicBodiesCreated,
+    staticBodiesCreated,
+    scenarioName: scenarioData.description,
+  };
+}

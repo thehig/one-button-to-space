@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Physics Scenario Viewer</title>
+    <link rel="stylesheet" href="./scenario-viewer.css" />
+  </head>
+  <body>
+    <h1>Physics Scenario Viewer</h1>
+
+    <div id="controls">
+      <label for="scenarioSelect">Select Scenario:</label>
+      <select id="scenarioSelect">
+        <option value="">-- Loading Scenarios --</option>
+      </select>
+      <button id="runScenarioButton">Load & Run Scenario</button>
+    </div>
+
+    <div id="renderContainer">
+      <!-- Matter.js canvas will be created here -->
+    </div>
+
+    <!-- Include Matter.js library (choose one method) -->
+    <!-- Method 1: From CDN -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script> -->
+    <!-- Method 2: Assuming bundled -->
+    <!-- Ensure Matter.js is imported in the JS file if using this -->
+
+    <script type="module" src="./scenario-viewer.js"></script>
+  </body>
+</html>

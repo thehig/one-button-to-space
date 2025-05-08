@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Physics Worker Demos</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 20px;
+      }
+      ul {
+        list-style: none;
+        padding: 0;
+      }
+      li {
+        margin-bottom: 10px;
+      }
+      a {
+        text-decoration: none;
+        color: #007bff;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Physics Worker Demos</h1>
+    <p>Select a demo to view:</p>
+    <ul>
+      <li>
+        <a href="./basic-test/basic-test.html">Basic Test Demo</a>
+        - Demonstrates basic worker client communication and rendering with
+        Phaser.
+      </li>
+      <li>
+        <a href="./scenarios/scenario-viewer.html">Scenario Viewer</a>
+        - Loads and visualizes physics scenarios defined in data files (runs on
+        main thread).
+      </li>
+      <li>
+        <a href="./performance-test/performance-test.html">Performance Test</a>
+        - Compares physics performance between the main thread and the web
+        worker using defined scenarios.
+      </li>
+    </ul>
+  </body>
+</html>
