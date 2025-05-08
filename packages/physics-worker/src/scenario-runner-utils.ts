@@ -2,10 +2,15 @@ import Matter from "matter-js";
 
 // Assuming ScenarioData structure is defined elsewhere or implicitly known
 // We might want to define interfaces for ScenarioData, WorldOptions, BodyGeneration etc. later
-interface ScenarioData {
+export interface ScenarioData {
   description: string;
   seed?: number;
-  worldOptions?: Partial<Matter.IWorldDefinition["world"]>; // Use Matter types if possible
+  worldOptions?: {
+    gravity?: Matter.Vector & { scale?: number }; // Matches Matter.Gravity type structure
+    width?: number; // Custom for boundary wall creation
+    height?: number; // Custom for boundary wall creation
+    // Other Matter.IWorldDefinition properties can be added here if needed
+  };
   staticBodies?: any[]; // Define more specific types later
   bodyGeneration?: any; // Define more specific types later
   simulationParameters: {
@@ -72,7 +77,7 @@ export async function setupScenarioInEngine(
   const wallThickness = 50;
   const wallOpts: Matter.IBodyDefinition = {
     isStatic: true,
-    label: "wall",
+    label: "wall", // Default label
     restitution: 0.1,
     friction: 0.5,
   };
@@ -83,28 +88,28 @@ export async function setupScenarioInEngine(
       height + wallThickness / 2,
       width,
       wallThickness,
-      { ...wallOpts, label: "ground", id: "ground-main" }
+      { ...wallOpts, label: "ground-main" } // Use label for string ID
     ),
     Matter.Bodies.rectangle(
       width / 2,
       -(wallThickness / 2),
       width,
       wallThickness,
-      { ...wallOpts, label: "ceiling", id: "ceiling-main" }
+      { ...wallOpts, label: "ceiling-main" } // Use label for string ID
     ),
     Matter.Bodies.rectangle(
       -(wallThickness / 2),
       height / 2,
       wallThickness,
       height,
-      { ...wallOpts, label: "leftWall", id: "leftWall-main" }
+      { ...wallOpts, label: "leftWall-main" } // Use label for string ID
     ),
     Matter.Bodies.rectangle(
       width + wallThickness / 2,
       height / 2,
       wallThickness,
       height,
-      { ...wallOpts, label: "rightWall", id: "rightWall-main" }
+      { ...wallOpts, label: "rightWall-main" } // Use label for string ID
     ),
   ]);
   staticBodiesCreated = 4;
@@ -114,15 +119,22 @@ export async function setupScenarioInEngine(
     const matterStaticBodies = staticBodies
       .map((bodyDef: any, index: number) => {
         // Add type 'any' for now
-        const staticId =
-          bodyDef.id || `static-main-${staticBodiesCreated + index}`;
-        const label = bodyDef.options?.label || staticId;
+        const staticLabel =
+          bodyDef.options?.label ||
+          bodyDef.id ||
+          `static-main-${staticBodiesCreated + index}`;
         const bodyOptions: Matter.IBodyDefinition = {
           isStatic: true,
           ...(bodyDef.options || {}),
-          id: staticId,
-          label,
+          label: staticLabel, // Ensure label is primary string identifier
         };
+        // Remove string `id` from bodyOptions, Matter will assign numeric ID
+        if (
+          "id" in bodyOptions &&
+          typeof (bodyOptions as any).id === "string"
+        ) {
+          delete (bodyOptions as any).id;
+        }
 
         if (bodyDef.type === "rectangle") {
           return Matter.Bodies.rectangle(
@@ -160,13 +172,19 @@ export async function setupScenarioInEngine(
   if (bodyGeneration) {
     const matterDynamicBodies: Matter.Body[] = [];
     for (let i = 0; i < bodyGeneration.count; i++) {
-      const id = `${bodyGeneration.idPrefix || "dynamic"}-main-${i}`;
+      const dynamicLabel = `${bodyGeneration.idPrefix || "dynamic"}-main-${i}`;
       let body: Matter.Body | null = null;
       const templateOpts: Matter.IBodyDefinition = {
         ...(bodyGeneration.templateOptions || {}),
-        id,
-        label: id,
+        label: dynamicLabel, // Use label for string ID
       };
+      // Remove string `id` from templateOpts if it exists from bodyGeneration.templateOptions
+      if (
+        "id" in templateOpts &&
+        typeof (templateOpts as any).id === "string"
+      ) {
+        delete (templateOpts as any).id;
+      }
       const type = bodyGeneration.type;
 
       try {
@@ -201,14 +219,14 @@ export async function setupScenarioInEngine(
           }
         }
       } catch (e) {
-        console.error(`Error creating dynamic body ${id}:`, e);
+        console.error(`Error creating dynamic body ${dynamicLabel}:`, e);
       }
 
       if (body) {
         matterDynamicBodies.push(body);
       } else {
         console.warn(
-          `Failed to generate dynamic body of type ${type} for id ${id}.`
+          `Failed to generate dynamic body of type ${type} for id ${dynamicLabel}.`
         );
       }
     }

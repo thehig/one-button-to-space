@@ -40,10 +40,10 @@ alwaysApply: true
     -   If changes to other files seem absolutely necessary, **ASK THE USER FOR PERMISSION FIRST.** Explain why you think the change is needed.
 
 -   **🚨🚨🚨 ABSOLUTELY CRITICAL: ALWAYS USE WINDOWS PATHING 🚨🚨🚨**
-    -   **Use backslashes (`\`) for ALL directory separators.** Example: `packages\server\src\schema\State.ts`
+    -   **Use backslashes (`\\`) for ALL directory separators.** Example: `packages\\server\\src\\schema\\State.ts`
     -   **NEVER use forward slashes (`/`)**. This will break things.
     -   This applies to **EVERYTHING**: file paths in prompts, code generation, explanations, tool call arguments, and **ESPECIALLY Taskmaster commands** (like `input` or `output` paths).
-    -   **Initial Context Conversion:** If the initial workspace path is provided as `/c%3A/...` or similar, **YOU MUST convert it to the `C:\...` format BEFORE the first Taskmaster tool call.** Example: Convert `/c%3A/dev/project` to `C:\dev\project`.
+    -   **Initial Context Conversion:** If the initial workspace path is provided as `/c%3A/...` or similar, **YOU MUST convert it to the `C:\\...` format BEFORE the first Taskmaster tool call.** Example: Convert `/c%3A/dev/personal/one-button-to-space` to `C:\\dev\\personal\\one-button-to-space`.
 
 ---
 
