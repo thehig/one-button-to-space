@@ -1,6 +1,6 @@
 import Phaser from "phaser";
-import { PhysicsWorkerClient } from "../src/index.ts";
-import { CommandType } from "../src/commands.ts";
+import { PhysicsWorkerClient } from "../../src/index.ts";
+import { CommandType } from "../../src/commands.ts";
 
 class DemoUIManager {
   logOutput = null;
