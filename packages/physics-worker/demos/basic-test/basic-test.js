@@ -663,46 +663,53 @@ class DemoScene extends Phaser.Scene {
     const wallOptions = { isStatic: true, restitution: 0.5 };
 
     // Bottom wall
+    const bottomWallPayload = {
+      id: "boundary-bottom",
+      type: "rectangle",
+      x: width / 2,
+      y: height + thickness / 2 - 10, // Position it slightly overlapping the bottom edge
+      width: width + thickness * 2, // Make it wider to prevent corner escapes
+      height: thickness,
+      options: wallOptions,
+    };
+    this.pendingBodies.set(bottomWallPayload.id, bottomWallPayload); // Add to pending before sending
     this.physicsClient?.sendMessage({
       type: CommandType.ADD_BODY,
-      payload: {
-        id: "boundary-bottom",
-        type: "rectangle",
-        x: width / 2,
-        y: height + thickness / 2 - 10, // Position it slightly overlapping the bottom edge if needed
-        width: width + thickness * 2, // Make it wider to prevent corner escapes
-        height: thickness,
-        options: wallOptions,
-      },
+      payload: bottomWallPayload,
     });
 
     // Left wall
+    const leftWallPayload = {
+      id: "boundary-left",
+      type: "rectangle",
+      x: thickness / 2,
+      y: height / 2,
+      width: thickness,
+      height: height,
+      options: wallOptions,
+    };
+    this.pendingBodies.set(leftWallPayload.id, leftWallPayload); // Add to pending before sending
     this.physicsClient?.sendMessage({
       type: CommandType.ADD_BODY,
-      payload: {
-        id: "boundary-left",
-        type: "rectangle",
-        x: -thickness / 2,
-        y: height / 2,
-        width: thickness,
-        height: height,
-        options: wallOptions,
-      },
+      payload: leftWallPayload,
     });
 
     // Right wall
+    const rightWallPayload = {
+      id: "boundary-right",
+      type: "rectangle",
+      x: width - thickness / 2,
+      y: height / 2,
+      width: thickness,
+      height: height,
+      options: wallOptions,
+    };
+    this.pendingBodies.set(rightWallPayload.id, rightWallPayload); // Add to pending before sending
     this.physicsClient?.sendMessage({
       type: CommandType.ADD_BODY,
-      payload: {
-        id: "boundary-right",
-        type: "rectangle",
-        x: width + thickness / 2,
-        y: height / 2,
-        width: thickness,
-        height: height,
-        options: wallOptions,
-      },
+      payload: rightWallPayload,
     });
+
     this.uiManager.log({
       type: "DEMO_SCENE",
       note: "Sent commands to add static U-boundaries.",
