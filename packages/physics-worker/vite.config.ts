@@ -39,8 +39,6 @@ export default defineConfig({
         "**/*.config.js",
         "**/*.config.ts",
         "./setupTests.ts",
-        "**/src/main.ts",
-        "**/src/index.ts",
       ],
     },
   },
