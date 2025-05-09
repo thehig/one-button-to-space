@@ -67,7 +67,27 @@ describe("Physics Worker", () => {
 
     // Setup default mock implementations
     mockEngineCreate.mockReturnValue(mockEngineInstance);
-    mockBodiesRectangle.mockReturnValue(mockBodyInstance);
+    // Default to returning a generic body for add operations unless overridden in a specific test
+    mockBodiesRectangle.mockReturnValue({
+      ...mockBodyInstance,
+      position: { x: 0, y: 0 },
+      angle: 0,
+    });
+    mockBodiesCircle.mockReturnValue({
+      ...mockBodyInstance,
+      position: { x: 0, y: 0 },
+      angle: 0,
+    });
+    mockBodiesPolygon.mockReturnValue({
+      ...mockBodyInstance,
+      position: { x: 0, y: 0 },
+      angle: 0,
+    });
+    mockBodiesFromVertices.mockReturnValue({
+      ...mockBodyInstance,
+      position: { x: 0, y: 0 },
+      angle: 0,
+    });
 
     // Import the worker script. This will assign its onmessage to global.self.onmessage
     // Vite/Vitest handles the dynamic import and execution context.
@@ -145,6 +165,15 @@ describe("Physics Worker", () => {
       expect(mockBodiesRectangle).toHaveBeenCalledTimes(4);
       expect(mockWorldAdd).toHaveBeenCalledTimes(1); // All boundaries added in one call
       // More specific assertions for boundary properties can be added here
+      // Verify the options for static walls
+      const wallOptions = { isStatic: true };
+      expect(mockBodiesRectangle).toHaveBeenCalledWith(
+        expect.any(Number),
+        expect.any(Number),
+        expect.any(Number),
+        expect.any(Number),
+        wallOptions
+      );
 
       expect(mockEventsOn).toHaveBeenCalledWith(
         mockEngineInstance,
@@ -185,6 +214,81 @@ describe("Physics Worker", () => {
         type: CommandType.WORLD_INITIALIZED,
         payload: { success: true },
         commandId,
+      });
+    });
+
+    it("should initialize with no gravity if gravity is not specified in payload", () => {
+      if (!workerOnMessage) throw new Error("workerOnMessage not set");
+      // This test assumes the desired behavior is for the worker to explicitly set gravity to 0,0
+      // if no gravity is provided in the payload, overriding Matter.js's own default.
+      // If this test fails, it indicates the worker needs to be changed to implement this.
+
+      // Reset gravity on the mock instance to something non-zero to ensure our test is effective
+      mockEngineInstance.world.gravity = { x: 0, y: 1, scale: 0.001 };
+
+      const commandId = "init-cmd-no-gravity";
+      const payload: InitWorldCommandPayload = {
+        width: 800,
+        height: 600,
+        // No gravity property here
+      };
+      const command: PhysicsCommand<InitWorldCommandPayload> = {
+        type: CommandType.INIT_WORLD,
+        payload,
+        commandId,
+      };
+
+      workerOnMessage({ data: command } as MessageEvent<PhysicsCommand>);
+
+      expect(mockEngineCreate).toHaveBeenCalledTimes(1);
+      // Expect worker to have set gravity to 0,0
+      expect(mockEngineInstance.world.gravity.x).toBe(0);
+      expect(mockEngineInstance.world.gravity.y).toBe(0);
+      // Scale might remain Matter's default or be set; for "no gravity", x and y are key.
+      // expect(mockEngineInstance.world.gravity.scale).toBe(0.001); // Or whatever it should be
+
+      expect(mockPostMessage).toHaveBeenCalledWith({
+        type: CommandType.WORLD_INITIALIZED,
+        payload: { success: true },
+        commandId,
+      });
+    });
+
+    it("should have no tracked dynamic bodies after initialization", () => {
+      if (!workerOnMessage) throw new Error("workerOnMessage not set");
+
+      const initCommandId = "init-no-dynamic";
+      const initPayload: InitWorldCommandPayload = { width: 100, height: 100 };
+      workerOnMessage({
+        data: {
+          type: CommandType.INIT_WORLD,
+          payload: initPayload,
+          commandId: initCommandId,
+        },
+      } as MessageEvent<PhysicsCommand>);
+      expect(mockPostMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: CommandType.WORLD_INITIALIZED,
+          commandId: initCommandId,
+        })
+      );
+      mockPostMessage.mockClear(); // Clear postMessage from init
+
+      // Now step the simulation
+      const stepCommandId = "step-after-init";
+      const stepPayload: StepSimulationCommandPayload = { deltaTime: 16 };
+      workerOnMessage({
+        data: {
+          type: CommandType.STEP_SIMULATION,
+          payload: stepPayload,
+          commandId: stepCommandId,
+        },
+      } as MessageEvent<PhysicsCommand>);
+
+      expect(mockPostMessage).toHaveBeenCalledWith({
+        type: CommandType.SIMULATION_STEPPED,
+        payload: { success: true, bodies: [] }, // Expect empty array for bodies
+        commandId: stepCommandId,
       });
     });
 
@@ -251,7 +355,12 @@ describe("Physics Worker", () => {
       // to control the module initialization lifecycle from the test.
       // The existing guard in `physicsWorker.ts` is simple, and its failure
       // would likely be caught by other tests if `INIT_WORLD` wasn't called first.
-      expect(true).toBe(true); // Placeholder to make test pass
+      // expect(true).toBe(true); // Placeholder to make test pass - REMOVED
+      // The initial guard is implicitly tested by other tests ensuring INIT_WORLD runs first.
+      // If a command other than INIT_WORLD is sent first to a "fresh" worker instance (where engine is undefined),
+      // the worker script's own guard `if (!engine || !world)` should catch it.
+      // Simulating this "fresh" state here is complex due to module caching.
+      // We rely on `beforeEach` correctly setting up the worker.
     });
   });
 
@@ -283,7 +392,13 @@ describe("Physics Worker", () => {
 
     it("should add a rectangle body to the world", () => {
       if (!workerOnMessage) throw new Error("workerOnMessage not set");
-      mockBodiesRectangle.mockReturnValue(mockBodyInstance); // Ensure it returns a mock body
+      const mockRectBody = {
+        id: "rect1",
+        position: { x: 100, y: 100 },
+        angle: 0,
+        label: "test-rect",
+      };
+      mockBodiesRectangle.mockReturnValue(mockRectBody);
 
       const commandId = "add-rect-1";
       const payload: AddBodyCommandPayload = {
@@ -312,7 +427,7 @@ describe("Physics Worker", () => {
       );
       expect(mockWorldAdd).toHaveBeenCalledWith(
         mockEngineInstance.world,
-        mockBodyInstance
+        mockRectBody
       );
       expect(mockPostMessage).toHaveBeenCalledWith({
         type: CommandType.BODY_ADDED,
@@ -323,7 +438,13 @@ describe("Physics Worker", () => {
 
     it("should add a circle body to the world", () => {
       if (!workerOnMessage) throw new Error("workerOnMessage not set");
-      mockBodiesCircle.mockReturnValue(mockBodyInstance);
+      const mockCircleBody = {
+        id: "circle1",
+        position: { x: 150, y: 150 },
+        angle: 0,
+        label: "test-circle",
+      };
+      mockBodiesCircle.mockReturnValue(mockCircleBody);
 
       const commandId = "add-circle-1";
       const payload: AddBodyCommandPayload = {
@@ -350,7 +471,7 @@ describe("Physics Worker", () => {
       );
       expect(mockWorldAdd).toHaveBeenCalledWith(
         mockEngineInstance.world,
-        mockBodyInstance
+        mockCircleBody
       );
       expect(mockPostMessage).toHaveBeenCalledWith({
         type: CommandType.BODY_ADDED,
@@ -361,7 +482,13 @@ describe("Physics Worker", () => {
 
     it("should add a polygon body (from sides/radius) to the world", () => {
       if (!workerOnMessage) throw new Error("workerOnMessage not set");
-      mockBodiesPolygon.mockReturnValue(mockBodyInstance);
+      const mockPolygonBody = {
+        id: "poly1",
+        position: { x: 200, y: 200 },
+        angle: 0,
+        label: "test-polygon",
+      };
+      mockBodiesPolygon.mockReturnValue(mockPolygonBody);
 
       const commandId = "add-polygon-1";
       const payload: AddBodyCommandPayload = {
@@ -390,7 +517,7 @@ describe("Physics Worker", () => {
       );
       expect(mockWorldAdd).toHaveBeenCalledWith(
         mockEngineInstance.world,
-        mockBodyInstance
+        mockPolygonBody
       );
       expect(mockPostMessage).toHaveBeenCalledWith({
         type: CommandType.BODY_ADDED,
@@ -401,7 +528,13 @@ describe("Physics Worker", () => {
 
     it("should add a body from vertices to the world", () => {
       if (!workerOnMessage) throw new Error("workerOnMessage not set");
-      mockBodiesFromVertices.mockReturnValue(mockBodyInstance);
+      const mockVerticesBody = {
+        id: "vertBody1",
+        position: { x: 250, y: 250 },
+        angle: 0,
+        label: "test-fromVertices",
+      };
+      mockBodiesFromVertices.mockReturnValue(mockVerticesBody);
       const vertices = [
         { x: 0, y: 0 },
         { x: 50, y: 0 },
@@ -433,13 +566,95 @@ describe("Physics Worker", () => {
       );
       expect(mockWorldAdd).toHaveBeenCalledWith(
         mockEngineInstance.world,
-        mockBodyInstance
+        mockVerticesBody
       );
       expect(mockPostMessage).toHaveBeenCalledWith({
         type: CommandType.BODY_ADDED,
         payload: { id: payload.id, success: true },
         commandId,
       });
+    });
+
+    it("should add a static body to the world and track it", () => {
+      if (!workerOnMessage) throw new Error("workerOnMessage not set");
+      const staticBodyId = "staticRect1";
+      const mockStaticBody = {
+        id: staticBodyId,
+        position: { x: 300, y: 300 },
+        angle: 0,
+        isStatic: true,
+        label: "static-rect",
+      };
+      mockBodiesRectangle.mockReturnValue(mockStaticBody);
+
+      const commandId = "add-static-rect-1";
+      const payload: AddBodyCommandPayload = {
+        id: staticBodyId,
+        type: "rectangle",
+        x: 300,
+        y: 300,
+        width: 50,
+        height: 20,
+        options: { label: "static-rect", isStatic: true },
+      };
+      const command: PhysicsCommand<AddBodyCommandPayload> = {
+        type: CommandType.ADD_BODY,
+        payload,
+        commandId,
+      };
+
+      workerOnMessage({ data: command } as MessageEvent<PhysicsCommand>);
+
+      expect(mockBodiesRectangle).toHaveBeenCalledWith(
+        payload.x,
+        payload.y,
+        payload.width,
+        payload.height,
+        expect.objectContaining({
+          ...payload.options,
+          id: payload.id,
+          isStatic: true,
+        })
+      );
+      expect(mockWorldAdd).toHaveBeenCalledWith(
+        mockEngineInstance.world,
+        mockStaticBody
+      );
+      expect(mockPostMessage).toHaveBeenCalledWith({
+        type: CommandType.BODY_ADDED,
+        payload: { id: payload.id, success: true },
+        commandId,
+      });
+
+      // Verify if the static body is reported in SIMULATION_STEPPED
+      // (current worker implementation tracks all bodies in its `bodies` map)
+      mockPostMessage.mockClear();
+      const stepCommandId = "step-after-static-add";
+      workerOnMessage({
+        data: {
+          type: CommandType.STEP_SIMULATION,
+          payload: { deltaTime: 10 },
+          commandId: stepCommandId,
+        },
+      } as MessageEvent<PhysicsCommand>);
+
+      expect(mockPostMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: CommandType.SIMULATION_STEPPED,
+          commandId: stepCommandId,
+          payload: expect.objectContaining({
+            success: true,
+            bodies: expect.arrayContaining([
+              expect.objectContaining({
+                id: staticBodyId,
+                x: mockStaticBody.position.x,
+                y: mockStaticBody.position.y,
+                angle: mockStaticBody.angle,
+              }),
+            ]),
+          }),
+        })
+      );
     });
 
     it("should post an error if adding a body fails (e.g., invalid params)", () => {
@@ -482,7 +697,13 @@ describe("Physics Worker", () => {
 
   describe("CommandType.REMOVE_BODY", () => {
     const bodyIdToRemove = "testBody123";
-    const mockBodyToRemove = { id: bodyIdToRemove }; // Specific mock for removal
+    // Use a more complete mock object that would be stored in the worker's `bodies` map
+    const mockBodyToRemove = {
+      id: bodyIdToRemove,
+      position: { x: 50, y: 50 },
+      angle: 0,
+      label: "to-remove",
+    };
 
     beforeEach(() => {
       if (!workerOnMessage)
@@ -500,7 +721,7 @@ describe("Physics Worker", () => {
       // 2. Add a body to be removed
       // Important: Use a unique mock instance for the body being added here
       // so we can verify Matter.World.remove is called with *this specific instance*.
-      mockBodiesRectangle.mockReturnValueOnce(mockBodyToRemove);
+      mockBodiesRectangle.mockReturnValueOnce(mockBodyToRemove); // Use the specific mock instance
       const addPayload: AddBodyCommandPayload = {
         id: bodyIdToRemove,
         type: "rectangle",
@@ -659,6 +880,134 @@ describe("Physics Worker", () => {
 
     // Note: The test for `engine not initialized` is implicitly covered by the global guard,
     // and a specific test for it is deferred as mentioned in INIT_WORLD tests.
+  });
+
+  describe("Collision Handling", () => {
+    let collisionCallback: ((event: { pairs: any[] }) => void) | undefined;
+
+    beforeEach(() => {
+      if (!workerOnMessage)
+        throw new Error("workerOnMessage not set for Collisions");
+
+      mockEventsOn.mockImplementation((engine, eventName, callback) => {
+        if (engine === mockEngineInstance && eventName === "collisionStart") {
+          collisionCallback = callback;
+        }
+      });
+
+      const initPayload: InitWorldCommandPayload = { width: 800, height: 600 };
+      const initCommand: PhysicsCommand<InitWorldCommandPayload> = {
+        type: CommandType.INIT_WORLD,
+        payload: initPayload,
+        commandId: "collision-test-init",
+      };
+      workerOnMessage({ data: initCommand } as MessageEvent<PhysicsCommand>);
+
+      expect(collisionCallback).toBeDefined(); // Ensure callback was captured
+      mockPostMessage.mockClear(); // Clear postMessage from init
+    });
+
+    it("should post PHYSICS_EVENTS when a collisionStart event occurs", () => {
+      if (!workerOnMessage || !collisionCallback) {
+        throw new Error(
+          "Worker or collision callback not set for collision test"
+        );
+      }
+
+      const collisionData = {
+        pairs: [
+          { bodyA: { id: "bodyId1" }, bodyB: { id: "bodyId2" } },
+          { bodyA: { id: "bodyId3" }, bodyB: { id: "bodyId4" } },
+        ],
+      };
+
+      // Manually trigger the captured collision callback
+      collisionCallback(collisionData);
+
+      expect(mockPostMessage).toHaveBeenCalledTimes(1);
+      expect(mockPostMessage).toHaveBeenCalledWith({
+        type: CommandType.PHYSICS_EVENTS,
+        payload: {
+          collisions: [
+            { bodyAId: "bodyId1", bodyBId: "bodyId2" },
+            { bodyAId: "bodyId3", bodyBId: "bodyId4" },
+          ],
+        },
+        // No commandId for PHYSICS_EVENTS as it's an event, not a direct response
+      });
+    });
+
+    it("should handle collision events with non-numeric/string IDs if they occur (though IDs are typically numbers)", () => {
+      // This test ensures robustness if body IDs were, for example, complex objects,
+      // though our AddBodyCommandPayload implies string/number IDs.
+      // The current implementation `pair.bodyA.id && pair.bodyB.id` implicitly handles this,
+      // as long as they are truthy.
+      if (!workerOnMessage || !collisionCallback) {
+        throw new Error(
+          "Worker or collision callback not set for collision test"
+        );
+      }
+      const collisionData = {
+        pairs: [
+          { bodyA: { id: 123 }, bodyB: { id: 456 } },
+          { bodyA: { id: "player" }, bodyB: { id: "enemy" } },
+        ],
+      };
+      collisionCallback(collisionData);
+      expect(mockPostMessage).toHaveBeenCalledWith({
+        type: CommandType.PHYSICS_EVENTS,
+        payload: {
+          collisions: [
+            { bodyAId: 123, bodyBId: 456 },
+            { bodyAId: "player", bodyBId: "enemy" },
+          ],
+        },
+      });
+    });
+
+    it("should not post PHYSICS_EVENTS if there are no collision pairs", () => {
+      if (!workerOnMessage || !collisionCallback) {
+        throw new Error(
+          "Worker or collision callback not set for collision test"
+        );
+      }
+      const collisionData = { pairs: [] }; // Empty pairs
+      collisionCallback(collisionData);
+      expect(mockPostMessage).not.toHaveBeenCalledWith(
+        expect.objectContaining({ type: CommandType.PHYSICS_EVENTS })
+      );
+    });
+    it("should filter out pairs where bodyA or bodyB ID is missing", () => {
+      if (!workerOnMessage || !collisionCallback) {
+        throw new Error(
+          "Worker or collision callback not set for collision test"
+        );
+      }
+      const collisionData = {
+        pairs: [
+          { bodyA: { id: "validA1" }, bodyB: { id: "validB1" } },
+          { bodyA: {}, bodyB: { id: "validB2" } }, // bodyA.id is missing
+          { bodyA: { id: "validA3" }, bodyB: {} }, // bodyB.id is missing
+          { bodyA: { id: null }, bodyB: { id: "validB4" } }, // bodyA.id is null
+          { bodyA: { id: undefined }, bodyB: { id: "validB5" } }, // bodyA.id is undefined
+          { bodyA: { id: 0 }, bodyB: { id: "validB6" } }, // bodyA.id is 0 (truthy in JS if not explicitly checked for falsy like null/undefined)
+        ],
+      };
+      collisionCallback(collisionData);
+      expect(mockPostMessage).toHaveBeenCalledWith({
+        type: CommandType.PHYSICS_EVENTS,
+        payload: {
+          collisions: [
+            { bodyAId: "validA1", bodyBId: "validB1" },
+            // The worker correctly includes { bodyAId: 0, bodyBId: "validB6" } because 0 is a valid ID.
+            // The original implementation `if (pair.bodyA.id && pair.bodyB.id)` allows 0.
+            // If 0 should be excluded, the condition would need to be `pair.bodyA.id != null && pair.bodyB.id != null`.
+            // For now, assuming 0 is a valid ID.
+            { bodyAId: 0, bodyBId: "validB6" },
+          ],
+        },
+      });
+    });
   });
 
   // TODO: Add describe blocks for other CommandTypes (UPDATE_BODY, APPLY_FORCE, SET_GRAVITY, etc. if implemented)

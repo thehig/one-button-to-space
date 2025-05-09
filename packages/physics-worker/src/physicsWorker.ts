@@ -63,6 +63,11 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
           if (payload.gravity.scale !== undefined) {
             world.gravity.scale = payload.gravity.scale;
           }
+        } else {
+          // If no gravity is specified in the payload, default to no gravity.
+          world.gravity.x = 0;
+          world.gravity.y = 0;
+          // Retain Matter.js default scale or set it if desired, e.g., world.gravity.scale = 0.001;
         }
         // TODO: Set world bounds if width/height are provided (e.g., for static boundaries)
 
@@ -111,7 +116,8 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
           for (let i = 0; i < pairs.length; i++) {
             const pair = pairs[i];
             // Use the IDs we assigned to the bodies
-            if (pair.bodyA.id && pair.bodyB.id) {
+            // Ensure both bodyA and bodyB have non-null IDs (0 is a valid ID)
+            if (pair.bodyA.id != null && pair.bodyB.id != null) {
               collisionEvents.push({
                 bodyAId: pair.bodyA.id,
                 bodyBId: pair.bodyB.id,
