@@ -3,7 +3,7 @@ import { PhysicsWorkerClient } from "../../src/physicsWorkerClient.ts";
 import { CommandType } from "../../src/commands.ts";
 
 class DemoUIManager {
-  logOutput = null;
+  logEntriesContainer = null;
   logCount = 0;
   scene = null; // To call methods on DemoScene
 
@@ -52,9 +52,9 @@ class DemoUIManager {
 
   constructor(scene) {
     this.scene = scene;
-    this.logOutput = document.getElementById("logOutput");
-    if (this.logOutput) {
-      this.logOutput.textContent = ""; // Clear initial "Initializing..." text
+    this.logEntriesContainer = document.getElementById("logEntriesContainer");
+    if (this.logEntriesContainer) {
+      this.logEntriesContainer.innerHTML = ""; // Clear initial placeholder content
     }
 
     // Get World Control elements
@@ -106,10 +106,13 @@ class DemoUIManager {
     );
     this.terminateButton = document.getElementById("terminateButton");
 
-    this._logMessage({
-      type: "CLIENT_SCRIPT_LOADED",
-      note: "Demo page script and UIManager initialized.",
-    });
+    this._logMessage(
+      {
+        type: "CLIENT_SCRIPT_LOADED",
+        note: "Demo page script and UIManager initialized.",
+      },
+      "client-event"
+    );
     this.setInitialButtonStates(); // Initial state before worker ready
     this._setupBodyTypeVisibility();
   }
@@ -129,48 +132,60 @@ class DemoUIManager {
     this.bodyTypeSelect.onchange();
   }
 
-  _logMessage(message) {
+  _logMessage(message, origin = "client-event") {
     this.logCount++;
     const formattedMessage = `${this.logCount}: ${JSON.stringify(
       message,
       null,
       2
-    )}\n\n`;
-    console.log(`[Demo Page Raw Log #${this.logCount}]:`, message);
+    )}`;
 
-    if (this.logOutput) {
-      this.logOutput.textContent += formattedMessage; // Append new message
+    if (this.logEntriesContainer) {
+      const logEntryRow = document.createElement("div");
+      logEntryRow.className = "flex items-stretch border-b border-gray-100";
 
-      // Scroll to the bottom to show the latest log
-      this.logOutput.scrollTop = this.logOutput.scrollHeight;
+      const leftCell = document.createElement("pre");
+      leftCell.className =
+        "w-1/2 p-1 text-xs whitespace-pre-wrap break-words border-r border-gray-200";
 
-      if (this.logCount > 100) {
-        // If log gets too long, trim from the top
-        const lines = this.logOutput.textContent.split("\n");
-        // Estimate lines per message (JSON stringify can vary, avg ~5-7 lines with double spacing)
-        // Let's aim to keep around 50 messages, so ~250-350 lines.
-        // If we remove first 50 lines (approx 10 messages) when count is 100, it's a bit aggressive.
-        // Better to trim a smaller number of lines more frequently or a larger chunk less often.
-        // For simplicity, let's trim a fixed number of lines from the top if it exceeds a certain threshold.
-        // This example keeps it simple: if lines > ~200 (roughly 40-50 messages with spacing), trim.
-        // Count 100 messages, each is roughly 4 lines (id: {},
-        // If we want to keep 50 messages, that's 200 lines.
-        // So if lines > 400, slice to keep the last 200 lines.
-        const maxLines = 400; // Approximate max lines for ~100 messages with their formatting
-        const linesToKeep = 200; // Approximate lines for ~50 messages
-        if (lines.length > maxLines) {
-          this.logOutput.textContent = lines
-            .slice(lines.length - linesToKeep)
-            .join("\n");
+      const rightCell = document.createElement("pre");
+      rightCell.className = "w-1/2 p-1 text-xs whitespace-pre-wrap break-words";
+
+      if (origin === "worker-response") {
+        rightCell.textContent = formattedMessage;
+        leftCell.innerHTML = "&nbsp;";
+        logEntryRow.classList.add("bg-blue-50");
+      } else {
+        leftCell.textContent = formattedMessage;
+        rightCell.innerHTML = "&nbsp;";
+        if (message && message.type === CommandType.ERROR) {
+          logEntryRow.classList.add("bg-red-50");
+        } else {
+          logEntryRow.classList.add("bg-green-50");
         }
       }
+
+      logEntryRow.appendChild(leftCell);
+      logEntryRow.appendChild(rightCell);
+      this.logEntriesContainer.appendChild(logEntryRow);
+
+      const maxLogEntries = 100;
+      if (this.logEntriesContainer.children.length > maxLogEntries) {
+        this.logEntriesContainer.removeChild(
+          this.logEntriesContainer.firstChild
+        );
+      }
     } else {
-      console.warn("Log output element not found by UIManager.");
+      console.warn(
+        "Log entries container not found. Logging to console:",
+        origin,
+        message
+      );
     }
   }
 
-  log(message) {
-    this._logMessage(message);
+  log(message, origin = "client-event") {
+    this._logMessage(message, origin);
   }
 
   // --- Button State Management ---
@@ -302,7 +317,10 @@ class DemoUIManager {
   // --- UI Event Listeners ---
   setupUIListeners() {
     this.initWorldButton.onclick = () => {
-      this.log({ type: "DEMO_ACTION", note: "INIT_WORLD button clicked." });
+      this.log(
+        { type: "DEMO_ACTION", note: "INIT_WORLD button clicked." },
+        "client-event"
+      );
       const width = parseInt(this.worldWidthInput.value, 10) || 800;
       const height = parseInt(this.worldHeightInput.value, 10) || 600;
       const gravityX = parseFloat(this.gravityXInput.value);
@@ -357,11 +375,14 @@ class DemoUIManager {
           break;
       }
 
-      this.log({
-        type: "DEMO_ACTION",
-        note: `Sending ADD_BODY (${type}). ID: ${id}`,
-        payloadSent: payload,
-      });
+      this.log(
+        {
+          type: "DEMO_ACTION",
+          note: `Sending ADD_BODY (${type}). ID: ${id}`,
+          payloadSent: payload,
+        },
+        "client-event"
+      );
       this.scene.pendingBodies.set(id, payload); // Track for potential visual before confirmation
       this.scene.physicsClient?.sendMessage({
         type: CommandType.ADD_BODY,
@@ -381,10 +402,13 @@ class DemoUIManager {
         return;
       }
       const deltaTime = parseFloat(this.stepDeltaTimeInput.value) || 16.666;
-      this.log({
-        type: "DEMO_ACTION",
-        note: `Sending STEP_SIMULATION. DeltaTime: ${deltaTime}`,
-      });
+      this.log(
+        {
+          type: "DEMO_ACTION",
+          note: `Sending STEP_SIMULATION. DeltaTime: ${deltaTime}`,
+        },
+        "client-event"
+      );
       this.scene.physicsClient?.sendMessage({
         type: CommandType.STEP_SIMULATION,
         payload: { deltaTime },
@@ -410,12 +434,15 @@ class DemoUIManager {
       ) {
         payload.internalStepSize = internalStepSize;
       }
-      this.log({
-        type: "DEMO_ACTION",
-        note: `Sending ADVANCE_SIMULATION_TIME. Total: ${totalDeltaTime}, Step: ${
-          internalStepSize === undefined ? "default" : internalStepSize
-        }`,
-      });
+      this.log(
+        {
+          type: "DEMO_ACTION",
+          note: `Sending ADVANCE_SIMULATION_TIME. Total: ${totalDeltaTime}, Step: ${
+            internalStepSize === undefined ? "default" : internalStepSize
+          }`,
+        },
+        "client-event"
+      );
       this.scene.physicsClient?.sendMessage({
         type: CommandType.ADVANCE_SIMULATION_TIME,
         payload,
@@ -426,10 +453,13 @@ class DemoUIManager {
       if (this.scene.isLooping) {
         return;
       }
-      this.log({
-        type: "DEMO_ACTION",
-        note: "Starting simulation loop for 5 seconds.",
-      });
+      this.log(
+        {
+          type: "DEMO_ACTION",
+          note: "Starting simulation loop for 5 seconds.",
+        },
+        "client-event"
+      );
       this.scene.isLooping = true;
       this.scene.loopEndTime = Date.now() + 5000;
       this.disableLoopControls(true);
@@ -438,7 +468,10 @@ class DemoUIManager {
         if (!this.scene.isLooping || Date.now() >= this.scene.loopEndTime) {
           this.scene.isLooping = false;
           this.disableLoopControls(false);
-          this.log({ type: "DEMO_ACTION", note: "Simulation loop finished." });
+          this.log(
+            { type: "DEMO_ACTION", note: "Simulation loop finished." },
+            "client-event"
+          );
           return;
         }
         this.scene.physicsClient?.sendMessage({
@@ -451,10 +484,13 @@ class DemoUIManager {
     };
 
     this.resetSimulationButton.onclick = () => {
-      this.log({
-        type: "DEMO_ACTION",
-        note: "RESET_SIMULATION button clicked.",
-      });
+      this.log(
+        {
+          type: "DEMO_ACTION",
+          note: "RESET_SIMULATION button clicked.",
+        },
+        "client-event"
+      );
       // Perform the same actions as initWorldButton
       // It will trigger handleWorldInitialized in the scene, which then adds boundaries.
       const width = parseInt(this.worldWidthInput.value, 10) || 800;
@@ -479,7 +515,10 @@ class DemoUIManager {
 
     this.terminateButton.onclick = () => {
       this.scene.isLooping = false;
-      this.log({ type: "DEMO_ACTION", note: "Terminate button clicked." });
+      this.log(
+        { type: "DEMO_ACTION", note: "Terminate button clicked." },
+        "client-event"
+      );
       this.scene.physicsClient?.terminate();
       this.scene.clearVisuals();
       this.setTerminatedButtonStates();
@@ -507,10 +546,13 @@ class DemoUIManager {
       button.className =
         "w-full text-left p-2 border border-gray-300 rounded hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 focus:bg-red-50 mb-1 text-sm";
       button.onclick = () => {
-        this.log({
-          type: "DEMO_ACTION",
-          note: `Requesting REMOVE_BODY for ID: ${bodyId} (via list click)`,
-        });
+        this.log(
+          {
+            type: "DEMO_ACTION",
+            note: `Requesting REMOVE_BODY for ID: ${bodyId} (via list click)`,
+          },
+          "client-event"
+        );
         this.scene.requestRemoveBodyById(bodyId);
       };
       this.removableBodyListContainer.appendChild(button);
@@ -548,22 +590,27 @@ class DemoScene extends Phaser.Scene {
     this.uiManager = new DemoUIManager(this); // Pass scene instance
     this.uiManager.setupUIListeners(); // Call it here
 
-    this.uiManager.log({
-      type: "PHASER_SCENE_CREATE",
-      note: "Phaser scene creating...",
-    });
+    this.uiManager.log(
+      {
+        type: "PHASER_SCENE_CREATE",
+        note: "Phaser scene creating...",
+      },
+      "client-event"
+    );
     this.physicsClient = new PhysicsWorkerClient();
-    this.uiManager.log({
-      type: "CLIENT_ATTEMPT_INIT",
-      note: "PhysicsWorkerClient instantiated in scene.",
-    });
+    this.uiManager.log(
+      {
+        type: "CLIENT_ATTEMPT_INIT",
+        note: "PhysicsWorkerClient instantiated in scene.",
+      },
+      "client-event"
+    );
 
     this.physicsClient.onMessage((message) => {
-      this.uiManager.log(message); // Log raw message including its commandId for correlation
+      this.uiManager.log(message, "worker-response");
 
-      const { type, payload, commandId } = message; // Destructure commandId here
+      const { type, payload, commandId } = message;
 
-      // Make sure uiManager is available before trying to use it in event handlers
       if (!this.uiManager) {
         console.error(
           "UIManager not initialized when message received:",
@@ -574,7 +621,7 @@ class DemoScene extends Phaser.Scene {
 
       switch (type) {
         case CommandType.WORKER_READY:
-          this.handleWorkerReady(); // commandId is not directly relevant here
+          this.handleWorkerReady();
           break;
         case CommandType.WORLD_INITIALIZED:
           this.handleWorldInitialized(payload, commandId);
@@ -592,11 +639,14 @@ class DemoScene extends Phaser.Scene {
           this.handleSimulationAdvancedTimeCompleted(payload, commandId);
           break;
         case CommandType.PHYSICS_EVENTS:
-          this.handlePhysicsEvents(payload); // commandId might not be relevant for these broadcast events
+          this.handlePhysicsEvents(payload);
           break;
         case CommandType.ERROR:
           console.error(`Error from worker (CmdID: ${commandId}):`, payload);
-          this.uiManager.log({ type: CommandType.ERROR, payload, commandId }); // Log error with commandId
+          this.uiManager.log(
+            { type: CommandType.ERROR, payload, commandId },
+            "worker-response"
+          );
           break;
       }
     });
@@ -616,15 +666,16 @@ class DemoScene extends Phaser.Scene {
 
   handleWorkerReady() {
     this.uiManager.setWorkerReadyButtonStates();
-    this.uiManager.log({
-      type: "DEMO_ACTION",
-      note: "Worker ready. Auto-sending INIT_WORLD with current canvas dimensions.",
-    });
+    this.uiManager.log(
+      {
+        type: "DEMO_ACTION",
+        note: "Worker ready. Auto-sending INIT_WORLD with current canvas dimensions.",
+      },
+      "client-event"
+    );
 
-    // Use actual initial canvas dimensions from the scale manager
     const width = this.scale.width;
     const height = this.scale.height;
-    // Ensure worldDimensions is up-to-date for the first init
     this.worldDimensions = { width, height };
 
     const gravityX = parseFloat(this.uiManager.gravityXInput.value);
@@ -644,20 +695,21 @@ class DemoScene extends Phaser.Scene {
   handleWorldInitialized(payload, commandId) {
     if (payload.success) {
       this.uiManager.setWorldInitializedButtonStates();
-      this.uiManager.log({
-        type: "DEMO_SCENE",
-        note: "World initialized by worker. Now adding static U-boundaries.",
-        payload,
-        commandId, // Include commandId for completeness
-      });
-      // Add static U-shaped boundaries
+      this.uiManager.log(
+        {
+          type: "DEMO_SCENE_EVENT",
+          note: "World initialized by worker. Adding static boundaries.",
+          originalCommandId: commandId,
+          payloadReceived: payload,
+        },
+        "client-event"
+      );
       this.addStaticBoundaries();
     }
   }
 
   addStaticBoundaries() {
     const thickness = 50; // Common thickness for all walls
-    // Use current worldDimensions, which might have been updated by resize
     const { width, height } = this.worldDimensions;
 
     const wallOptions = { isStatic: true, restitution: 0.5 };
@@ -667,12 +719,12 @@ class DemoScene extends Phaser.Scene {
       id: "boundary-bottom",
       type: "rectangle",
       x: width / 2,
-      y: height + thickness / 2 - 10, // Position it slightly overlapping the bottom edge
-      width: width + thickness * 2, // Make it wider to prevent corner escapes
+      y: height + thickness / 2 - 10,
+      width: width + thickness * 2,
       height: thickness,
       options: wallOptions,
     };
-    this.pendingBodies.set(bottomWallPayload.id, bottomWallPayload); // Add to pending before sending
+    this.pendingBodies.set(bottomWallPayload.id, bottomWallPayload);
     this.physicsClient?.sendMessage({
       type: CommandType.ADD_BODY,
       payload: bottomWallPayload,
@@ -688,7 +740,7 @@ class DemoScene extends Phaser.Scene {
       height: height,
       options: wallOptions,
     };
-    this.pendingBodies.set(leftWallPayload.id, leftWallPayload); // Add to pending before sending
+    this.pendingBodies.set(leftWallPayload.id, leftWallPayload);
     this.physicsClient?.sendMessage({
       type: CommandType.ADD_BODY,
       payload: leftWallPayload,
@@ -704,35 +756,40 @@ class DemoScene extends Phaser.Scene {
       height: height,
       options: wallOptions,
     };
-    this.pendingBodies.set(rightWallPayload.id, rightWallPayload); // Add to pending before sending
+    this.pendingBodies.set(rightWallPayload.id, rightWallPayload);
     this.physicsClient?.sendMessage({
       type: CommandType.ADD_BODY,
       payload: rightWallPayload,
     });
 
-    this.uiManager.log({
-      type: "DEMO_SCENE",
-      note: "Sent commands to add static U-boundaries.",
-    });
+    this.uiManager.log(
+      {
+        type: "DEMO_SCENE",
+        note: "Sent commands to add static U-boundaries.",
+      },
+      "client-event"
+    );
   }
 
   handleBodyAdded(payload, commandId) {
     if (payload.success && this.pendingBodies.has(payload.id)) {
       const initialProps = this.pendingBodies.get(payload.id);
       let gameObject = null;
-      // Ensure color is a number (Phaser 6 expects hex number)
       const color = parseInt(
         Phaser.Display.Color.RandomRGB().color32.toString(16).substring(0, 6),
         16
       );
 
-      this.uiManager.log({
-        type: "DEMO_SCENE_HANDLER",
-        event: "handleBodyAdded",
-        status: "Attempting to create visual",
-        receivedPayloadId: payload.id,
-        initialPropsFromPending: initialProps,
-      });
+      this.uiManager.log(
+        {
+          type: "DEMO_SCENE_HANDLER",
+          event: "handleBodyAdded",
+          status: "Attempting to create visual",
+          receivedPayloadId: payload.id,
+          initialPropsFromPending: initialProps,
+        },
+        "client-event"
+      );
 
       if (
         initialProps.type === "rectangle" &&
@@ -754,56 +811,71 @@ class DemoScene extends Phaser.Scene {
           color
         );
       }
-      // TODO: Add polygon/vertex rendering if needed
 
       if (gameObject) {
         this.gameObjects.set(
           payload.id,
           Object.assign(gameObject, { bodyType: initialProps.type })
         );
-        this.pendingBodies.delete(payload.id); // Clean up
-        this.uiManager.log({
-          type: "DEMO_SCENE_HANDLER",
-          event: "handleBodyAdded",
-          status: "Visual created and stored",
-          bodyId: payload.id,
-          gameObjectProperties: {
-            x: gameObject.x,
-            y: gameObject.y,
-            type: initialProps.type,
+        this.pendingBodies.delete(payload.id);
+        this.uiManager.log(
+          {
+            type: "DEMO_SCENE_HANDLER",
+            event: "handleBodyAdded",
+            status: "Visual created and stored",
+            bodyId: payload.id,
+            gameObjectProperties: {
+              x: gameObject.x,
+              y: gameObject.y,
+              type: initialProps.type,
+            },
           },
-        });
+          "client-event"
+        );
         if (this.uiManager) {
           this.uiManager.updateRemovableBodyList(
             Array.from(this.gameObjects.keys())
           );
         }
       } else {
-        this.uiManager.log({
-          type: "DEMO_SCENE_HANDLER",
-          event: "handleBodyAdded",
-          status: "Failed to create visual for body",
-          bodyId: payload.id,
-          initialPropsFromPending: initialProps,
-        });
+        this.uiManager.log(
+          {
+            type: "DEMO_SCENE_HANDLER",
+            event: "handleBodyAdded",
+            status: "Failed to create visual for body",
+            bodyId: payload.id,
+            initialPropsFromPending: initialProps,
+          },
+          "client-event"
+        );
       }
     }
   }
 
   handleBodyRemoved(payload, commandId) {
-    this.uiManager.log({
-      type: "WORKER_RESPONSE",
-      subtype: "BODY_REMOVED",
-      payload,
-      commandId,
-    });
+    this.uiManager.log(
+      {
+        type: "WORKER_RESPONSE",
+        subtype: "BODY_REMOVED",
+        payload,
+        commandId,
+      },
+      "worker-response"
+    );
     if (payload.success && payload.id) {
       const existingObject = this.gameObjects.get(payload.id);
       if (existingObject) {
+        this.uiManager.log(
+          {
+            type: "DEMO_SCENE_EVENT",
+            note: `Destroying visual for ${payload.id}`,
+          },
+          "client-event"
+        );
         existingObject.destroy();
         this.gameObjects.delete(payload.id);
       }
-      this.pendingBodies.delete(payload.id); // Also remove from pending if it was there
+      this.pendingBodies.delete(payload.id);
       if (this.uiManager) {
         this.uiManager.updateRemovableBodyList(
           Array.from(this.gameObjects.keys())
@@ -814,20 +886,26 @@ class DemoScene extends Phaser.Scene {
 
   handleSimulationStepped(payload, commandId) {
     if (payload.success) {
-      this.uiManager.log({
-        type: "DEMO_SCENE_HANDLER",
-        event: "handleSimulationStepped",
-        receivedBodiesCount: payload.bodies.length,
-        allBodiesData: payload.bodies,
-      });
+      this.uiManager.log(
+        {
+          type: "DEMO_SCENE_HANDLER",
+          event: "handleSimulationStepped",
+          receivedBodiesCount: payload.bodies.length,
+          allBodiesData: payload.bodies,
+        },
+        "client-event"
+      );
       payload.bodies.forEach((bodyUpdate) => {
         const go = this.gameObjects.get(bodyUpdate.id);
-        this.uiManager.log({
-          type: "DEMO_SCENE_HANDLER",
-          event: "handleSimulationStepped_ForEach",
-          bodyUpdateId: bodyUpdate.id,
-          foundGameObject: !!go,
-        });
+        this.uiManager.log(
+          {
+            type: "DEMO_SCENE_HANDLER",
+            event: "handleSimulationStepped_ForEach",
+            bodyUpdateId: bodyUpdate.id,
+            foundGameObject: !!go,
+          },
+          "client-event"
+        );
 
         if (go) {
           if (go.isTinted) {
@@ -841,50 +919,59 @@ class DemoScene extends Phaser.Scene {
   }
 
   handleSimulationAdvancedTimeCompleted(payload, commandId) {
-    this.uiManager.log({
-      type: "WORKER_RESPONSE", // Keep original log for this message
-      subtype: "SIMULATION_ADVANCED_TIME_COMPLETED",
-      payload,
-      commandId,
-    });
+    this.uiManager.log(
+      {
+        type: "WORKER_RESPONSE",
+        subtype: "SIMULATION_ADVANCED_TIME_COMPLETED",
+        payload,
+        commandId,
+      },
+      "worker-response"
+    );
     if (payload.success && payload.bodies) {
-      this.uiManager.log({
-        type: "DEMO_SCENE_HANDLER",
-        event: "handleSimulationAdvancedTimeCompleted",
-        receivedBodiesCount: payload.bodies.length,
-        allBodiesData: payload.bodies,
-      });
+      this.uiManager.log(
+        {
+          type: "DEMO_SCENE_HANDLER",
+          event: "handleSimulationAdvancedTimeCompleted",
+          receivedBodiesCount: payload.bodies.length,
+          allBodiesData: payload.bodies,
+        },
+        "client-event"
+      );
       payload.bodies.forEach((bodyState) => {
         let gameObject = this.gameObjects.get(bodyState.id);
-        this.uiManager.log({
-          type: "DEMO_SCENE_HANDLER",
-          event: "handleSimulationAdvancedTimeCompleted_ForEach",
-          bodyStateId: bodyState.id,
-          foundGameObject: !!gameObject,
-        });
+        this.uiManager.log(
+          {
+            type: "DEMO_SCENE_HANDLER",
+            event: "handleSimulationAdvancedTimeCompleted_ForEach",
+            bodyStateId: bodyState.id,
+            foundGameObject: !!gameObject,
+          },
+          "client-event"
+        );
 
         if (gameObject) {
-          this.uiManager.log({
-            type: "DEMO_SCENE_HANDLER",
-            event: "handleSimulationAdvancedTimeCompleted_UpdateVisual",
-            bodyId: bodyState.id,
-            oldVisualState: {
-              x: gameObject.x,
-              y: gameObject.y,
-              angle: gameObject.angle,
+          this.uiManager.log(
+            {
+              type: "DEMO_SCENE_HANDLER",
+              event: "handleSimulationAdvancedTimeCompleted_UpdateVisual",
+              bodyId: bodyState.id,
+              oldVisualState: {
+                x: gameObject.x,
+                y: gameObject.y,
+                angle: gameObject.angle,
+              },
+              newPhysicsState: {
+                x: bodyState.x,
+                y: bodyState.y,
+                angle: Phaser.Math.RadToDeg(bodyState.angle),
+              },
             },
-            newPhysicsState: {
-              x: bodyState.x,
-              y: bodyState.y,
-              angle: Phaser.Math.RadToDeg(bodyState.angle),
-            },
-          });
+            "client-event"
+          );
           gameObject.setPosition(bodyState.x, bodyState.y);
           gameObject.setAngle(Phaser.Math.RadToDeg(bodyState.angle));
         } else {
-          // If body was added and confirmed but no visual created yet (e.g. during a long advance)
-          // This part might need more robust handling if visuals are crucial during the advance.
-          // For now, we assume visuals are created on BODY_ADDED.
           console.warn(
             `[DemoScene] Received advanced state for unknown body ID: ${bodyState.id}`
           );
@@ -906,7 +993,6 @@ class DemoScene extends Phaser.Scene {
     });
   }
 
-  // Phaser's update loop
   update(_time, _delta) {
     // We get physics updates from the worker via messages
   }
@@ -919,22 +1005,20 @@ class DemoScene extends Phaser.Scene {
     this.worldDimensions.height = newHeight;
 
     this.cameras.main.setSize(newWidth, newHeight);
-    // If your camera has a specific origin or scroll, you might need to adjust it too, e.g.:
-    // this.cameras.main.centerOn(newWidth / 2, newHeight / 2);
 
-    this.uiManager.log({
-      type: "PHASER_SCENE_RESIZE",
-      note: `Canvas resized to ${newWidth}x${newHeight}. Re-initializing physics world. Existing bodies will be cleared.`,
-      newDimensions: { width: newWidth, height: newHeight },
-    });
+    this.uiManager.log(
+      {
+        type: "PHASER_SCENE_RESIZE",
+        note: `Canvas resized to ${newWidth}x${newHeight}. Re-initializing physics world. Existing bodies will be cleared.`,
+        newDimensions: { width: newWidth, height: newHeight },
+      },
+      "client-event"
+    );
 
-    // Clear existing visuals and pending bodies as initWorld will clear physics state
     this.clearVisuals();
     this.pendingBodies.clear();
-    this.lastUsedBodyId = 0; // Reset for new world
+    this.lastUsedBodyId = 0;
 
-    // Re-initialize the physics world with new dimensions
-    // Fetch gravity settings from UI or use defaults
     const gravityX = parseFloat(this.uiManager.gravityXInput.value);
     const gravityY = parseFloat(this.uiManager.gravityYInput.value);
     const gravityScale = parseFloat(this.uiManager.gravityScaleInput.value);
@@ -947,26 +1031,30 @@ class DemoScene extends Phaser.Scene {
       }
     }
 
-    // This will trigger WORLD_INITIALIZED on success, which then calls addStaticBoundaries
-    // with the updated this.worldDimensions
     this.physicsClient?.initWorld(initPayload);
   }
 
   requestRemoveBodyById(bodyId) {
     if (bodyId) {
-      this.uiManager.log({
-        type: "DEMO_ACTION_SCENE",
-        note: `Scene sending REMOVE_BODY. ID: ${bodyId}`,
-      });
+      this.uiManager.log(
+        {
+          type: "DEMO_ACTION_SCENE",
+          note: `Scene sending REMOVE_BODY. ID: ${bodyId}`,
+        },
+        "client-event"
+      );
       this.physicsClient?.sendMessage({
         type: CommandType.REMOVE_BODY,
         payload: { id: bodyId },
       });
     } else {
-      this.uiManager.log({
-        type: "DEMO_ACTION_SCENE",
-        note: "Scene received request to remove body, but ID was empty.",
-      });
+      this.uiManager.log(
+        {
+          type: "DEMO_ACTION_SCENE",
+          note: "Scene received request to remove body, but ID was empty.",
+        },
+        "client-event"
+      );
     }
   }
 }
@@ -976,7 +1064,6 @@ const phaserContainer = document.getElementById("phaser-container");
 
 const config = {
   type: Phaser.AUTO, // Use WebGL if available, otherwise Canvas
-  // Set initial width and height based on the container div, fallback to defaults
   width: phaserContainer ? phaserContainer.clientWidth : 800,
   height: phaserContainer ? phaserContainer.clientHeight : 600,
   parent: "phaser-container", // Render into the div
@@ -989,11 +1076,3 @@ const config = {
 
 // Start the game
 const _game = new Phaser.Game(config);
-// logMessage({ type: "PHASER_INIT", note: "Phaser game instantiated." }); // Will be logged by UIManager if needed, or scene
-// The DemoUIManager's constructor now handles the initial script load message.
-// The final Phaser init message can be logged by the scene after game creation if desired.
-// For now, DemoScene.create logs its own creation.
-// If a global "Phaser game instantiated" log is critical, it can be added via uiManager after game creation.
-// Example: if (game) { uiManagerInstanceFromSomewhere.log({ type: "PHASER_INIT", note: "Phaser game instantiated." }); }
-// However, the current script structure makes a global uiManager instance tricky without further refactoring.
-// The DemoScene's uiManager is the most straightforward way to log now.

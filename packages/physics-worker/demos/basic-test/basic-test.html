@@ -30,13 +30,31 @@
           id="log-wrapper"
           class="bg-white p-3 rounded shadow flex flex-col h-1/2"
         >
-          <h2 class="text-xl font-semibold mb-2 shrink-0">Log:</h2>
-          <pre
-            id="logOutput"
-            class="bg-gray-200 border border-gray-300 p-2 rounded overflow-y-scroll w-full flex-grow min-h-0"
+          <div
+            class="flex justify-between items-center mb-2 shrink-0 border-b pb-1"
           >
-Initializing...</pre
+            <h2 class="text-xl font-semibold">Log:</h2>
+            <div class="flex text-sm font-semibold">
+              <span class="w-1/2 text-center">Client ➔ Worker</span>
+              <span class="w-1/2 text-center">Worker ➔ Client</span>
+            </div>
+          </div>
+          <div
+            id="logEntriesContainer"
+            class="overflow-y-auto w-full flex-grow min-h-0 space-y-px"
           >
+            <!-- Log entries will be dynamically added here -->
+            <div class="flex bg-gray-50">
+              <pre
+                class="w-1/2 p-1 text-xs whitespace-pre-wrap break-words text-gray-400 italic"
+              >
+Initializing logs...</pre
+              >
+              <pre
+                class="w-1/2 p-1 text-xs whitespace-pre-wrap break-words"
+              ></pre>
+            </div>
+          </div>
         </div>
       </div>
 
