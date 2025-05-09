@@ -8,11 +8,11 @@ class DemoUIManager {
   scene = null; // To call methods on DemoScene
 
   // --- World Control Inputs ---
-  worldWidthInput = null;
-  worldHeightInput = null;
   gravityXInput = null;
   gravityYInput = null;
   gravityScaleInput = null;
+  worldEnableSleepingCheckbox = null;
+  worldTimeScaleInput = null;
   initWorldButton = null;
 
   // --- Add Body Inputs ---
@@ -36,14 +36,13 @@ class DemoUIManager {
   // --- Remove Body Inputs ---
   removableBodyListContainer = null;
 
-  // --- Simulation Step Inputs ---
-  stepDeltaTimeInput = null;
-  stepButton = null;
-
-  // --- Advance Simulation Time Inputs ---
-  advanceTotalDeltaTimeInput = null;
-  advanceInternalStepSizeInput = null;
-  advanceTimeButton = null;
+  // --- NEW Simulation Updates Inputs ---
+  playButton = null;
+  pauseButton = null;
+  stepOnceButton = null;
+  advanceTotalDeltaTimeInputNew = null;
+  advanceInternalStepSizeInputNew = null;
+  advanceTimeButtonNew = null;
 
   // --- General Buttons ---
   loopButton = null;
@@ -58,11 +57,13 @@ class DemoUIManager {
     }
 
     // Get World Control elements
-    this.worldWidthInput = document.getElementById("worldWidth");
-    this.worldHeightInput = document.getElementById("worldHeight");
     this.gravityXInput = document.getElementById("gravityX");
     this.gravityYInput = document.getElementById("gravityY");
     this.gravityScaleInput = document.getElementById("gravityScale");
+    this.worldEnableSleepingCheckbox = document.getElementById(
+      "worldEnableSleeping"
+    );
+    this.worldTimeScaleInput = document.getElementById("worldTimeScale");
     this.initWorldButton = document.getElementById("initWorldButton");
 
     // Get Add Body elements
@@ -86,18 +87,17 @@ class DemoUIManager {
       "removableBodyListContainer"
     );
 
-    // Get Step Simulation elements
-    this.stepDeltaTimeInput = document.getElementById("stepDeltaTime");
-    this.stepButton = document.getElementById("stepButton");
-
-    // Get Advance Simulation Time elements
-    this.advanceTotalDeltaTimeInput = document.getElementById(
+    // Get NEW Simulation Updates elements
+    this.playButton = document.getElementById("playButton");
+    this.pauseButton = document.getElementById("pauseButton");
+    this.stepOnceButton = document.getElementById("stepOnceButton");
+    this.advanceTotalDeltaTimeInputNew = document.getElementById(
       "advanceTotalDeltaTime"
     );
-    this.advanceInternalStepSizeInput = document.getElementById(
+    this.advanceInternalStepSizeInputNew = document.getElementById(
       "advanceInternalStepSize"
     );
-    this.advanceTimeButton = document.getElementById("advanceTimeButton");
+    this.advanceTimeButtonNew = document.getElementById("advanceTimeButtonNew");
 
     // Get General buttons
     this.loopButton = document.getElementById("loopButton");
@@ -208,13 +208,13 @@ class DemoUIManager {
       this.removableBodyListContainer.innerHTML =
         '<p class="text-gray-500 italic">No bodies yet.</p>';
     }
-    // Step Simulation section
-    this.stepButton.disabled = true;
-    this.stepDeltaTimeInput.disabled = true;
-    // Advance Time section
-    this.advanceTimeButton.disabled = true;
-    this.advanceTotalDeltaTimeInput.disabled = true;
-    this.advanceInternalStepSizeInput.disabled = true;
+    // NEW Simulation Updates section
+    this.playButton.disabled = true;
+    this.pauseButton.disabled = true;
+    this.stepOnceButton.disabled = true;
+    this.advanceTotalDeltaTimeInputNew.disabled = true;
+    this.advanceInternalStepSizeInputNew.disabled = true;
+    this.advanceTimeButtonNew.disabled = true;
     // General
     this.loopButton.disabled = true;
     this.resetSimulationButton.disabled = true;
@@ -225,6 +225,12 @@ class DemoUIManager {
     this.initWorldButton.disabled = false;
     this.resetSimulationButton.disabled = false;
     this.terminateButton.disabled = false;
+    // World options should be enabled
+    this.gravityXInput.disabled = false;
+    this.gravityYInput.disabled = false;
+    this.gravityScaleInput.disabled = false;
+    this.worldEnableSleepingCheckbox.disabled = false;
+    this.worldTimeScaleInput.disabled = false;
   }
 
   setWorldInitializedButtonStates() {
@@ -246,15 +252,14 @@ class DemoUIManager {
       this.removableBodyListContainer.innerHTML =
         '<p class="text-gray-500 italic">No bodies yet.</p>';
     }
-    // Step Simulation section
-    this.stepButton.disabled = false;
-    this.stepDeltaTimeInput.disabled = false;
-    // Advance Time section
-    this.advanceTimeButton.disabled = false;
-    this.advanceTotalDeltaTimeInput.disabled = false;
-    this.advanceInternalStepSizeInput.disabled = false;
+    // NEW Simulation Updates section
+    this.playButton.disabled = false;
+    this.pauseButton.disabled = false; // Initially, play is active, so pause is an option
+    this.stepOnceButton.disabled = false;
+    this.advanceTotalDeltaTimeInputNew.disabled = false;
+    this.advanceInternalStepSizeInputNew.disabled = false;
+    this.advanceTimeButtonNew.disabled = false;
     // General
-    this.loopButton.disabled = false;
     this.resetSimulationButton.disabled = false;
   }
 
@@ -279,13 +284,14 @@ class DemoUIManager {
       this.removableBodyListContainer.innerHTML =
         '<p class="text-gray-500 italic">No bodies yet.</p>';
     }
-    // Step & Advance
-    this.stepButton.disabled = disable;
-    this.stepDeltaTimeInput.disabled = disable;
-    this.advanceTimeButton.disabled = disable;
-    this.advanceTotalDeltaTimeInput.disabled = disable;
-    this.advanceInternalStepSizeInput.disabled = disable;
-    // Loop button itself
+    // NEW Simulation Updates controls
+    this.playButton.disabled = disable;
+    this.pauseButton.disabled = disable;
+    this.stepOnceButton.disabled = disable;
+    this.advanceTotalDeltaTimeInputNew.disabled = disable;
+    this.advanceInternalStepSizeInputNew.disabled = disable;
+    this.advanceTimeButtonNew.disabled = disable;
+    // Loop button itself (old, should be removed if play/pause fully replaces it)
     this.loopButton.disabled = disable;
     this.resetSimulationButton.disabled = disable;
   }
@@ -301,13 +307,13 @@ class DemoUIManager {
       this.removableBodyListContainer.innerHTML =
         '<p class="text-red-500 italic">Worker terminated. Body list cleared.</p>';
     }
-    // Step Simulation section
-    this.stepButton.disabled = true;
-    this.stepDeltaTimeInput.disabled = true;
-    // Advance Time section
-    this.advanceTimeButton.disabled = true;
-    this.advanceTotalDeltaTimeInput.disabled = true;
-    this.advanceInternalStepSizeInput.disabled = true;
+    // NEW Simulation Updates section
+    this.playButton.disabled = true;
+    this.pauseButton.disabled = true;
+    this.stepOnceButton.disabled = true;
+    this.advanceTotalDeltaTimeInputNew.disabled = true;
+    this.advanceInternalStepSizeInputNew.disabled = true;
+    this.advanceTimeButtonNew.disabled = true;
     // General
     this.loopButton.disabled = true;
     this.resetSimulationButton.disabled = true;
@@ -321,39 +327,83 @@ class DemoUIManager {
         { type: "DEMO_ACTION", note: "INIT_WORLD button clicked." },
         "client-event"
       );
-      const width = parseInt(this.worldWidthInput.value, 10) || 800;
-      const height = parseInt(this.worldHeightInput.value, 10) || 600;
       const gravityX = parseFloat(this.gravityXInput.value);
       const gravityY = parseFloat(this.gravityYInput.value);
       const gravityScale = parseFloat(this.gravityScaleInput.value);
+      const enableSleeping = this.worldEnableSleepingCheckbox.checked;
+      const timeScale = parseFloat(this.worldTimeScaleInput.value);
 
-      const payload = { width, height };
+      const payload = {
+        options: {},
+      };
       if (!isNaN(gravityX) && !isNaN(gravityY)) {
         payload.gravity = { x: gravityX, y: gravityY };
-        if (!isNaN(gravityScale)) {
+        if (!isNaN(gravityScale) && gravityScale !== 0.001) {
           payload.gravity.scale = gravityScale;
         }
       }
+      if (enableSleeping !== undefined) {
+        payload.options.enableSleeping = enableSleeping;
+      }
+      if (!isNaN(timeScale) && timeScale !== 1) {
+        payload.options.timing = { timeScale: timeScale };
+      }
 
       this.scene.physicsClient?.initWorld(payload);
-      this.scene.clearVisuals(); // Clear old visuals
-      this.scene.pendingBodies.clear(); // Clear pending bodies from previous world
-      this.scene.lastUsedBodyId = 0; // Reset for new world
+      this.scene.clearVisuals();
+      this.scene.pendingBodies.clear();
+      this.scene.lastUsedBodyId = 0;
     };
 
     this.addBodyButton.onclick = () => {
       this.handleAddBodyRequest(); // No coordinates, will use form inputs for X,Y
     };
 
-    this.stepButton.onclick = () => {
-      if (this.scene.isLooping) {
-        return;
-      }
-      const deltaTime = parseFloat(this.stepDeltaTimeInput.value) || 16.666;
+    this.playButton.onclick = () => {
+      if (this.scene.isLooping) return;
+      this.log(
+        { type: "DEMO_ACTION", note: "Play button clicked." },
+        "client-event"
+      );
+      this.scene.isLooping = true;
+      this.disableLoopControls(true);
+      this.playButton.disabled = true;
+      this.pauseButton.disabled = false;
+      this.stepOnceButton.disabled = true;
+
+      const runStep = () => {
+        if (!this.scene.isLooping) {
+          return;
+        }
+        this.scene.physicsClient?.sendMessage({
+          type: CommandType.STEP_SIMULATION,
+          payload: { deltaTime: 16.666 },
+        });
+        requestAnimationFrame(runStep);
+      };
+      requestAnimationFrame(runStep);
+    };
+
+    this.pauseButton.onclick = () => {
+      if (!this.scene.isLooping) return;
+      this.log(
+        { type: "DEMO_ACTION", note: "Pause button clicked." },
+        "client-event"
+      );
+      this.scene.isLooping = false;
+      this.disableLoopControls(false);
+      this.playButton.disabled = false;
+      this.pauseButton.disabled = true;
+      this.stepOnceButton.disabled = false;
+    };
+
+    this.stepOnceButton.onclick = () => {
+      if (this.scene.isLooping) return;
+      const deltaTime = 16.666;
       this.log(
         {
           type: "DEMO_ACTION",
-          note: `Sending STEP_SIMULATION. DeltaTime: ${deltaTime}`,
+          note: `Step Once button clicked. DeltaTime: ${deltaTime}`,
         },
         "client-event"
       );
@@ -363,13 +413,11 @@ class DemoUIManager {
       });
     };
 
-    this.advanceTimeButton.onclick = () => {
-      if (this.scene.isLooping) {
-        return;
-      }
+    this.advanceTimeButtonNew.onclick = () => {
+      if (this.scene.isLooping) return;
       const totalDeltaTime =
-        parseFloat(this.advanceTotalDeltaTimeInput.value) || 100;
-      const internalStepSizeValue = this.advanceInternalStepSizeInput.value;
+        parseFloat(this.advanceTotalDeltaTimeInputNew.value) || 100;
+      const internalStepSizeValue = this.advanceInternalStepSizeInputNew.value;
       const internalStepSize = internalStepSizeValue
         ? parseFloat(internalStepSizeValue)
         : undefined;
@@ -385,7 +433,7 @@ class DemoUIManager {
       this.log(
         {
           type: "DEMO_ACTION",
-          note: `Sending ADVANCE_SIMULATION_TIME. Total: ${totalDeltaTime}, Step: ${
+          note: `Advance Time (New) button clicked. Total: ${totalDeltaTime}, Step: ${
             internalStepSize === undefined ? "default" : internalStepSize
           }`,
         },
@@ -395,40 +443,6 @@ class DemoUIManager {
         type: CommandType.ADVANCE_SIMULATION_TIME,
         payload,
       });
-    };
-
-    this.loopButton.onclick = () => {
-      if (this.scene.isLooping) {
-        return;
-      }
-      this.log(
-        {
-          type: "DEMO_ACTION",
-          note: "Starting simulation loop for 5 seconds.",
-        },
-        "client-event"
-      );
-      this.scene.isLooping = true;
-      this.scene.loopEndTime = Date.now() + 5000;
-      this.disableLoopControls(true);
-
-      const runStep = () => {
-        if (!this.scene.isLooping || Date.now() >= this.scene.loopEndTime) {
-          this.scene.isLooping = false;
-          this.disableLoopControls(false);
-          this.log(
-            { type: "DEMO_ACTION", note: "Simulation loop finished." },
-            "client-event"
-          );
-          return;
-        }
-        this.scene.physicsClient?.sendMessage({
-          type: CommandType.STEP_SIMULATION,
-          payload: { deltaTime: 16.666 },
-        });
-        requestAnimationFrame(runStep);
-      };
-      requestAnimationFrame(runStep);
     };
 
     this.resetSimulationButton.onclick = () => {
@@ -441,18 +455,24 @@ class DemoUIManager {
       );
       // Perform the same actions as initWorldButton
       // It will trigger handleWorldInitialized in the scene, which then adds boundaries.
-      const width = parseInt(this.worldWidthInput.value, 10) || 800;
-      const height = parseInt(this.worldHeightInput.value, 10) || 600;
       const gravityX = parseFloat(this.gravityXInput.value);
       const gravityY = parseFloat(this.gravityYInput.value);
       const gravityScale = parseFloat(this.gravityScaleInput.value);
+      const enableSleeping = this.worldEnableSleepingCheckbox.checked;
+      const timeScale = parseFloat(this.worldTimeScaleInput.value);
 
-      const initPayload = { width, height };
+      const initPayload = { options: {} };
       if (!isNaN(gravityX) && !isNaN(gravityY)) {
         initPayload.gravity = { x: gravityX, y: gravityY };
-        if (!isNaN(gravityScale)) {
+        if (!isNaN(gravityScale) && gravityScale !== 0.001) {
           initPayload.gravity.scale = gravityScale;
         }
+      }
+      if (enableSleeping !== undefined) {
+        initPayload.options.enableSleeping = enableSleeping;
+      }
+      if (!isNaN(timeScale) && timeScale !== 1) {
+        initPayload.options.timing = { timeScale: timeScale };
       }
 
       this.scene.physicsClient?.initWorld(initPayload);
@@ -489,16 +509,40 @@ class DemoUIManager {
 
     let idToUse;
     let idWasAutoGenerated = false;
+    let descriptiveName = "body";
+
+    const type = this.bodyTypeSelect.value;
+    const isStatic = this.bodyIsStaticCheckbox.checked;
+
+    // Generate descriptive part of name
+    switch (type) {
+      case "rectangle":
+        const w = parseFloat(this.rectWidthInput.value) || 50;
+        const h = parseFloat(this.rectHeightInput.value) || 50;
+        descriptiveName = `rect-${w}x${h}`;
+        break;
+      case "circle":
+        const r = parseFloat(this.circleRadiusInput.value) || 25;
+        descriptiveName = `circ-${r}r`;
+        break;
+      case "polygon":
+        const s = parseInt(this.polygonSidesInput.value, 10) || 5;
+        const pr = parseFloat(this.polygonRadiusInput.value) || 25;
+        descriptiveName = `poly-${s}s-${pr}r`;
+        break;
+    }
+    if (isStatic) {
+      descriptiveName += "-static";
+    }
 
     if (this.bodyIdInput.value) {
       idToUse = this.bodyIdInput.value;
     } else {
-      this.scene.lastUsedBodyId++; // Increment the scene's counter
-      idToUse = `body-${this.scene.lastUsedBodyId}`;
+      this.scene.lastUsedBodyId++;
+      idToUse = `${descriptiveName}-${this.scene.lastUsedBodyId}`;
       idWasAutoGenerated = true;
     }
 
-    const type = this.bodyTypeSelect.value;
     // Use click coordinates if provided, otherwise use form values or random
     const x =
       clickX !== null
@@ -510,7 +554,6 @@ class DemoUIManager {
         ? clickY
         : parseFloat(this.bodyYInput.value) ||
           Math.random() * (this.scene.worldDimensions.height * 0.5); // Random y in top half
-    const isStatic = this.bodyIsStaticCheckbox.checked;
 
     const payload = {
       id: idToUse,
@@ -735,7 +778,7 @@ class DemoScene extends Phaser.Scene {
 
   handleWorkerReady() {
     this.uiManager.setWorkerReadyButtonStates();
-    this.isWorldReadyForAdds = false; // Set to false before sending initWorld
+    this.isWorldReadyForAdds = false;
     this.uiManager.log(
       {
         type: "DEMO_ACTION",
@@ -744,21 +787,26 @@ class DemoScene extends Phaser.Scene {
       "client-event"
     );
 
-    const width = this.scale.width;
-    const height = this.scale.height;
-    this.worldDimensions = { width, height };
-
     const gravityX = parseFloat(this.uiManager.gravityXInput.value);
     const gravityY = parseFloat(this.uiManager.gravityYInput.value);
     const gravityScale = parseFloat(this.uiManager.gravityScaleInput.value);
+    const enableSleeping = this.uiManager.worldEnableSleepingCheckbox.checked;
+    const timeScale = parseFloat(this.uiManager.worldTimeScaleInput.value);
 
-    const initialPayload = { width, height };
+    const initialPayload = { options: {} };
     if (!isNaN(gravityX) && !isNaN(gravityY)) {
       initialPayload.gravity = { x: gravityX, y: gravityY };
-      if (!isNaN(gravityScale)) {
+      if (!isNaN(gravityScale) && gravityScale !== 0.001) {
         initialPayload.gravity.scale = gravityScale;
       }
     }
+    if (enableSleeping !== undefined) {
+      initialPayload.options.enableSleeping = enableSleeping;
+    }
+    if (!isNaN(timeScale) && timeScale !== 1) {
+      initialPayload.options.timing = { timeScale: timeScale };
+    }
+
     this.physicsClient?.initWorld(initialPayload);
   }
 
@@ -883,6 +931,31 @@ class DemoScene extends Phaser.Scene {
           initialProps.radius,
           color
         );
+      } else if (
+        initialProps.type === "polygon" &&
+        initialProps.sides &&
+        initialProps.radius
+      ) {
+        const { sides, radius } = initialProps;
+        const vertices = [];
+        // Matter.js Bodies.polygon orients the first vertex along the positive x-axis from the center.
+        // Phaser's polygon might draw differently, but we generate points around (0,0) then Phaser positions the whole shape.
+        for (let i = 0; i < sides; i++) {
+          const angle = (i / sides) * 2 * Math.PI;
+          vertices.push({
+            x: radius * Math.cos(angle),
+            y: radius * Math.sin(angle),
+          });
+        }
+        // Phaser's Polygon takes an array of numbers [x1,y1, x2,y2,...] or an array of points [{x,y},...]
+        // We've created an array of points, which is fine.
+        gameObject = this.add.polygon(
+          initialProps.x,
+          initialProps.y,
+          vertices,
+          color
+        );
+        // Polygons in Phaser are filled by default. If stroke is needed: gameObject.setStrokeStyle(2, 0xffffff);
       }
 
       if (gameObject) {
@@ -1079,7 +1152,7 @@ class DemoScene extends Phaser.Scene {
 
     this.cameras.main.setSize(newWidth, newHeight);
 
-    this.isWorldReadyForAdds = false; // Reset flag before re-initializing world
+    this.isWorldReadyForAdds = false;
     this.uiManager.log(
       {
         type: "PHASER_SCENE_RESIZE",
@@ -1096,13 +1169,21 @@ class DemoScene extends Phaser.Scene {
     const gravityX = parseFloat(this.uiManager.gravityXInput.value);
     const gravityY = parseFloat(this.uiManager.gravityYInput.value);
     const gravityScale = parseFloat(this.uiManager.gravityScaleInput.value);
+    const enableSleeping = this.uiManager.worldEnableSleepingCheckbox.checked;
+    const timeScale = parseFloat(this.uiManager.worldTimeScaleInput.value);
 
-    const initPayload = { width: newWidth, height: newHeight };
+    const initPayload = { options: {} };
     if (!isNaN(gravityX) && !isNaN(gravityY)) {
       initPayload.gravity = { x: gravityX, y: gravityY };
-      if (!isNaN(gravityScale)) {
+      if (!isNaN(gravityScale) && gravityScale !== 0.001) {
         initPayload.gravity.scale = gravityScale;
       }
+    }
+    if (enableSleeping !== undefined) {
+      initPayload.options.enableSleeping = enableSleeping;
+    }
+    if (!isNaN(timeScale) && timeScale !== 1) {
+      initPayload.options.timing = { timeScale: timeScale };
     }
 
     this.physicsClient?.initWorld(initPayload);
