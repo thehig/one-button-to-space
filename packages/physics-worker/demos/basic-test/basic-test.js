@@ -504,7 +504,7 @@ class DemoScene extends Phaser.Scene {
   loopEndTime = 0;
   uiManager = null;
 
-  worldDimensions = { width: 800, height: 600 }; // Store world dimensions
+  worldDimensions = { width: 800, height: 600 }; // Initialized properly in create
 
   constructor() {
     super({ key: "DemoScene" });
@@ -515,6 +515,12 @@ class DemoScene extends Phaser.Scene {
   }
 
   create() {
+    // Set worldDimensions based on the actual game canvas size after Phaser boots up
+    this.worldDimensions = {
+      width: this.scale.width,
+      height: this.scale.height,
+    };
+
     this.uiManager = new DemoUIManager(this); // Pass scene instance
     this.uiManager.setupUIListeners(); // Call it here
 
@@ -532,6 +538,15 @@ class DemoScene extends Phaser.Scene {
       this.uiManager.log(message); // Log raw message including its commandId for correlation
 
       const { type, payload, commandId } = message; // Destructure commandId here
+
+      // Make sure uiManager is available before trying to use it in event handlers
+      if (!this.uiManager) {
+        console.error(
+          "UIManager not initialized when message received:",
+          message
+        );
+        return;
+      }
 
       switch (type) {
         case CommandType.WORKER_READY:
@@ -561,6 +576,9 @@ class DemoScene extends Phaser.Scene {
           break;
       }
     });
+
+    // Listen for resize events
+    this.scale.on("resize", this.handleResize, this);
   }
 
   clearVisuals() {
@@ -573,11 +591,15 @@ class DemoScene extends Phaser.Scene {
     this.uiManager.setWorkerReadyButtonStates();
     this.uiManager.log({
       type: "DEMO_ACTION",
-      note: "Worker ready. Auto-sending INIT_WORLD.",
+      note: "Worker ready. Auto-sending INIT_WORLD with current canvas dimensions.",
     });
-    // Use default values from UIManager inputs for auto-init or define them here
-    const width = parseInt(this.uiManager.worldWidthInput.value, 10) || 800;
-    const height = parseInt(this.uiManager.worldHeightInput.value, 10) || 600;
+
+    // Use actual initial canvas dimensions from the scale manager
+    const width = this.scale.width;
+    const height = this.scale.height;
+    // Ensure worldDimensions is up-to-date for the first init
+    this.worldDimensions = { width, height };
+
     const gravityX = parseFloat(this.uiManager.gravityXInput.value);
     const gravityY = parseFloat(this.uiManager.gravityYInput.value);
     const gravityScale = parseFloat(this.uiManager.gravityScaleInput.value);
@@ -589,7 +611,6 @@ class DemoScene extends Phaser.Scene {
         initialPayload.gravity.scale = gravityScale;
       }
     }
-    this.worldDimensions = { width, height }; // Store for boundary creation
     this.physicsClient?.initWorld(initialPayload);
   }
 
@@ -600,6 +621,7 @@ class DemoScene extends Phaser.Scene {
         type: "DEMO_SCENE",
         note: "World initialized by worker. Now adding static U-boundaries.",
         payload,
+        commandId, // Include commandId for completeness
       });
       // Add static U-shaped boundaries
       this.addStaticBoundaries();
@@ -608,7 +630,8 @@ class DemoScene extends Phaser.Scene {
 
   addStaticBoundaries() {
     const thickness = 50; // Common thickness for all walls
-    const { width, height } = this.worldDimensions; // Use stored dimensions
+    // Use current worldDimensions, which might have been updated by resize
+    const { width, height } = this.worldDimensions;
 
     const wallOptions = { isStatic: true, restitution: 0.5 };
 
@@ -663,7 +686,11 @@ class DemoScene extends Phaser.Scene {
     if (payload.success && this.pendingBodies.has(payload.id)) {
       const initialProps = this.pendingBodies.get(payload.id);
       let gameObject = null;
-      const color = Phaser.Display.Color.RandomRGB().color;
+      // Ensure color is a number (Phaser 6 expects hex number)
+      const color = parseInt(
+        Phaser.Display.Color.RandomRGB().color32.toString(16).substring(0, 6),
+        16
+      );
 
       this.uiManager.log({
         type: "DEMO_SCENE_HANDLER",
@@ -839,15 +866,63 @@ class DemoScene extends Phaser.Scene {
   update(_time, _delta) {
     // We get physics updates from the worker via messages
   }
+
+  handleResize(gameSize, _baseSize, _displaySize, _resolution) {
+    const newWidth = gameSize.width;
+    const newHeight = gameSize.height;
+
+    this.worldDimensions.width = newWidth;
+    this.worldDimensions.height = newHeight;
+
+    this.cameras.main.setSize(newWidth, newHeight);
+    // If your camera has a specific origin or scroll, you might need to adjust it too, e.g.:
+    // this.cameras.main.centerOn(newWidth / 2, newHeight / 2);
+
+    this.uiManager.log({
+      type: "PHASER_SCENE_RESIZE",
+      note: `Canvas resized to ${newWidth}x${newHeight}. Re-initializing physics world. Existing bodies will be cleared.`,
+      newDimensions: { width: newWidth, height: newHeight },
+    });
+
+    // Clear existing visuals and pending bodies as initWorld will clear physics state
+    this.clearVisuals();
+    this.pendingBodies.clear();
+    this.lastUsedBodyId = 0; // Reset for new world
+
+    // Re-initialize the physics world with new dimensions
+    // Fetch gravity settings from UI or use defaults
+    const gravityX = parseFloat(this.uiManager.gravityXInput.value);
+    const gravityY = parseFloat(this.uiManager.gravityYInput.value);
+    const gravityScale = parseFloat(this.uiManager.gravityScaleInput.value);
+
+    const initPayload = { width: newWidth, height: newHeight };
+    if (!isNaN(gravityX) && !isNaN(gravityY)) {
+      initPayload.gravity = { x: gravityX, y: gravityY };
+      if (!isNaN(gravityScale)) {
+        initPayload.gravity.scale = gravityScale;
+      }
+    }
+
+    // This will trigger WORLD_INITIALIZED on success, which then calls addStaticBoundaries
+    // with the updated this.worldDimensions
+    this.physicsClient?.initWorld(initPayload);
+  }
 }
 
 // --- Phaser Game Config ---
+const phaserContainer = document.getElementById("phaser-container");
+
 const config = {
   type: Phaser.AUTO, // Use WebGL if available, otherwise Canvas
-  width: 800,
-  height: 600,
+  // Set initial width and height based on the container div, fallback to defaults
+  width: phaserContainer ? phaserContainer.clientWidth : 800,
+  height: phaserContainer ? phaserContainer.clientHeight : 600,
   parent: "phaser-container", // Render into the div
   scene: [DemoScene],
+  scale: {
+    mode: Phaser.Scale.RESIZE, // Resize game canvas to fill the parent element
+    autoCenter: Phaser.Scale.CENTER_BOTH, // Center the game canvas in the parent element
+  },
 };
 
 // Start the game

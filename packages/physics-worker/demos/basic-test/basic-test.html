@@ -4,126 +4,436 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Physics Worker - Phaser Demo</title>
-    <link rel="stylesheet" href="./basic-test.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body>
-    <h1>Physics Worker - Phaser Demo</h1>
-    <p>Physics runs in a worker, rendering via Phaser.</p>
+  <body class="bg-gray-100 flex flex-col h-screen max-h-screen overflow-hidden">
+    <h1 class="text-2xl font-bold pt-4 mb-1 text-center shrink-0">
+      Physics Worker - Phaser Demo
+    </h1>
+    <p class="text-gray-700 mb-2 text-center shrink-0">
+      Physics runs in a worker, rendering via Phaser.
+    </p>
 
-    <div id="controlsContainer">
-      <div class="control-group">
-        <h2>World Control</h2>
-        <div>
-          <label for="worldWidth">Width:</label>
-          <input type="number" id="worldWidth" value="800" />
-          <label for="worldHeight">Height:</label>
-          <input type="number" id="worldHeight" value="600" />
+    <!-- Main Grid Layout -->
+    <div class="grid grid-cols-2 gap-4 flex-grow min-h-0 p-4">
+      <!-- Left Column: Phaser + Log -->
+      <div class="flex flex-col gap-4 min-h-0">
+        <!-- Phaser Instance Wrapper (Target: Top-left, 1/2 height of left column) -->
+        <div id="phaser-wrapper" class="bg-white rounded shadow h-1/2">
+          <div
+            id="phaser-container"
+            class="border border-black w-full h-full"
+          ></div>
         </div>
-        <div>
-          <label for="gravityX">Gravity X:</label>
-          <input type="number" id="gravityX" value="0" step="0.1" />
-          <label for="gravityY">Gravity Y:</label>
-          <input type="number" id="gravityY" value="1" step="0.1" />
-          <label for="gravityScale">Gravity Scale:</label>
-          <input type="number" id="gravityScale" value="0.001" step="0.001" />
-        </div>
-        <button id="initWorldButton" disabled>Initialize World</button>
-      </div>
-
-      <div class="control-group">
-        <h2>Add Body</h2>
-        <div>
-          <label for="bodyId">ID:</label>
-          <input type="text" id="bodyId" placeholder="body-1" />
-          <label for="bodyType">Type:</label>
-          <select id="bodyType">
-            <option value="rectangle">Rectangle</option>
-            <option value="circle">Circle</option>
-            <option value="polygon">Polygon (Sides/Radius)</option>
-            <!-- <option value="fromVertices">fromVertices</option> -->
-          </select>
-        </div>
-        <div>
-          <label for="bodyX">X:</label>
-          <input type="number" id="bodyX" value="100" />
-          <label for="bodyY">Y:</label>
-          <input type="number" id="bodyY" value="50" />
-          <input type="checkbox" id="bodyIsStatic" />
-          <label for="bodyIsStatic">Is Static</label>
-        </div>
-        <div id="rectangleInputs">
-          <label for="rectWidth">Width:</label>
-          <input type="number" id="rectWidth" value="50" />
-          <label for="rectHeight">Height:</label>
-          <input type="number" id="rectHeight" value="50" />
-        </div>
-        <div id="circleInputs" style="display: none">
-          <label for="circleRadius">Radius:</label>
-          <input type="number" id="circleRadius" value="25" />
-        </div>
-        <div id="polygonInputs" style="display: none">
-          <label for="polygonSides">Sides:</label>
-          <input type="number" id="polygonSides" value="5" min="3" />
-          <label for="polygonRadius">Radius:</label>
-          <input type="number" id="polygonRadius" value="25" />
-        </div>
-        <!-- Future: <div id="verticesInputs"> <label for="bodyVertices">Vertices (JSON):</label> <textarea id="bodyVertices">[{x:0,y:0},{x:50,y:0},{x:25,y:25}]</textarea> </div> -->
-        <div>
-          <!-- Options (IBodyDefinition JSON) could be a textarea here -->
-        </div>
-        <button id="addBodyButton" disabled>Add Body</button>
-      </div>
-
-      <div class="control-group">
-        <h2>Remove Body</h2>
-        <label for="removeBodyId">ID to Remove:</label>
-        <input type="text" id="removeBodyId" placeholder="body-1" />
-        <button id="removeBodyButton" disabled>Remove Body</button>
-      </div>
-
-      <div class="control-group">
-        <h2>Simulation Step</h2>
-        <label for="stepDeltaTime">DeltaTime (ms):</label>
-        <input type="number" id="stepDeltaTime" value="16.666" step="any" />
-        <button id="stepButton" disabled>Step Simulation</button>
-      </div>
-
-      <div class="control-group">
-        <h2>Advance Simulation Time</h2>
-        <label for="advanceTotalDeltaTime">Total DeltaTime (ms):</label>
-        <input type="number" id="advanceTotalDeltaTime" value="100" />
-        <label for="advanceInternalStepSize"
-          >Internal Step (ms, optional):</label
+        <!-- Log Output Wrapper (Target: Below Phaser, 1/2 height of left column) -->
+        <div
+          id="log-wrapper"
+          class="bg-white p-3 rounded shadow flex flex-col h-1/2"
         >
-        <input
-          type="number"
-          id="advanceInternalStepSize"
-          value="16.666"
-          step="any"
-          placeholder="Default ~16.66ms"
-        />
-        <button id="advanceTimeButton" disabled>Advance Time</button>
+          <h2 class="text-xl font-semibold mb-2 shrink-0">Log:</h2>
+          <pre
+            id="logOutput"
+            class="bg-gray-200 border border-gray-300 p-2 rounded overflow-y-scroll w-full flex-grow min-h-0"
+          >
+Initializing...</pre
+          >
+        </div>
       </div>
 
-      <div class="control-group">
-        <h2>General</h2>
-        <button id="loopButton" disabled>Run Physics Loop (5s)</button>
-        <button id="resetSimulationButton" disabled>Reset Simulation</button>
-        <button id="terminateButton" disabled>Terminate Worker</button>
-      </div>
+      <!-- Right Column: Controls (Takes remaining width, full available height of its grid cell, content scrollable) -->
+      <div id="controls-column-wrapper" class="overflow-y-auto">
+        <div id="controlsContainer" class="grid grid-cols-2 gap-4">
+          <div class="control-group bg-white p-3 rounded shadow">
+            <h2 class="text-lg font-semibold mb-2">World Control</h2>
+            <div class="space-y-1">
+              <div>
+                <label
+                  for="worldWidth"
+                  class="block text-sm font-medium text-gray-700"
+                  >Width:</label
+                >
+                <input
+                  type="number"
+                  id="worldWidth"
+                  value="800"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+              <div>
+                <label
+                  for="worldHeight"
+                  class="block text-sm font-medium text-gray-700"
+                  >Height:</label
+                >
+                <input
+                  type="number"
+                  id="worldHeight"
+                  value="600"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+            </div>
+            <div class="mt-2 space-y-1">
+              <div>
+                <label
+                  for="gravityX"
+                  class="block text-sm font-medium text-gray-700"
+                  >Gravity X:</label
+                >
+                <input
+                  type="number"
+                  id="gravityX"
+                  value="0"
+                  step="0.1"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+              <div>
+                <label
+                  for="gravityY"
+                  class="block text-sm font-medium text-gray-700"
+                  >Gravity Y:</label
+                >
+                <input
+                  type="number"
+                  id="gravityY"
+                  value="1"
+                  step="0.1"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+              <div>
+                <label
+                  for="gravityScale"
+                  class="block text-sm font-medium text-gray-700"
+                  >Gravity Scale:</label
+                >
+                <input
+                  type="number"
+                  id="gravityScale"
+                  value="0.001"
+                  step="0.001"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+            </div>
+            <button
+              id="initWorldButton"
+              disabled
+              class="mt-3 w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            >
+              Initialize World
+            </button>
+          </div>
 
-      <!-- Old buttons to be removed or re-purposed by JS -->
-      <div id="oldControls" style="display: none">
-        <button id="addRectButtonOld">Add Rectangle (Old)</button>
-        <button id="addCircleButtonOld">Add Circle (Old)</button>
-        <button id="removeLastButtonOld">Remove Last Body (Old)</button>
+          <div class="control-group bg-white p-3 rounded shadow">
+            <h2 class="text-lg font-semibold mb-2">Add Body</h2>
+            <div class="space-y-1">
+              <div>
+                <label
+                  for="bodyId"
+                  class="block text-sm font-medium text-gray-700"
+                  >ID:</label
+                >
+                <input
+                  type="text"
+                  id="bodyId"
+                  placeholder="body-1"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+              <div>
+                <label
+                  for="bodyType"
+                  class="block text-sm font-medium text-gray-700"
+                  >Type:</label
+                >
+                <select
+                  id="bodyType"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                >
+                  <option value="rectangle">Rectangle</option>
+                  <option value="circle">Circle</option>
+                  <option value="polygon">Polygon (Sides/Radius)</option>
+                  <!-- <option value="fromVertices">fromVertices</option> -->
+                </select>
+              </div>
+            </div>
+            <div class="mt-2 space-y-1">
+              <div>
+                <label
+                  for="bodyX"
+                  class="block text-sm font-medium text-gray-700"
+                  >X:</label
+                >
+                <input
+                  type="number"
+                  id="bodyX"
+                  value="100"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+              <div>
+                <label
+                  for="bodyY"
+                  class="block text-sm font-medium text-gray-700"
+                  >Y:</label
+                >
+                <input
+                  type="number"
+                  id="bodyY"
+                  value="50"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+              <div class="flex items-center">
+                <input
+                  type="checkbox"
+                  id="bodyIsStatic"
+                  class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                />
+                <label
+                  for="bodyIsStatic"
+                  class="ml-2 block text-sm text-gray-900"
+                  >Is Static</label
+                >
+              </div>
+            </div>
+            <div id="rectangleInputs" class="mt-2 space-y-1">
+              <div>
+                <label
+                  for="rectWidth"
+                  class="block text-sm font-medium text-gray-700"
+                  >Width:</label
+                >
+                <input
+                  type="number"
+                  id="rectWidth"
+                  value="50"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+              <div>
+                <label
+                  for="rectHeight"
+                  class="block text-sm font-medium text-gray-700"
+                  >Height:</label
+                >
+                <input
+                  type="number"
+                  id="rectHeight"
+                  value="50"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+            </div>
+            <div id="circleInputs" style="display: none" class="mt-2 space-y-1">
+              <div>
+                <label
+                  for="circleRadius"
+                  class="block text-sm font-medium text-gray-700"
+                  >Radius:</label
+                >
+                <input
+                  type="number"
+                  id="circleRadius"
+                  value="25"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+            </div>
+            <div
+              id="polygonInputs"
+              style="display: none"
+              class="mt-2 space-y-1"
+            >
+              <div>
+                <label
+                  for="polygonSides"
+                  class="block text-sm font-medium text-gray-700"
+                  >Sides:</label
+                >
+                <input
+                  type="number"
+                  id="polygonSides"
+                  value="5"
+                  min="3"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+              <div>
+                <label
+                  for="polygonRadius"
+                  class="block text-sm font-medium text-gray-700"
+                  >Radius:</label
+                >
+                <input
+                  type="number"
+                  id="polygonRadius"
+                  value="25"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+            </div>
+            <!-- Future: <div id="verticesInputs"> <label for="bodyVertices">Vertices (JSON):</label> <textarea id="bodyVertices">[{x:0,y:0},{x:50,y:0},{x:25,y:25}]</textarea> </div> -->
+            <div class="mt-2">
+              <!-- Options (IBodyDefinition JSON) could be a textarea here -->
+            </div>
+            <button
+              id="addBodyButton"
+              disabled
+              class="mt-3 w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            >
+              Add Body
+            </button>
+          </div>
+
+          <div class="control-group bg-white p-3 rounded shadow">
+            <h2 class="text-lg font-semibold mb-2">Remove Body</h2>
+            <div>
+              <label
+                for="removeBodyId"
+                class="block text-sm font-medium text-gray-700"
+                >ID to Remove:</label
+              >
+              <input
+                type="text"
+                id="removeBodyId"
+                placeholder="body-1"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+              />
+            </div>
+            <button
+              id="removeBodyButton"
+              disabled
+              class="mt-3 w-full bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            >
+              Remove Body
+            </button>
+          </div>
+
+          <div class="control-group bg-white p-3 rounded shadow">
+            <h2 class="text-lg font-semibold mb-2">Simulation Step</h2>
+            <div>
+              <label
+                for="stepDeltaTime"
+                class="block text-sm font-medium text-gray-700"
+                >DeltaTime (ms):</label
+              >
+              <input
+                type="number"
+                id="stepDeltaTime"
+                value="16.666"
+                step="any"
+                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+              />
+            </div>
+            <button
+              id="stepButton"
+              disabled
+              class="mt-3 w-full bg-yellow-500 hover:bg-yellow-700 text-black font-bold py-2 px-4 rounded disabled:opacity-50"
+            >
+              Step Simulation
+            </button>
+          </div>
+
+          <div class="control-group bg-white p-3 rounded shadow">
+            <h2 class="text-lg font-semibold mb-2">Advance Simulation Time</h2>
+            <div class="space-y-1">
+              <div>
+                <label
+                  for="advanceTotalDeltaTime"
+                  class="block text-sm font-medium text-gray-700"
+                  >Total DeltaTime (ms):</label
+                >
+                <input
+                  type="number"
+                  id="advanceTotalDeltaTime"
+                  value="100"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+              <div>
+                <label
+                  for="advanceInternalStepSize"
+                  class="block text-sm font-medium text-gray-700"
+                  >Internal Step (ms, optional):</label
+                >
+                <input
+                  type="number"
+                  id="advanceInternalStepSize"
+                  value="16.666"
+                  step="any"
+                  placeholder="Default ~16.66ms"
+                  class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 text-sm p-1"
+                />
+              </div>
+            </div>
+            <button
+              id="advanceTimeButton"
+              disabled
+              class="mt-3 w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+            >
+              Advance Time
+            </button>
+          </div>
+
+          <div class="control-group bg-white p-3 rounded shadow">
+            <h2 class="text-lg font-semibold mb-2">General</h2>
+            <div class="space-y-2">
+              <button
+                id="loopButton"
+                disabled
+                class="w-full bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+              >
+                Run Physics Loop (5s)
+              </button>
+              <button
+                id="resetSimulationButton"
+                disabled
+                class="w-full bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+              >
+                Reset Simulation
+              </button>
+              <button
+                id="terminateButton"
+                disabled
+                class="w-full bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50"
+              >
+                Terminate Worker
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Old buttons to be removed or re-purposed by JS -->
+        <div
+          id="oldControls"
+          style="display: none"
+          class="bg-white p-3 rounded shadow mt-4"
+        >
+          <!-- Added card style for consistency if ever shown -->
+          <button
+            id="addRectButtonOld"
+            class="w-full bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-4 rounded"
+          >
+            Add Rectangle (Old)
+          </button>
+          <button
+            id="addCircleButtonOld"
+            class="mt-2 w-full bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-4 rounded"
+          >
+            Add Circle (Old)
+          </button>
+          <button
+            id="removeLastButtonOld"
+            class="mt-2 w-full bg-gray-300 hover:bg-gray-400 text-black font-bold py-2 px-4 rounded"
+          >
+            Remove Last Body (Old)
+          </button>
+        </div>
       </div>
     </div>
-
-    <div id="phaser-container"></div>
-
-    <h2>Log:</h2>
-    <pre id="logOutput">Initializing...</pre>
 
     <script type="module" src="./basic-test.js"></script>
   </body>
