@@ -516,20 +516,23 @@ class DemoUIManager {
 
     // Generate descriptive part of name
     switch (type) {
-      case "rectangle":
+      case "rectangle": {
         const w = parseFloat(this.rectWidthInput.value) || 50;
         const h = parseFloat(this.rectHeightInput.value) || 50;
         descriptiveName = `rect-${w}x${h}`;
         break;
-      case "circle":
+      }
+      case "circle": {
         const r = parseFloat(this.circleRadiusInput.value) || 25;
         descriptiveName = `circ-${r}r`;
         break;
-      case "polygon":
+      }
+      case "polygon": {
         const s = parseInt(this.polygonSidesInput.value, 10) || 5;
         const pr = parseFloat(this.polygonRadiusInput.value) || 25;
         descriptiveName = `poly-${s}s-${pr}r`;
         break;
+      }
     }
     if (isStatic) {
       descriptiveName += "-static";

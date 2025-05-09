@@ -219,6 +219,43 @@ importers:
         specifier: 'catalog:'
         version: 3.1.3(@types/node@22.15.17)(@vitest/ui@3.1.3)(jsdom@26.1.0)
 
+  packages/matterjs-worker-plugin:
+    dependencies:
+      matter-js:
+        specifier: 'catalog:'
+        version: 0.20.0
+    devDependencies:
+      '@eslint/js':
+        specifier: 'catalog:'
+        version: 9.26.0
+      '@types/matter-js':
+        specifier: 'catalog:'
+        version: 0.19.8
+      '@vitest/coverage-v8':
+        specifier: 'catalog:'
+        version: 3.1.3(vitest@3.1.3)
+      eslint:
+        specifier: 'catalog:'
+        version: 9.26.0
+      globals:
+        specifier: 'catalog:'
+        version: 16.0.0
+      phaser:
+        specifier: 'catalog:'
+        version: 3.88.2
+      typescript:
+        specifier: 'catalog:'
+        version: 5.8.3
+      typescript-eslint:
+        specifier: 'catalog:'
+        version: 8.31.1(eslint@9.26.0)(typescript@5.8.3)
+      vite:
+        specifier: 'catalog:'
+        version: 5.4.19(@types/node@22.15.17)
+      vitest:
+        specifier: 'catalog:'
+        version: 3.1.3(@types/node@22.15.17)(@vitest/ui@3.1.3)(jsdom@26.1.0)
+
   packages/physics-worker:
     dependencies:
       matter-js:
