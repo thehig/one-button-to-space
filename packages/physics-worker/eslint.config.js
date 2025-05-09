@@ -13,6 +13,7 @@ export default tseslint.config(
         ...globals.worker,
         ...globals.es2020,
         ...globals.browser, // Kept browser globals as tests under src might still benefit
+        global: "writable", // Explicitly add global for test environments
       },
       parser: tseslint.parser,
       parserOptions: {
@@ -47,6 +48,7 @@ export default tseslint.config(
       globals: {
         ...globals.browser, // Demos run in browser
         ...globals.es2020,
+        Chart: "readonly", // Add Chart as a global
       },
       // For JS files, we don't need the TS parser with project reference
       // We can use the default parser or tseslint.parser without project options
