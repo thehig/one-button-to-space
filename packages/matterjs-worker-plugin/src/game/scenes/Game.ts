@@ -1,6 +1,14 @@
 import { Scene } from "phaser";
 // import Matter from "matter-js";
 
+const objClone = (obj: any) => {
+  try {
+    return JSON.parse(JSON.stringify(obj));
+  } catch (e) {
+    return {};
+  }
+};
+
 export class Game extends Scene {
   camera!: Phaser.Cameras.Scene2D.Camera;
 
@@ -15,26 +23,12 @@ export class Game extends Scene {
 
     this.camera = this.cameras.main;
     this.camera.setBackgroundColor(0x1a1a1a); // Dark grey background
-
-    try {
-      const msg = JSON.parse(
-        JSON.stringify(this.matter.world.engine.world.bounds)
-      );
-      console.log("Before setBounds, world.bounds:", msg);
-    } catch (e) {
-      ("Error stringifying bounds");
-    }
-
-    this.matter.world.setBounds(0, 0, 800, 600);
-
-    try {
-      const msg = JSON.parse(
-        JSON.stringify(this.matter.world.engine.world.bounds)
-      );
-      console.log("After setBounds, world.bounds:", msg);
-    } catch (e) {
-      ("Error stringifying bounds");
-    }
+    this.matter.world.setBounds(
+      0,
+      0,
+      this.game.canvas.width,
+      this.game.canvas.height
+    );
 
     // Add a simple circle using Phaser's factory to see if it works with the bounds
     this.matter.add.circle(400, 100, 20);

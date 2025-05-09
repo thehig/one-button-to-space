@@ -16,7 +16,7 @@ const config: Phaser.Types.Core.GameConfig = {
   physics: {
     default: "matter",
     matter: {
-      // debug: true, // Optional: enable debug drawing
+      debug: true, // Optional: enable debug drawing
       gravity: { x: 0, y: 1 }, // Set a default gravity
       // bounds: { // Explicitly set world bounds here
       //   x: 0,
