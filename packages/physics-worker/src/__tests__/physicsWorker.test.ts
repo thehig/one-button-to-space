@@ -8,6 +8,18 @@ import {
   type PhysicsCommand,
 } from "../commands";
 
+// Extend CommandType for new test cases
+const ECommandType = {
+  ...CommandType,
+  ADVANCE_SIMULATION_TIME: "ADVANCE_SIMULATION_TIME",
+  SIMULATION_ADVANCED_TIME_COMPLETED: "SIMULATION_ADVANCED_TIME_COMPLETED",
+};
+
+interface AdvanceSimulationTimeCommandPayload {
+  totalDeltaTime: number;
+  internalStepSize?: number;
+}
+
 // Mock matter-js
 // We need to mock the entire module because it's imported as 'import * as Matter from "matter-js"'
 const mockEngineCreate = vi.fn();
@@ -878,6 +890,243 @@ describe("Physics Worker", () => {
 
     // Note: The test for `engine not initialized` is implicitly covered by the global guard,
     // and a specific test for it is deferred as mentioned in INIT_WORLD tests.
+  });
+
+  describe("CommandType.ADVANCE_SIMULATION_TIME", () => {
+    let testBody: any; // To hold the mock body instance for state changes
+    const bodyId = "advBody1";
+    const initialX = 10;
+    const initialY = 20;
+    const initialAngle = 0.1;
+
+    beforeEach(() => {
+      if (!workerOnMessage)
+        throw new Error("workerOnMessage not set for ADVANCE_SIMULATION_TIME");
+
+      // 1. Initialize world (no default bodies)
+      const initPayload: InitWorldCommandPayload = { width: 800, height: 600 };
+      workerOnMessage({
+        data: {
+          type: ECommandType.INIT_WORLD,
+          payload: initPayload,
+          commandId: "adv-sim-init",
+        },
+      } as MessageEvent<PhysicsCommand>);
+      mockPostMessage.mockClear(); // Clear from init
+
+      // 2. Add a dynamic body for testing
+      testBody = {
+        id: bodyId,
+        position: { x: initialX, y: initialY },
+        angle: initialAngle,
+        label: "adv-test-body",
+      };
+      mockBodiesRectangle.mockReturnValueOnce(testBody); // Crucial: ADD_BODY uses this
+
+      const addPayload: AddBodyCommandPayload = {
+        id: bodyId,
+        type: "rectangle",
+        x: initialX,
+        y: initialY,
+        width: 10,
+        height: 10,
+        options: { angle: initialAngle },
+      };
+      workerOnMessage({
+        data: {
+          type: ECommandType.ADD_BODY,
+          payload: addPayload,
+          commandId: "add-for-adv-sim",
+        },
+      } as MessageEvent<PhysicsCommand>);
+      mockPostMessage.mockClear(); // Clear from add body
+
+      // Reset Engine.update mock for each test in this describe block
+      mockEngineUpdate.mockReset();
+      // Mock implementation for Engine.update - for these tests, we mainly care about call count and deltaTime args.
+      // We no longer try to modify testBody here, as the worker reports its own internal body state.
+      mockEngineUpdate.mockImplementation(() => {
+        // No operation needed here for verifying worker logic concerning final body state reporting,
+        // as the worker reports the state it has internally. Our test verifies the *calls* to update.
+      });
+    });
+
+    it("should advance simulation by totalDeltaTime, performing multiple internal steps, and report final state", () => {
+      if (!workerOnMessage) throw new Error("workerOnMessage not set");
+
+      const commandId = "adv-sim-cmd-1";
+      const totalDeltaTime = 48; // e.g., 3 steps of 16ms
+      const internalStepSize = 16; // Worker should use this (or a default if not provided by payload)
+      const expectedSteps = totalDeltaTime / internalStepSize; // 3
+
+      const payload: AdvanceSimulationTimeCommandPayload = {
+        totalDeltaTime,
+        internalStepSize, // Provide it for this test
+      };
+      const command: PhysicsCommand<AdvanceSimulationTimeCommandPayload> = {
+        type: ECommandType.ADVANCE_SIMULATION_TIME as CommandType, // Cast needed as ECommandType is wider
+        payload,
+        commandId,
+      };
+
+      workerOnMessage({ data: command } as MessageEvent<PhysicsCommand>);
+
+      expect(mockEngineUpdate).toHaveBeenCalledTimes(expectedSteps);
+      for (let i = 0; i < expectedSteps; i++) {
+        expect(mockEngineUpdate).toHaveBeenNthCalledWith(
+          i + 1,
+          mockEngineInstance,
+          internalStepSize
+        );
+      }
+
+      expect(mockPostMessage).toHaveBeenCalledWith({
+        type: ECommandType.SIMULATION_ADVANCED_TIME_COMPLETED,
+        payload: {
+          success: true,
+          bodies: [
+            {
+              id: bodyId,
+              x: initialX, // Expect initial X as our mock doesn't modify the worker's internal body state
+              y: initialY,
+              angle: initialAngle,
+            },
+          ],
+          actualSimulatedTime: totalDeltaTime,
+          stepsTaken: expectedSteps,
+        },
+        commandId,
+      });
+    });
+
+    it("should handle totalDeltaTime not perfectly divisible by internalStepSize", () => {
+      if (!workerOnMessage) throw new Error("workerOnMessage not set");
+
+      const commandId = "adv-sim-cmd-indivisible";
+      const totalDeltaTime = 50;
+      const internalStepSize = 16;
+      // Expected steps: 50 / 16 = 3.125. Worker should take 3 full steps of 16ms,
+      // and then one final step of 50 - (3*16) = 2ms. Or, 4 steps: 16, 16, 16, 2
+      // Or, it might run 3 steps and report actualSimulatedTime = 48.
+      // For this test, let's assume the worker tries to get as close as possible by taking
+      // full steps and then a final partial step if needed, or just full steps.
+      // Let's assume it takes 3 full steps and a partial step of 2ms (4 steps total)
+      // Or, it might do Math.floor(totalDeltaTime / internalStepSize) full steps, and one remainder step.
+      // Let's refine this: The worker should aim to simulate *at least* totalDeltaTime,
+      // or simulate in discrete steps.
+      // A common approach: loop while accumulatedTime < totalDeltaTime.
+      // In each loop, step by internalStepSize.
+      // This means it might slightly over-simulate if totalDeltaTime isn't a multiple.
+      //
+      // Let's test for a specific behavior: It takes Math.ceil(totalDeltaTime / internalStepSize) steps,
+      // where most steps are 'internalStepSize' and the last one might be smaller to hit the target.
+      // OR, it simply runs floor(totalDeltaTime / internalStepSize) full steps, and then one final step with the remainder.
+      // Let's go with: 3 full steps of 16ms, and one final step of 2ms. Total 4 calls.
+
+      const expectedFullSteps = Math.floor(totalDeltaTime / internalStepSize); // 3
+      const remainderTime = totalDeltaTime % internalStepSize; // 2
+      const expectedTotalSteps =
+        remainderTime > 0 ? expectedFullSteps + 1 : expectedFullSteps; // 4
+
+      mockEngineUpdate.mockReset(); // Reset from beforeEach
+      // let currentX = initialX; // Not needed anymore for mock implementation
+      mockEngineUpdate.mockImplementation(() => {
+        // No operation needed here
+      });
+
+      const payload: AdvanceSimulationTimeCommandPayload = {
+        totalDeltaTime,
+        internalStepSize,
+      };
+      const command: PhysicsCommand<AdvanceSimulationTimeCommandPayload> = {
+        type: ECommandType.ADVANCE_SIMULATION_TIME as CommandType,
+        payload,
+        commandId,
+      };
+
+      workerOnMessage({ data: command } as MessageEvent<PhysicsCommand>);
+
+      expect(mockEngineUpdate).toHaveBeenCalledTimes(expectedTotalSteps); // 3 full, 1 partial = 4 steps
+
+      // Check calls: 3 * 16ms, 1 * 2ms
+      for (let i = 0; i < expectedFullSteps; i++) {
+        expect(mockEngineUpdate).toHaveBeenNthCalledWith(
+          i + 1,
+          mockEngineInstance,
+          internalStepSize
+        );
+      }
+      if (remainderTime > 0) {
+        expect(mockEngineUpdate).toHaveBeenNthCalledWith(
+          expectedTotalSteps,
+          mockEngineInstance,
+          remainderTime
+        );
+      }
+
+      expect(mockPostMessage).toHaveBeenCalledWith({
+        type: ECommandType.SIMULATION_ADVANCED_TIME_COMPLETED,
+        payload: {
+          success: true,
+          bodies: [
+            { id: bodyId, x: initialX, y: initialY, angle: initialAngle },
+          ], // Expect initial state
+          actualSimulatedTime: totalDeltaTime, // Worker should report the target time
+          stepsTaken: expectedTotalSteps,
+        },
+        commandId,
+      });
+    });
+
+    it("should use a default internalStepSize if not provided in payload", () => {
+      if (!workerOnMessage) throw new Error("workerOnMessage not set");
+
+      const commandId = "adv-sim-cmd-default-step";
+      const totalDeltaTime = 32; // Expect 2 steps if default is ~16ms
+      // Worker needs to define its default (e.g. 1000/60)
+      let actualStepsTakenForMock = 0; // Still useful to count calls for assertion on stepsTaken
+      mockEngineUpdate.mockImplementation(() => {
+        // currentX += movementPerStep; // Not needed
+        actualStepsTakenForMock++;
+      });
+
+      const payload: AdvanceSimulationTimeCommandPayload = { totalDeltaTime }; // No internalStepSize
+      const command: PhysicsCommand<AdvanceSimulationTimeCommandPayload> = {
+        type: ECommandType.ADVANCE_SIMULATION_TIME as CommandType,
+        payload,
+        commandId,
+      };
+
+      workerOnMessage({ data: command } as MessageEvent<PhysicsCommand>);
+
+      expect(mockEngineUpdate).toHaveBeenCalled(); // Should be called at least once
+      const calls = mockEngineUpdate.mock.calls;
+      expect(calls.length).toBeGreaterThan(0); // Verify it was called
+
+      // Sum of deltaTimes passed to Engine.update should be close to totalDeltaTime
+      const sumOfDeltaTimesInUpdate = calls.reduce(
+        (sum, callArgs) => sum + (callArgs[1] as number),
+        0
+      );
+      // Allow for small floating point discrepancies if default step is fractional
+      expect(sumOfDeltaTimesInUpdate).toBeCloseTo(totalDeltaTime, 2);
+
+      expect(mockPostMessage).toHaveBeenCalledWith({
+        type: ECommandType.SIMULATION_ADVANCED_TIME_COMPLETED,
+        payload: {
+          success: true,
+          bodies: [
+            { id: bodyId, x: initialX, y: initialY, angle: initialAngle },
+          ], // Expect initial state
+          actualSimulatedTime: expect.closeTo(totalDeltaTime, 2),
+          stepsTaken: actualStepsTakenForMock, // Worker reports how many steps it actually took
+        },
+        commandId,
+      });
+    });
+
+    // TODO: Test error handling (e.g., if engine update throws an error during one of the steps)
+    // TODO: Test with no dynamic bodies (should complete successfully with an empty bodies array)
   });
 
   describe("Collision Handling", () => {

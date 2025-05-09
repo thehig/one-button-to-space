@@ -38,6 +38,11 @@ export interface StepSimulationCommandPayload {
   deltaTime: number; // Time step in milliseconds
 }
 
+export interface AdvanceSimulationTimeCommandPayload {
+  totalDeltaTime: number;
+  internalStepSize?: number;
+}
+
 // Enum for command types for better type safety and autocompletion
 export enum CommandType {
   // To Worker
@@ -48,6 +53,7 @@ export enum CommandType {
   _APPLY_FORCE = "APPLY_FORCE", // Placeholder
   _SET_GRAVITY = "SET_GRAVITY", // Placeholder
   STEP_SIMULATION = "STEP_SIMULATION",
+  ADVANCE_SIMULATION_TIME = "ADVANCE_SIMULATION_TIME",
 
   // From Worker (Responses/Events)
   WORKER_READY = "WORKER_READY", // Worker sends this, client/demo listens for it
@@ -55,6 +61,15 @@ export enum CommandType {
   BODY_ADDED = "BODY_ADDED",
   BODY_REMOVED = "BODY_REMOVED",
   SIMULATION_STEPPED = "SIMULATION_STEPPED",
+  SIMULATION_ADVANCED_TIME_COMPLETED = "SIMULATION_ADVANCED_TIME_COMPLETED",
   PHYSICS_EVENTS = "PHYSICS_EVENTS",
   ERROR = "ERROR",
+}
+
+// Payloads for messages from the worker
+export interface SimulationAdvancedTimeCompletedPayload {
+  success: boolean;
+  bodies: Array<{ id: string | number; x: number; y: number; angle: number }>;
+  actualSimulatedTime: number;
+  stepsTaken: number;
 }

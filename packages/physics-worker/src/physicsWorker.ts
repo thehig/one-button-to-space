@@ -16,6 +16,9 @@ import {
 //   payload?: any;
 // }
 
+// Define default step size for ADVANCE_SIMULATION_TIME if not provided
+const DEFAULT_INTERNAL_STEP_SIZE = 1000 / 60; // For a ~60Hz simulation rate
+
 console.log("Physics Worker: Script loaded");
 
 // TODO: Add Matter.js engine, world, and other necessary variables
@@ -309,6 +312,74 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
       break;
 
     // TODO: Implement UPDATE_BODY, APPLY_FORCE etc.
+
+    case "ADVANCE_SIMULATION_TIME": // Assuming this string matches CommandType.ADVANCE_SIMULATION_TIME
+      if (!engine || !world) break;
+      try {
+        const payload = command.payload as {
+          // Define payload structure inline for now
+          totalDeltaTime: number;
+          internalStepSize?: number;
+        };
+        const internalStep =
+          payload.internalStepSize || DEFAULT_INTERNAL_STEP_SIZE;
+        let accumulatedSimulatedTime = 0;
+        let stepsTaken = 0;
+
+        while (accumulatedSimulatedTime < payload.totalDeltaTime) {
+          let currentDeltaTime = internalStep;
+          if (
+            accumulatedSimulatedTime + currentDeltaTime >
+            payload.totalDeltaTime
+          ) {
+            currentDeltaTime =
+              payload.totalDeltaTime - accumulatedSimulatedTime;
+          }
+
+          if (currentDeltaTime <= 0) {
+            // Avoid zero or negative delta time steps
+            break;
+          }
+
+          Matter.Engine.update(engine, currentDeltaTime);
+          accumulatedSimulatedTime += currentDeltaTime;
+          stepsTaken++;
+        }
+
+        const updatedBodiesInfo: Array<{
+          id: string | number;
+          x: number;
+          y: number;
+          angle: number;
+        }> = [];
+        bodies.forEach((body, id) => {
+          updatedBodiesInfo.push({
+            id,
+            x: body.position.x,
+            y: body.position.y,
+            angle: body.angle,
+          });
+        });
+
+        self.postMessage({
+          type: "SIMULATION_ADVANCED_TIME_COMPLETED", // Assuming this string matches CommandType.SIMULATION_ADVANCED_TIME_COMPLETED
+          payload: {
+            success: true,
+            bodies: updatedBodiesInfo,
+            actualSimulatedTime: accumulatedSimulatedTime,
+            stepsTaken: stepsTaken,
+          },
+          commandId: command.commandId,
+        });
+      } catch (e: any) {
+        console.error("Physics Worker: Error advancing simulation time", e);
+        self.postMessage({
+          type: CommandType.ERROR,
+          payload: { message: e.message, originalCommand: command },
+          commandId: command.commandId,
+        });
+      }
+      break;
 
     default:
       console.warn(
