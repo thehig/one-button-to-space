@@ -34,8 +34,7 @@ class DemoUIManager {
   addBodyButton = null;
 
   // --- Remove Body Inputs ---
-  removeBodyIdInput = null;
-  removeBodyButton = null;
+  removableBodyListContainer = null;
 
   // --- Simulation Step Inputs ---
   stepDeltaTimeInput = null;
@@ -83,8 +82,9 @@ class DemoUIManager {
     this.addBodyButton = document.getElementById("addBodyButton");
 
     // Get Remove Body elements
-    this.removeBodyIdInput = document.getElementById("removeBodyId");
-    this.removeBodyButton = document.getElementById("removeBodyButton");
+    this.removableBodyListContainer = document.getElementById(
+      "removableBodyListContainer"
+    );
 
     // Get Step Simulation elements
     this.stepDeltaTimeInput = document.getElementById("stepDeltaTime");
@@ -189,8 +189,10 @@ class DemoUIManager {
     this.polygonSidesInput.disabled = true;
     this.polygonRadiusInput.disabled = true;
     // Remove Body section
-    this.removeBodyButton.disabled = true;
-    this.removeBodyIdInput.disabled = true;
+    if (this.removableBodyListContainer) {
+      this.removableBodyListContainer.innerHTML =
+        '<p class="text-gray-500 italic">No bodies yet.</p>';
+    }
     // Step Simulation section
     this.stepButton.disabled = true;
     this.stepDeltaTimeInput.disabled = true;
@@ -225,8 +227,10 @@ class DemoUIManager {
     this.polygonRadiusInput.disabled = false;
     this._setupBodyTypeVisibility(); // Ensure correct visibility based on default
     // Remove Body section
-    this.removeBodyButton.disabled = false;
-    this.removeBodyIdInput.disabled = false;
+    if (this.removableBodyListContainer) {
+      this.removableBodyListContainer.innerHTML =
+        '<p class="text-gray-500 italic">No bodies yet.</p>';
+    }
     // Step Simulation section
     this.stepButton.disabled = false;
     this.stepDeltaTimeInput.disabled = false;
@@ -256,8 +260,10 @@ class DemoUIManager {
     this.bodyTypeSelect.disabled = disable;
     // ... (disable all add body inputs)
     // Remove Body
-    this.removeBodyButton.disabled = disable;
-    this.removeBodyIdInput.disabled = disable;
+    if (this.removableBodyListContainer) {
+      this.removableBodyListContainer.innerHTML =
+        '<p class="text-gray-500 italic">No bodies yet.</p>';
+    }
     // Step & Advance
     this.stepButton.disabled = disable;
     this.stepDeltaTimeInput.disabled = disable;
@@ -276,8 +282,10 @@ class DemoUIManager {
     this.bodyIdInput.disabled = true;
     // ... (disable all add body inputs)
     // Remove Body section
-    this.removeBodyButton.disabled = true;
-    this.removeBodyIdInput.disabled = true;
+    if (this.removableBodyListContainer) {
+      this.removableBodyListContainer.innerHTML =
+        '<p class="text-red-500 italic">Worker terminated. Body list cleared.</p>';
+    }
     // Step Simulation section
     this.stepButton.disabled = true;
     this.stepDeltaTimeInput.disabled = true;
@@ -361,25 +369,10 @@ class DemoUIManager {
       });
       this.scene.lastUsedBodyId = bodyIdCounter; // Persist counter
       this.bodyIdInput.value = ""; // Clear the input for the next body
-    };
-
-    this.removeBodyButton.onclick = () => {
-      const idToRemove = this.removeBodyIdInput.value;
-      if (idToRemove) {
-        this.log({
-          type: "DEMO_ACTION",
-          note: `Sending REMOVE_BODY. ID: ${idToRemove}`,
-        });
-        this.scene.physicsClient?.sendMessage({
-          type: CommandType.REMOVE_BODY,
-          payload: { id: idToRemove },
-        });
-        // No longer disable button here, it stays enabled after world init
-      } else {
-        this.log({
-          type: "DEMO_ACTION",
-          note: "No body ID entered to remove.",
-        });
+      if (this.uiManager) {
+        this.uiManager.updateRemovableBodyList(
+          Array.from(this.scene.gameObjects.keys())
+        );
       }
     };
 
@@ -492,6 +485,37 @@ class DemoUIManager {
       this.setTerminatedButtonStates();
     };
   }
+
+  updateRemovableBodyList(bodyIds) {
+    if (!this.removableBodyListContainer) return;
+
+    this.removableBodyListContainer.innerHTML = ""; // Clear previous list
+
+    if (!bodyIds || bodyIds.length === 0) {
+      const p = document.createElement("p");
+      p.textContent = "No dynamic bodies to remove.";
+      p.className = "text-gray-500 italic";
+      this.removableBodyListContainer.appendChild(p);
+      return;
+    }
+
+    bodyIds.forEach((bodyId) => {
+      if (bodyId.startsWith("boundary-")) return; // Optionally skip static boundaries
+
+      const button = document.createElement("button");
+      button.textContent = bodyId;
+      button.className =
+        "w-full text-left p-2 border border-gray-300 rounded hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 focus:bg-red-50 mb-1 text-sm";
+      button.onclick = () => {
+        this.log({
+          type: "DEMO_ACTION",
+          note: `Requesting REMOVE_BODY for ID: ${bodyId} (via list click)`,
+        });
+        this.scene.requestRemoveBodyById(bodyId);
+      };
+      this.removableBodyListContainer.appendChild(button);
+    });
+  }
 }
 
 // --- Phaser Scene ---
@@ -585,6 +609,9 @@ class DemoScene extends Phaser.Scene {
     this.gameObjects.forEach((go) => go.destroy());
     this.gameObjects.clear();
     this.pendingBodies.clear();
+    if (this.uiManager) {
+      this.uiManager.updateRemovableBodyList([]); // Update UI list
+    }
   }
 
   handleWorkerReady() {
@@ -739,6 +766,11 @@ class DemoScene extends Phaser.Scene {
             type: initialProps.type,
           },
         });
+        if (this.uiManager) {
+          this.uiManager.updateRemovableBodyList(
+            Array.from(this.gameObjects.keys())
+          );
+        }
       } else {
         this.uiManager.log({
           type: "DEMO_SCENE_HANDLER",
@@ -765,6 +797,11 @@ class DemoScene extends Phaser.Scene {
         this.gameObjects.delete(payload.id);
       }
       this.pendingBodies.delete(payload.id); // Also remove from pending if it was there
+      if (this.uiManager) {
+        this.uiManager.updateRemovableBodyList(
+          Array.from(this.gameObjects.keys())
+        );
+      }
     }
   }
 
@@ -906,6 +943,24 @@ class DemoScene extends Phaser.Scene {
     // This will trigger WORLD_INITIALIZED on success, which then calls addStaticBoundaries
     // with the updated this.worldDimensions
     this.physicsClient?.initWorld(initPayload);
+  }
+
+  requestRemoveBodyById(bodyId) {
+    if (bodyId) {
+      this.uiManager.log({
+        type: "DEMO_ACTION_SCENE",
+        note: `Scene sending REMOVE_BODY. ID: ${bodyId}`,
+      });
+      this.physicsClient?.sendMessage({
+        type: CommandType.REMOVE_BODY,
+        payload: { id: bodyId },
+      });
+    } else {
+      this.uiManager.log({
+        type: "DEMO_ACTION_SCENE",
+        note: "Scene received request to remove body, but ID was empty.",
+      });
+    }
   }
 }
 
