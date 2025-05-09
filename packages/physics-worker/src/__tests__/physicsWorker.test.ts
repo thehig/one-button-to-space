@@ -141,7 +141,7 @@ describe("Physics Worker", () => {
   });
 
   describe("CommandType.INIT_WORLD", () => {
-    it("should initialize the Matter.js engine and world with default gravity", () => {
+    it("should initialize the Matter.js engine and world with default gravity and no default bodies", () => {
       if (!workerOnMessage) throw new Error("workerOnMessage not set");
 
       const commandId = "init-cmd-1";
@@ -161,19 +161,12 @@ describe("Physics Worker", () => {
       expect(mockEngineInstance.world.gravity.x).toBe(0); // Default if not specified
       expect(mockEngineInstance.world.gravity.y).toBe(0); // Default if not specified
 
-      // Check static boundaries were added (4 rectangles)
-      expect(mockBodiesRectangle).toHaveBeenCalledTimes(4);
-      expect(mockWorldAdd).toHaveBeenCalledTimes(1); // All boundaries added in one call
-      // More specific assertions for boundary properties can be added here
-      // Verify the options for static walls
-      const wallOptions = { isStatic: true };
-      expect(mockBodiesRectangle).toHaveBeenCalledWith(
-        expect.any(Number),
-        expect.any(Number),
-        expect.any(Number),
-        expect.any(Number),
-        wallOptions
-      );
+      // Check NO static boundaries were added by default
+      // mockBodiesRectangle might be called by other parts if the test evolves,
+      // but it should not be called for the default static walls.
+      // For this specific test, assuming no other rectangles are made:
+      expect(mockBodiesRectangle).toHaveBeenCalledTimes(0);
+      expect(mockWorldAdd).toHaveBeenCalledTimes(0); // No bodies should be added to the world by default
 
       expect(mockEventsOn).toHaveBeenCalledWith(
         mockEngineInstance,
@@ -188,7 +181,7 @@ describe("Physics Worker", () => {
       });
     });
 
-    it("should initialize with specified gravity", () => {
+    it("should initialize with specified gravity and no default bodies", () => {
       if (!workerOnMessage) throw new Error("workerOnMessage not set");
 
       const commandId = "init-cmd-gravity";
@@ -210,6 +203,10 @@ describe("Physics Worker", () => {
       expect(mockEngineInstance.world.gravity.y).toBe(1);
       expect(mockEngineInstance.world.gravity.scale).toBe(0.002);
 
+      // Check NO static boundaries were added by default
+      expect(mockBodiesRectangle).toHaveBeenCalledTimes(0);
+      expect(mockWorldAdd).toHaveBeenCalledTimes(0);
+
       expect(mockPostMessage).toHaveBeenCalledWith({
         type: CommandType.WORLD_INITIALIZED,
         payload: { success: true },
@@ -217,11 +214,10 @@ describe("Physics Worker", () => {
       });
     });
 
-    it("should initialize with no gravity if gravity is not specified in payload", () => {
+    it("should initialize with no gravity if gravity is not specified in payload, and no default bodies", () => {
       if (!workerOnMessage) throw new Error("workerOnMessage not set");
       // This test assumes the desired behavior is for the worker to explicitly set gravity to 0,0
       // if no gravity is provided in the payload, overriding Matter.js's own default.
-      // If this test fails, it indicates the worker needs to be changed to implement this.
 
       // Reset gravity on the mock instance to something non-zero to ensure our test is effective
       mockEngineInstance.world.gravity = { x: 0, y: 1, scale: 0.001 };
@@ -244,8 +240,10 @@ describe("Physics Worker", () => {
       // Expect worker to have set gravity to 0,0
       expect(mockEngineInstance.world.gravity.x).toBe(0);
       expect(mockEngineInstance.world.gravity.y).toBe(0);
-      // Scale might remain Matter's default or be set; for "no gravity", x and y are key.
-      // expect(mockEngineInstance.world.gravity.scale).toBe(0.001); // Or whatever it should be
+
+      // Check NO static boundaries were added by default
+      expect(mockBodiesRectangle).toHaveBeenCalledTimes(0);
+      expect(mockWorldAdd).toHaveBeenCalledTimes(0);
 
       expect(mockPostMessage).toHaveBeenCalledWith({
         type: CommandType.WORLD_INITIALIZED,

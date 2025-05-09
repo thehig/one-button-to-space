@@ -71,40 +71,40 @@ self.onmessage = (event: MessageEvent<PhysicsCommand>) => {
         }
         // TODO: Set world bounds if width/height are provided (e.g., for static boundaries)
 
-        // --- ADD STATIC BOUNDARIES ---
-        const wallOptions: Matter.IBodyDefinition = { isStatic: true };
-        const ground = Matter.Bodies.rectangle(
-          payload.width / 2,
-          payload.height + 25,
-          payload.width,
-          50,
-          wallOptions
-        );
-        const leftWall = Matter.Bodies.rectangle(
-          -25,
-          payload.height / 2,
-          50,
-          payload.height,
-          wallOptions
-        );
-        const rightWall = Matter.Bodies.rectangle(
-          payload.width + 25,
-          payload.height / 2,
-          50,
-          payload.height,
-          wallOptions
-        );
-        const ceiling = Matter.Bodies.rectangle(
-          payload.width / 2,
-          -25,
-          payload.width,
-          50,
-          wallOptions
-        );
-
-        Matter.World.add(world, [ground, leftWall, rightWall, ceiling]);
-        // We don't need to track these static bodies in our `bodies` map typically
-        // --- END STATIC BOUNDARIES ---
+        // --- REMOVED STATIC BOUNDARIES ---
+        // The following code for creating default static walls has been removed
+        // to meet the requirement that an initialized world has no bodies by default.
+        // const wallOptions: Matter.IBodyDefinition = { isStatic: true };
+        // const ground = Matter.Bodies.rectangle(
+        //   payload.width / 2,
+        //   payload.height + 25,
+        //   payload.width,
+        //   50,
+        //   wallOptions
+        // );
+        // const leftWall = Matter.Bodies.rectangle(
+        //   -25,
+        //   payload.height / 2,
+        //   50,
+        //   payload.height,
+        //   wallOptions
+        // );
+        // const rightWall = Matter.Bodies.rectangle(
+        //   payload.width + 25,
+        //   payload.height / 2,
+        //   50,
+        //   payload.height,
+        //   wallOptions
+        // );
+        // const ceiling = Matter.Bodies.rectangle(
+        //   payload.width / 2,
+        //   -25,
+        //   payload.width,
+        //   50,
+        //   wallOptions
+        // );
+        // Matter.World.add(world, [ground, leftWall, rightWall, ceiling]);
+        // --- END REMOVED STATIC BOUNDARIES ---
 
         // --- ADD COLLISION LISTENER ---
         Matter.Events.on(engine, "collisionStart", (event) => {
