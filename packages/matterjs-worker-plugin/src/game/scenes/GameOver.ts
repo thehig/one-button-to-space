@@ -7,9 +7,11 @@ export class GameOver extends Scene {
 
   constructor() {
     super("GameOver");
+    console.log("GameOver constructor");
   }
 
   create() {
+    console.log("GameOver create");
     this.camera = this.cameras.main;
     this.camera.setBackgroundColor(0xff0000);
 

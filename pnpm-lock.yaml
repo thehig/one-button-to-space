@@ -221,6 +221,9 @@ importers:
 
   packages/matterjs-worker-plugin:
     dependencies:
+      matter-js:
+        specifier: 'catalog:'
+        version: 0.20.0
       phaser:
         specifier: 'catalog:'
         version: 3.88.2
@@ -228,6 +231,9 @@ importers:
         specifier: ^5.39.0
         version: 5.39.0
     devDependencies:
+      '@types/matter-js':
+        specifier: 'catalog:'
+        version: 0.19.8
       typescript:
         specifier: 'catalog:'
         version: 5.8.3

@@ -1,38 +1,54 @@
 import { Scene } from "phaser";
+// import Matter from "matter-js";
 
 export class Game extends Scene {
-  camera: Phaser.Cameras.Scene2D.Camera;
-  background: Phaser.GameObjects.Image;
-  msg_text: Phaser.GameObjects.Text;
+  camera!: Phaser.Cameras.Scene2D.Camera;
 
   constructor() {
     super("Game");
+
+    console.log("Game constructor");
   }
 
   create() {
+    console.log("Game create");
+
     this.camera = this.cameras.main;
-    this.camera.setBackgroundColor(0x00ff00);
+    this.camera.setBackgroundColor(0x1a1a1a); // Dark grey background
 
-    this.background = this.add.image(512, 384, "background");
-    this.background.setAlpha(0.5);
+    try {
+      const msg = JSON.parse(
+        JSON.stringify(this.matter.world.engine.world.bounds)
+      );
+      console.log("Before setBounds, world.bounds:", msg);
+    } catch (e) {
+      ("Error stringifying bounds");
+    }
 
-    this.msg_text = this.add.text(
-      512,
-      384,
-      "Make something fun!\nand share it with us:\nsupport@phaser.io",
-      {
-        fontFamily: "Arial Black",
-        fontSize: 38,
-        color: "#ffffff",
-        stroke: "#000000",
-        strokeThickness: 8,
-        align: "center",
-      }
-    );
-    this.msg_text.setOrigin(0.5);
+    this.matter.world.setBounds(0, 0, 800, 600);
 
-    this.input.once("pointerdown", () => {
-      this.scene.start("GameOver");
-    });
+    try {
+      const msg = JSON.parse(
+        JSON.stringify(this.matter.world.engine.world.bounds)
+      );
+      console.log("After setBounds, world.bounds:", msg);
+    } catch (e) {
+      ("Error stringifying bounds");
+    }
+
+    // Add a simple circle using Phaser's factory to see if it works with the bounds
+    this.matter.add.circle(400, 100, 20);
+
+    // Add mouse control
+    this.matter.add.mouseSpring({});
+
+    // Remove previously added complex stack and custom walls for this test
+    // const stack = Matter.Composites.stack(...);
+    // this.matter.world.add(stack);
+    // this.matter.world.add([ Matter.Bodies.rectangle(...) ]);
   }
+
+  // update(time: number, delta: number): void {
+  //   // Any custom update logic if needed
+  // }
 }
