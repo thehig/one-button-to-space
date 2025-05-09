@@ -1,15 +1,4 @@
-import { Scene } from "phaser";
-// import Matter from "matter-js";
-
-const objClone = (obj: any) => {
-  try {
-    return JSON.parse(JSON.stringify(obj));
-  } catch (e) {
-    return {};
-  }
-};
-
-export class Game extends Scene {
+export class Game extends Phaser.Scene {
   camera!: Phaser.Cameras.Scene2D.Camera;
 
   constructor() {
@@ -42,7 +31,8 @@ export class Game extends Scene {
     // this.matter.world.add([ Matter.Bodies.rectangle(...) ]);
   }
 
-  // update(time: number, delta: number): void {
-  //   // Any custom update logic if needed
-  // }
+  update(time: number, delta: number): void {
+    // Any custom update logic if needed
+    console.log("Game update", Math.round(time), Math.round(delta));
+  }
 }
