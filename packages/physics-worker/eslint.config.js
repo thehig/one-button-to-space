@@ -67,7 +67,10 @@ export default tseslint.config(
     rules: {
       ...js.configs.recommended.rules,
       // Add any JS-specific rules for demos here
-      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }], // Example: warn for unused vars
+      "no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ], // Example: warn for unused vars
     },
   }
 );

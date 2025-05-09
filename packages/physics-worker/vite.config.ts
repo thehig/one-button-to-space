@@ -34,10 +34,13 @@ export default defineConfig({
         "**/node_modules/**",
         "**/dist/**",
         "**/demos/**",
+        "**/scenarios/**",
+        "**/scripts/**",
         "**/*.config.js",
         "**/*.config.ts",
-        "**/src/setupTests.ts", // Exclude the setup file itself
-        "**/src/main.ts", // Assuming main.ts is an entry point not needing coverage
+        "./setupTests.ts",
+        "**/src/main.ts",
+        "**/src/index.ts",
       ],
     },
   },

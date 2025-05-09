@@ -432,7 +432,7 @@ class DemoScene extends Phaser.Scene {
   }
 
   // Phaser's update loop
-  update(time, delta) {
+  update(_time, _delta) {
     // We get physics updates from the worker via messages
   }
 }
@@ -447,7 +447,7 @@ const config = {
 };
 
 // Start the game
-const game = new Phaser.Game(config);
+const _game = new Phaser.Game(config);
 // logMessage({ type: "PHASER_INIT", note: "Phaser game instantiated." }); // Will be logged by UIManager if needed, or scene
 // The DemoUIManager's constructor now handles the initial script load message.
 // The final Phaser init message can be logged by the scene after game creation if desired.
