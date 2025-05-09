@@ -1,0 +1,25 @@
+{
+  "name": "matterjs-worker-plugin",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "tsc",
+    "dev": "vite",
+    "lint": "tsc --noEmit && eslint . --ext ts --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest run --coverage"
+  },
+  "dependencies": {
+    "matter-js": "catalog:"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@types/matter-js": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "eslint": "catalog:",
+    "globals": "catalog:",
+    "phaser": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}
