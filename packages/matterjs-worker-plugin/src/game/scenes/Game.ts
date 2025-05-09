@@ -12,6 +12,8 @@ export class Game extends Phaser.Scene {
   private readonly fpsGraphHeight: number = 50;
   private readonly maxDisplayableFps: number = 70; // For graph scaling, adjust if FPS often exceeds this
 
+  private readonly BLOCK_OPERATION_MS: number = 3000;
+
   constructor() {
     super("Game");
 
@@ -38,6 +40,42 @@ export class Game extends Phaser.Scene {
     this.fpsGraph.setPosition(10, 35); // Position graph below FPS text
     this.fpsGraph.setScrollFactor(0);
     this.drawFpsGraph(); // Initial draw (empty graph)
+
+    // Add a button to trigger a blocking operation
+    const blockButton = this.add.text(10, 100, "Block Thread (3s)", {
+      font: "16px Arial",
+      color: "#000000",
+      backgroundColor: "#dddddd",
+      padding: { x: 10, y: 5 } as Phaser.Types.GameObjects.Text.TextPadding,
+    });
+    blockButton.setScrollFactor(0);
+    blockButton.setInteractive({ useHandCursor: true });
+
+    blockButton.on("pointerdown", () => {
+      console.log("Starting blocking operation...");
+      this.fpsText.setText("FPS: BLOCKED"); // Update display immediately
+
+      const syncStartTime = Date.now();
+      while (Date.now() - syncStartTime < this.BLOCK_OPERATION_MS) {
+        // This loop intentionally blocks the main thread
+      }
+      console.log("Blocking operation finished.");
+
+      // Record 0 FPS for the duration of the block in history for the graph
+      const secondsBlocked = Math.floor(this.BLOCK_OPERATION_MS / 1000);
+      for (let i = 0; i < secondsBlocked; i++) {
+        this.fpsHistory.push(0);
+        if (this.fpsHistory.length > this.maxFpsHistoryLength) {
+          this.fpsHistory.shift(); // Remove the oldest entry
+        }
+      }
+      this.drawFpsGraph(); // Update graph to show the 0 FPS period
+
+      // Reset counters for the main update loop to correctly calculate FPS after the block.
+      // The next update() call will then process the large delta from the block period.
+      this.updateCount = 0;
+      this.fpsTime = 0;
+    });
 
     this.matter.world.setBounds(
       0,
@@ -74,17 +112,17 @@ export class Game extends Phaser.Scene {
 
     if (this.fpsTime >= 1000) {
       const currentFps = this.updateCount;
+      // This will overwrite "FPS: BLOCKED" on the first update after the block completes
       this.fpsText.setText("FPS: " + currentFps);
 
-      // Update FPS history
       this.fpsHistory.push(currentFps);
       if (this.fpsHistory.length > this.maxFpsHistoryLength) {
-        this.fpsHistory.shift(); // Remove the oldest entry
+        this.fpsHistory.shift();
       }
-      this.drawFpsGraph(); // Redraw graph with new data
+      this.drawFpsGraph();
 
       this.updateCount = 0;
-      this.fpsTime -= 1000;
+      this.fpsTime %= 1000; // Use modulo to correctly carry over remainder time
     }
     // console.log("Game update", Math.round(time), Math.round(delta)); // Removed for FPS display
   }
