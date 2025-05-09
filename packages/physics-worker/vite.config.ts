@@ -5,7 +5,7 @@ export default defineConfig({
   // The root of the project for Vite will be the physics-worker package directory itself.
   root: ".",
   server: {
-    open: "/demos/basic-test.html", // Automatically open the demo page
+    open: "/demos/", // Automatically open the demo page
     port: 3001, // Use a specific port to avoid conflicts
   },
   build: {
@@ -15,7 +15,7 @@ export default defineConfig({
     outDir: "dist-demo", // Output to a different directory to avoid conflicts
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, "demos/basic-test.html"),
+        main: path.resolve(__dirname, "demos/"),
       },
     },
   },
@@ -26,7 +26,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "jsdom",
-    setupFiles: ["./tests/setupTests.ts"], // Path to your setup file
+    setupFiles: ["./setupTests.ts"], // Path to your setup file
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
@@ -36,7 +36,7 @@ export default defineConfig({
         "**/demos/**",
         "**/*.config.js",
         "**/*.config.ts",
-        "**/tests/setupTests.ts", // Exclude the setup file itself
+        "**/src/setupTests.ts", // Exclude the setup file itself
         "**/src/main.ts", // Assuming main.ts is an entry point not needing coverage
       ],
     },

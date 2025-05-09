@@ -6,7 +6,7 @@ import {
   type RemoveBodyCommandPayload,
   type StepSimulationCommandPayload,
   type PhysicsCommand,
-} from "../src/commands";
+} from "../commands";
 
 // Mock matter-js
 // We need to mock the entire module because it's imported as 'import * as Matter from "matter-js"'
@@ -72,7 +72,7 @@ describe("Physics Worker", () => {
     // Import the worker script. This will assign its onmessage to global.self.onmessage
     // Vite/Vitest handles the dynamic import and execution context.
     // The import itself executes the script, including the assignment to self.onmessage.
-    await import("../src/physicsWorker");
+    await import("../physicsWorker");
     workerOnMessage = global.self.onmessage; // Capture the onmessage handler
 
     // Ensure workerOnMessage is assigned

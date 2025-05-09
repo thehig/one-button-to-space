@@ -1,0 +1,31 @@
+---
+description: 
+globs: *.spec.ts,*.test.ts
+alwaysApply: false
+---
+
+Ensures Vitest/Jest test files (`.test.ts`, `.spec.ts`) are located in a `__tests__` subdirectory alongside the source files they test within a package's `src` directory.
+
+- **Test File Co-location for Source Files**
+
+  - All unit and component test files (typically ending in `.test.ts` or `.spec.ts`) for modules within any package's `src/` directory (e.g., `packages/<package-name>/src/`) MUST be located in a `__tests__` subdirectory directly within the same directory as the source file they are testing.
+  - Global test setup files (e.g., `setupTests.ts`) for a package should generally reside directly in that package's `src/` directory (e.g., `packages/<package-name>/src/setupTests.ts`).
+
+- **✅ DO: Correct Placement**
+
+  - For a source file: `packages/<package-name>/src/module/myFile.ts`
+  - Its test file should be: `packages/<package-name>/src/module/__tests__/myFile.test.ts`
+
+  - For a source file at the root of a package's `src`: `packages/<package-name>/src/mainHelper.ts`
+  - Its test file should be: `packages/<package-name>/src/__tests__/mainHelper.test.ts`
+
+- **❌ DON'T: Incorrect Placement**
+
+  - Avoid placing test files directly next to source files without a `__tests__` subdirectory:
+    - `packages/<package-name>/src/module/myFile.test.ts` (Incorrect)
+  - Avoid using a top-level `tests/` directory within a package (e.g., `packages/<package-name>/tests/`) for unit/component tests that belong alongside `src` files. Such top-level `tests/` directories are generally more suitable for integration or end-to-end tests that span multiple modules or the entire built package.
+
+- **Rationale**
+  - Keeps tests closely associated with the code under test, improving discoverability and maintainability across all packages.
+  - Standardizes the testing structure within the monorepo.
+  - The `globs` use `packages/*/src/...` to apply this rule to any package under the `packages` directory that follows this structure. The second glob pattern helps identify tests that might be misplaced directly next to source files, prompting a move into a `__tests__` folder.
