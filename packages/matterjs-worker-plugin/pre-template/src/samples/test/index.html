@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Matter.js Worker Plugin Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <!-- Adjust path to your local MatterWorkerPlugin.js -->
+    <script src="../../dist/MatterWorkerPlugin.js"></script>
+  </head>
+  <body>
+    <h1>Matter.js Worker Plugin Test</h1>
+    <p>Check the console for output.</p>
+
+    <script>
+      // Ensure Matter and the plugin are loaded
+      if (typeof Matter === "undefined") {
+        console.error("Matter.js library not found. Make sure it is included.");
+      }
+      if (typeof MatterWorkerPlugin === "undefined") {
+        console.error(
+          "MatterWorkerPlugin not found. Make sure it is included and built."
+        );
+      } else {
+        console.log("Matter and MatterWorkerPlugin loaded.");
+
+        // 1. Register the plugin
+        Matter.use(MatterWorkerPlugin);
+        console.log("MatterWorkerPlugin registered.");
+
+        // 2. Create the engine (this will be the proxyEngine)
+        const engine = Matter.Engine.create();
+        console.log("Proxy engine created:", engine);
+
+        // Add a simple renderer for visualization (optional, but helpful)
+        const render = Matter.Render.create({
+          element: document.body,
+          engine: engine,
+          options: {
+            width: 800,
+            height: 600,
+            wireframes: false, // Show solid shapes
+          },
+        });
+        Matter.Render.run(render);
+        console.log("Renderer created and running.");
+
+        // 3. Set up a requestAnimationFrame loop
+        (function updateLoop() {
+          requestAnimationFrame(updateLoop);
+
+          // 4. Call Matter.Engine.update
+          // The delta (1000 / 60) is a common value for 60 FPS
+          Matter.Engine.update(engine, 1000 / 60);
+
+          // 5. Inspect engine.world.bodies
+          if (engine.world && engine.world.bodies.length > 0) {
+            const firstBody = engine.world.bodies[0];
+            // The body created in the worker is temporary for now,
+            // and the plugin creates a placeholder.
+            // We expect to see the placeholder here.
+            console.log(
+              `Main Thread - Body ID: ${firstBody.id}, ` +
+                `Position: { x: ${firstBody.position.x.toFixed(
+                  2
+                )}, y: ${firstBody.position.y.toFixed(2)} }, ` +
+                `Angle: ${firstBody.angle.toFixed(2)}`
+            );
+          } else {
+            // console.log("Main Thread - No bodies in proxy engine.world yet.");
+          }
+        })();
+        console.log("requestAnimationFrame loop started.");
+      }
+    </script>
+  </body>
+</html>
