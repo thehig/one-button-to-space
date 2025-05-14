@@ -21,7 +21,7 @@ export class ThreadingGame extends Phaser.Scene {
   }
 
   create() {
-    console.log("ThreadingGame create"); // Changed log message
+    console.log("ThreadingGame create");
 
     this.camera = this.cameras.main;
     this.camera.setBackgroundColor(0x1a1a1a); // Dark grey background
@@ -53,26 +53,20 @@ export class ThreadingGame extends Phaser.Scene {
 
     blockButton.on("pointerdown", () => {
       console.log("Starting blocking operation...");
-      this.fpsText.setText("FPS: BLOCKED"); // Update display immediately
-
+      this.fpsText.setText("FPS: BLOCKED");
       const syncStartTime = Date.now();
       while (Date.now() - syncStartTime < this.BLOCK_OPERATION_MS) {
         // This loop intentionally blocks the main thread
       }
       console.log("Blocking operation finished.");
-
-      // Record 0 FPS for the duration of the block in history for the graph
       const secondsBlocked = Math.floor(this.BLOCK_OPERATION_MS / 1000);
       for (let i = 0; i < secondsBlocked; i++) {
         this.fpsHistory.push(0);
         if (this.fpsHistory.length > this.maxFpsHistoryLength) {
-          this.fpsHistory.shift(); // Remove the oldest entry
+          this.fpsHistory.shift();
         }
       }
-      this.drawFpsGraph(); // Update graph to show the 0 FPS period
-
-      // Reset counters for the main update loop to correctly calculate FPS after the block.
-      // The next update() call will then process the large delta from the block period.
+      this.drawFpsGraph();
       this.updateCount = 0;
       this.fpsTime = 0;
     });
@@ -94,6 +88,11 @@ export class ThreadingGame extends Phaser.Scene {
     switchToBlockingButton.on("pointerdown", () => {
       this.scene.start("BlockingGame");
     });
+
+    console.log(
+      "[ThreadingGame] Matter Engine in use:",
+      this.matter.world.engine
+    );
 
     this.matter.world.setBounds(
       0,

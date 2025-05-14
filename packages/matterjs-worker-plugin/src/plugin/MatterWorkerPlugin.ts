@@ -1,3 +1,5 @@
+console.log("[MatterWorkerPlugin.ts] File execution started.");
+
 import Matter from "matter-js";
 
 // Define a type for our proxy engine to make it clearer
@@ -15,19 +17,21 @@ interface IWorkerProxyEngine
   // TODO: Add other engine properties and methods
 }
 
+console.log("[MatterWorkerPlugin.ts] Defining MatterWorkerPlugin object...");
 const MatterWorkerPlugin = {
   name: "matterjs-worker-plugin",
   version: "0.1.0",
   for: "matter-js@^0.19.0",
 
   install: function () {
+    console.log("[MatterWorkerPlugin] INSTALL METHOD CALLED. Patching Engine.create...");
     const originalEngineCreate = Matter.Engine.create;
 
     Matter.Engine.create = (
       options?: Matter.IEngineDefinition | undefined
     ): Matter.Engine => {
       console.log(
-        "[MatterWorkerPlugin] Patched Engine.create called. Options:",
+        "[MatterWorkerPlugin] Patched Engine.create INTERNALLY CALLED. Options:",
         options
       );
 
@@ -194,6 +198,7 @@ const MatterWorkerPlugin = {
         );
         worker.postMessage({ type: "init", payload: { options } });
 
+        console.log("[MatterWorkerPlugin] Using worker, returning proxyEngine.");
         return proxyEngine;
       } else {
         console.log(
@@ -208,7 +213,18 @@ const MatterWorkerPlugin = {
     );
   },
 };
+console.log("[MatterWorkerPlugin.ts] MatterWorkerPlugin object defined.");
 
+console.log("[MatterWorkerPlugin.ts] Attempting direct call to MatterWorkerPlugin.install()...");
+try {
+  MatterWorkerPlugin.install();
+  console.log("[MatterWorkerPlugin.ts] Direct call to MatterWorkerPlugin.install() completed.");
+} catch (e) {
+  console.error("[MatterWorkerPlugin.ts] Error during direct call to install():", e);
+}
+
+console.log("[MatterWorkerPlugin.ts] Calling Matter.Plugin.register()...");
 Matter.Plugin.register(MatterWorkerPlugin);
+console.log("[MatterWorkerPlugin.ts] Matter.Plugin.register() called.");
 
 export default MatterWorkerPlugin;

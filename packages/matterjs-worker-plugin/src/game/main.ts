@@ -1,3 +1,5 @@
+import "../plugin/MatterWorkerPlugin"; // Ensure plugin is registered before Game creation
+
 import { Boot } from "./scenes/Boot";
 import { GameOver } from "./scenes/GameOver";
 import { BlockingGame } from "./scenes/BlockingGame";
@@ -33,6 +35,7 @@ const config: Phaser.Types.Core.GameConfig = {
 };
 
 const StartGame = (parent: string) => {
+  Phaser.Physics.Matter.
   return new Game({ ...config, parent });
 };
 
