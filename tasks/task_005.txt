@@ -1,0 +1,18 @@
+# Task ID: 5
+# Title: Implement InputManager for rocket control
+# Status: pending
+# Dependencies: 3
+# Priority: high
+# Description: Create an InputManager that handles user input (touch/click for thrust, device tilt/keyboard for orientation) and translates it to game actions.
+# Details:
+1. Create InputManager class in the client
+2. Set up event listeners for keyboard, mouse, touch inputs
+3. Implement device orientation handling if available
+4. Translate raw inputs to abstract game actions (thrust_start, rotate_left, etc.)
+5. Emit events via Phaser's event system
+6. Implement input buffering for network transmission
+7. Add proper cleanup in shutdown/destroy
+8. Create input configuration options (sensitivity, key bindings)
+
+# Test Strategy:
+Create a test scene that displays input state visually. Verify all input methods work correctly and emit the expected events. Test on both desktop and mobile devices.

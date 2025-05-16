@@ -1,0 +1,18 @@
+# Task ID: 7
+# Title: Implement server-side physics with Matter.js
+# Status: pending
+# Dependencies: 2, 3
+# Priority: high
+# Description: Integrate the shared Matter.js physics engine into the Colyseus server rooms for authoritative simulation.
+# Details:
+1. Create or modify GameRoom class to use the shared physics engine
+2. Set up fixed timestep update loop in the room
+3. Process player inputs and apply them to physics bodies
+4. Update the room state schema with physics body states
+5. Implement collision handling and event dispatching
+6. Add server-side validation of client inputs
+7. Optimize state broadcasting (delta compression, interest management)
+8. Implement server-side game logic that depends on physics (landing detection, mission objectives)
+
+# Test Strategy:
+Create test clients that connect to the server and verify physics simulation is consistent between client and server. Test with multiple simultaneous clients to ensure server performance.

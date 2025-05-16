@@ -1,0 +1,18 @@
+# Task ID: 4
+# Title: Integrate Matter.js with Phaser client
+# Status: pending
+# Dependencies: 2, 3
+# Priority: high
+# Description: Create a PhysicsManager in the client that uses the shared Matter.js simulation and interfaces with Phaser rendering.
+# Details:
+1. Create a PhysicsManager class in the client
+2. Import and instantiate the shared PhysicsEngine
+3. Set up synchronization between Matter.js bodies and Phaser game objects
+4. Implement debug rendering of physics bodies using Phaser graphics
+5. Handle physics body creation and destruction
+6. Implement proper cleanup in the shutdown/destroy methods
+7. Add the manager to the relevant Phaser scenes
+8. Ensure HMR compatibility
+
+# Test Strategy:
+Create a test scene that demonstrates physics objects responding to forces and collisions. Verify visual representation matches physics simulation. Test cleanup by switching scenes multiple times.

@@ -17,25 +17,55 @@ In Multiplayer, the primary added gameplay complexity stems from collisions: col
 
 This phase focuses on establishing the foundational codebase structure and development environment.
 
+**Current Status (as of [Current Date/Sprint]):**
+
+- **Monorepo (pnpm):** Structure with `client` and `server` packages is in place.
+- **TypeScript:** Configured and used in both `client` and `server`.
+- **Client Setup (Parcel/Phaser):** Phaser is integrated and rendering basic scenes. Parcel is used for client bundling.
+- **Server Setup (Node.js/Express/Colyseus):** Colyseus server is operational with Express, serving rooms and handling client connections. `tsx` is used for development.
+- **Package Linking & Dependencies:** Core dependencies (Phaser, Colyseus SDKs, Express, TypeScript) are installed and functional.
+- **Basic Client-Server Connection:** Clients can connect to server rooms, and basic message passing for input is functional. Room state synchronization (for player lists and basic properties) is working.
+- **Input Handling:** Basic directional input is captured on the client and processed on the server.
+- **Networking Features:** Foundational networking patterns (interpolation, client-side prediction, fixed tickrate) are demonstrated in example scenes/rooms (`Part1` through `Part4`).
+
+**Key Outstanding Items for this Phase:**
+
+- **`shared` Package:** The crucial `shared` package, intended for common code like the Matter.js physics simulation, **has not yet been created or integrated.** This is a top priority.
+- **Matter.js Integration:** Matter.js, the specified physics engine, has not yet been introduced into the project. Current client physics is Phaser's default "Arcade" physics, and server-side "movement" is direct coordinate manipulation.
+
 - **Monorepo:** Utilize a pnpm monorepo to manage distinct packages:
-  - `client`: Contains the React/Vite frontend and Phaser game client.
-  - `server`: Contains the Node.js/Express/Colyseus backend server.
-  - `shared`: **Crucial package.** Houses all code intended to be identical across client and server, primarily the core physics simulation logic (Matter.js setup, stepping, constants) and potentially shared data structures/types.
-- **TypeScript:** Use TypeScript consistently across all packages (`client`, `server`, `shared`). Configure strict `tsconfig.json` files for each package and a base config at the root.
-- **Client Setup (Vite/React):**
-  - Initialize the `client` package using Vite with the React TypeScript template.
-  - Integrate Phaser into the React application.
+  - `client`: Contains the ~~React/Vite~~ Parcel frontend and Phaser game client. **(Status: Implemented with Parcel, React integration is not present as per current codebase, PRD mentions React/Vite but current client is Parcel/Phaser only).**
+  - `server`: Contains the Node.js/Express/Colyseus backend server. **(Status: Implemented).**
+  - `shared`: **Crucial package.** Houses all code intended to be identical across client and server, primarily the core physics simulation logic (Matter.js setup, stepping, constants) and potentially shared data structures/types. **(Status: NOT YET IMPLEMENTED - CRITICAL NEXT STEP).**
+- **TypeScript:** Use TypeScript consistently across all packages (`client`, `server`, `shared`). Configure strict `tsconfig.json` files for each package and a base config at the root. **(Status: Implemented for `client` and `server`).**
+- **Client Setup (~~Vite/React~~ Parcel/Phaser):**
+  - Initialize the `client` package using ~~Vite with the React TypeScript template~~ Parcel. **(Status: Implemented with Parcel).**
+  - Integrate Phaser into the ~~React application~~ client. **(Status: Implemented).**
 - **Server Setup (Node.js/Express/Colyseus):**
-  - Initialize the `server` package with Node.js and TypeScript (`tsc` for building).
-  - Set up Express and integrate Colyseus for WebSocket communication and room management.
+  - Initialize the `server` package with Node.js and TypeScript (`tsx` for dev, `tsc` for building). **(Status: Implemented).**
+  - Set up Express and integrate Colyseus for WebSocket communication and room management. **(Status: Implemented).**
 - **Package Linking & Dependencies:**
-  - Use `pnpm` workspaces to manage dependencies and link local packages (`client`, `server`, `shared`).
-  - Install necessary dependencies: Phaser, Matter.js, React, Vite, Colyseus (client & server SDKs), Express, TypeScript, Node.js types, etc. using pnpm catalog
-- **Initial Verification:** Ensure basic project structure compiles, runs, and packages can import from `shared`. Confirm basic client-server connection setup is possible.
+  - Use `pnpm` workspaces to manage dependencies and link local packages (`client`, `server`, `shared`). **(Status: Implemented for `client` and `server`; `shared` pending).**
+  - Install necessary dependencies: Phaser, Matter.js, ~~React, Vite,~~ Colyseus (client & server SDKs), Express, TypeScript, Node.js types, etc. using pnpm catalog. **(Status: Core dependencies installed; Matter.js pending).**
+- **Initial Verification:** Ensure basic project structure compiles, runs, and packages can import from `shared`. Confirm basic client-server connection setup is possible. **(Status: Client-server connection and basic sync are functional. `shared` package import is NOT YET POSSIBLE).**
 
 ## 3. Core Engine Architecture & Implementation (Phaser/Matter.js)
 
 This is the **primary focus** of the initial development effort. Building a modular, maintainable, and consistent engine is paramount. Expect **significant iteration and debugging** during this phase.
+
+**Current Status (as of [Current Date/Sprint]):**
+
+- **Phaser Client Structure:** Client is organized into scenes (`BaseNetworkScene`, `Part1-4Scenes`) demonstrating various networking features.
+- **Server Room Structure:** Server uses rooms (`BaseRoom`, `Part1-4Rooms`) corresponding to client scenes, with shared command/schema logic.
+- **Basic Networking:** Connection, input sending, and state updates (player join/leave, basic properties) are functional.
+- **Colyseus Schemas:** Schemas for `BaseRoomState`, `BasePlayer`, `InputData`, and `PlayerWithInputQueue` are defined and used on the server, and state is synchronized to clients.
+
+**Key Outstanding Items for this Phase (TOP PRIORITY):**
+
+- **Shared Physics (`shared` Package & Matter.js):** The entire concept of a shared, deterministic Matter.js physics simulation residing in a `shared` package **is not yet implemented.** This is the most critical next step for the core engine. Current client uses Phaser's Arcade physics, and server logic is direct coordinate manipulation.
+- **Manager/System Modularity (Phaser Client):** While scenes exist, the detailed manager structure (`PhysicsManager` using shared code, `InputManager`, `NetworkManager` with advanced reconciliation, `EntityManager`, etc.) as described in the PRD is largely conceptual and needs to be built on top of the current example structure, especially integrating the `shared` physics.
+- **Server-Side Physics (Matter.js):** The server rooms currently use simple state manipulation based on inputs. They need to be refactored to use the `shared` Matter.js physics simulation.
+- **Client-Server Synchronization (Advanced):** While basic prediction/interpolation examples exist, the robust reconciliation and synchronization strategy tied to a shared Matter.js simulation needs full implementation as per PRD sections 3.2 and 3.7.
 
 ### 3.1. Core Principles
 
@@ -45,18 +75,18 @@ This is the **primary focus** of the initial development effort. Building a modu
 
 ### 3.2. Shared Physics (in `shared` Package)
 
-- **Dual Simulation Model:** Both client and server **MUST** run the _exact same_ deterministic physics simulation code.
-- **Engine:** Matter.js handles core 2D physics. All Matter.js setup, configuration, world stepping logic, collision categories, constants, and utility functions related to the core simulation reside in the `shared` package.
-- **Deterministic Update Loop:** Implement a fixed-timestep update loop within the shared physics module for consistent and reproducible physics.
+- **Dual Simulation Model:** Both client and server **MUST** run the _exact same_ deterministic physics simulation code. **(Status: NOT YET IMPLEMENTED. Currently, client uses Phaser Arcade, server uses direct manipulation. Matter.js in `shared` is the goal).**
+- **Engine:** Matter.js handles core 2D physics. All Matter.js setup, configuration, world stepping logic, collision categories, constants, and utility functions related to the core simulation reside in the `shared` package. **(Status: NOT YET IMPLEMENTED).**
+- **Deterministic Update Loop:** Implement a fixed-timestep update loop within the shared physics module for consistent and reproducible physics. **(Status: Basic fixed timestep demonstrated in `Part4Scene`/`Room`, but needs to be integrated with shared Matter.js simulation).**
 
 ### 3.3. Modularity via Managers/Systems (Phaser Client)
 
-Core functionality will be separated into distinct managers/systems within Phaser Scenes.
+Core functionality will be separated into distinct managers/systems within Phaser Scenes. **(Status: Current structure is scene-based from examples. The detailed manager architecture below needs to be built, heavily relying on the upcoming `shared` physics package).**
 
 - **Core Managers:**
-  - `PhysicsManager`: **Crucially, this manager imports and utilizes the simulation logic from the `shared` package.** It interfaces between Phaser and the shared Matter.js instance. Handles local world stepping on the client.
-  - `InputManager`: Handles raw input (keyboard, mouse, touch, device orientation) and translates it into abstract game actions/events (e.g., `thrust_start`, `rotate_left`). Emits these events via an event bus.
-  - `NetworkManager`: Manages Colyseus client connection, room joining, sending client inputs to the server, receiving authoritative state updates, and handling state synchronization (prediction/reconciliation, interpolation).
+  - `PhysicsManager`: **Crucially, this manager imports and utilizes the simulation logic from the `shared` package.** It interfaces between Phaser and the shared Matter.js instance. Handles local world stepping on the client. **(Status: NOT YET IMPLEMENTED).**
+  - `InputManager`: Handles raw input (keyboard, mouse, touch, device orientation) and translates it into abstract game actions/events (e.g., `thrust_start`, `rotate_left`). Emits these events via an event bus. **(Status: Basic cursor input captured in scenes; dedicated manager and abstract game actions pending).**
+  - `NetworkManager`: Manages Colyseus client connection, room joining, sending client inputs to the server, receiving authoritative state updates, and handling state synchronization (prediction/reconciliation, interpolation). **(Status: Basic connection/sending in `BaseNetworkScene`. Advanced sync tied to shared physics pending).**
   - `SceneManager` (Phaser Built-in): Manages Phaser Scenes (loading, switching, lifecycle).
   - `EntityManager` / `GameObjectManager`: Creates, tracks, updates, and destroys game entities/objects (e.g., rockets, debris). Integrates with Phaser GameObjects and the `PhysicsManager`.
   - `CameraManager`: Wraps Phaser's camera controls for potentially complex behaviors (following, zoom).
@@ -88,7 +118,7 @@ Core functionality will be separated into distinct managers/systems within Phase
 ### 3.6. Server-Side Architecture (Colyseus)
 
 - **Colyseus Room:** Define a custom Colyseus Room (`GameRoom`) to manage the game state.
-- **Server-Side Physics:** The `GameRoom` **MUST** instantiate and run the _exact same_ physics simulation using the code from the `shared` package as the client.
+- **Server-Side Physics:** The `GameRoom` **MUST** instantiate and run the _exact same_ physics simulation using the code from the `shared` package as the client. **(Status: NOT YET IMPLEMENTED. Current rooms use direct state manipulation via commands).**
 - **State Schema:** Use `@colyseus/schema` to define the synchronized state (player positions, velocities, debris, etc.).
 - **Input Handling:** Receive player inputs sent via the `NetworkManager`.
 - **Server Authority:** Apply inputs to the server-side physics simulation. The server's simulation result is the authoritative state.
@@ -96,9 +126,9 @@ Core functionality will be separated into distinct managers/systems within Phase
 
 ### 3.7. Client-Server Synchronization
 
-- **Client-Side Prediction:** The client `PhysicsManager` runs the shared simulation locally based on player input for immediate feedback.
-- **Reconciliation:** When the `NetworkManager` receives an authoritative state update from the server, it compares it to the client's predicted state. If different, it must reconcile the client's state (e.g., snap position, potentially replay inputs since the last acknowledged state).
-- **Interpolation:** Smooth the visual representation of _remote_ entities between state updates.
+- **Client-Side Prediction:** The client `PhysicsManager` runs the shared simulation locally based on player input for immediate feedback. **(Status: Basic prediction shown in `Part3/4Scene` via direct coordinate changes. Integration with shared Matter.js physics via `PhysicsManager` pending).**
+- **Reconciliation:** When the `NetworkManager` receives an authoritative state update from the server, it compares it to the client's predicted state. If different, it must reconcile the client's state (e.g., snap position, potentially replay inputs since the last acknowledged state). **(Status: Basic visual diff in `Part3/4Scene`. Full reconciliation with shared physics pending).**
+- **Interpolation:** Smooth the visual representation of _remote_ entities between state updates. **(Status: Basic interpolation shown in `Part2Scene` and `BaseNetworkScene`).**
 
 ## 4. Core Gameplay Mechanics
 
@@ -111,11 +141,15 @@ Once the core engine architecture is stable, implement the fundamental gameplay 
 
 ### 4.2. Shared Physics Simulation Details (To Implement within `shared`)
 
+**(Status: This entire section is PENDING the creation of the `shared` package and Matter.js integration.)**
+
 - **Gravity:** Implement variable gravity based on proximity to celestial bodies.
 - **Atmospheric Effects:** Simulate density, drag, and potentially re-entry heating effects.
 - **Collision:** Configure precise collision detection (e.g., using `matter-collision-events` or similar) and realistic responses. Implement landing detection logic based on impact velocity/angle.
 
 ### 4.3. Basic Multiplayer Implementation (Colyseus)
+
+**(Status: Foundational elements are in place based on example scenes/rooms. Needs to be evolved to use the shared Matter.js physics and robust manager architecture.)**
 
 - Establish basic client connection to the server room.
 - Implement sending client inputs from `NetworkManager` to the `GameRoom`.

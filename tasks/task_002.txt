@@ -1,0 +1,19 @@
+# Task ID: 2
+# Title: Implement shared Matter.js physics core
+# Status: pending
+# Dependencies: 1
+# Priority: high
+# Description: Create the core deterministic physics simulation using Matter.js in the shared package that will be used by both client and server.
+# Details:
+1. Install Matter.js and its TypeScript types in the shared package
+2. Create a PhysicsEngine class that encapsulates Matter.js setup and configuration
+3. Implement fixed timestep physics update loop
+4. Create physics body factory methods for rockets and other game objects
+5. Define collision categories and groups
+6. Implement gravity simulation that varies based on proximity to celestial bodies
+7. Add atmospheric effects (density, drag)
+8. Create utility functions for applying forces and impulses
+9. Ensure deterministic behavior by avoiding random values or time-dependent calculations
+
+# Test Strategy:
+Create unit tests for the physics engine with predictable inputs and expected outputs. Verify deterministic behavior by running the same simulation multiple times with identical inputs.

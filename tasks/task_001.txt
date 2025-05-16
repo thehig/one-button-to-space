@@ -1,0 +1,17 @@
+# Task ID: 1
+# Title: Create and configure shared package
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Create the crucial shared package for common code between client and server, particularly for Matter.js physics simulation.
+# Details:
+1. Create a new package directory 'shared' in the monorepo root
+2. Initialize with package.json (name: @obts/shared)
+3. Configure TypeScript with strict tsconfig.json
+4. Set up proper exports in package.json
+5. Update pnpm workspace configuration to include the new package
+6. Verify the package can be imported from both client and server
+7. Add basic folder structure (physics/, types/, constants/, utils/)
+
+# Test Strategy:
+Verify package can be imported from both client and server packages with a simple test export/import. Run TypeScript compilation to ensure configuration is correct.
