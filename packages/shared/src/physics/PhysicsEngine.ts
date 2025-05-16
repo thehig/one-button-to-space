@@ -21,6 +21,8 @@ export interface ICelestialBody {
 // For type-safe access to custom properties on Matter.Body.plugin
 export interface ICustomBodyPlugin {
   dragCoefficientArea?: number;
+  effectiveNoseRadius?: number; // For heating calculations (meters)
+  currentHeatFlux?: number; // Calculated heat flux (W/m^2)
   // other custom flags or data can be added here
 }
 
@@ -85,12 +87,23 @@ export class PhysicsEngine {
           );
           totalForce = Matter.Vector.add(totalForce, force);
         }
-        Matter.Body.applyForce(body, body.position, totalForce);
+        // Scale totalForce by (1 / fixedTimeStepMs) before applying
+        const scaledTotalForce = Matter.Vector.mult(
+          totalForce,
+          1 / this.fixedTimeStepMs
+        );
+
+        Matter.Body.applyForce(body, body.position, scaledTotalForce);
       } else {
-        // Fallback to simple downward gravity if no celestial bodies are defined
-        // This mimics the old global gravity but applied per body
-        const downwardGravityForce = { x: 0, y: body.mass * 0.001 * 9.81 }; // 0.001 is an arbitrary world scale factor
-        Matter.Body.applyForce(body, body.position, downwardGravityForce);
+        // Fallback to simple downward gravity
+        const downwardGravityForceMagnitude = body.mass * 0.001 * 9.81; // True force magnitude
+        const downwardGravityForce = { x: 0, y: downwardGravityForceMagnitude };
+        // Scale by (1 / fixedTimeStepMs)
+        const scaledDownwardGravityForce = Matter.Vector.mult(
+          downwardGravityForce,
+          1 / this.fixedTimeStepMs
+        );
+        Matter.Body.applyForce(body, body.position, scaledDownwardGravityForce);
       }
     }
   }
@@ -141,8 +154,67 @@ export class PhysicsEngine {
         Matter.Vector.normalise(body.velocity),
         -dragMagnitude
       );
-      Matter.Body.applyForce(body, body.position, dragForce);
+
+      // Scale dragForce by (1 / fixedTimeStepMs) before applying
+      const scaledDragForce = Matter.Vector.mult(
+        dragForce,
+        1 / this.fixedTimeStepMs
+      );
+      Matter.Body.applyForce(body, body.position, scaledDragForce);
     }
+  }
+
+  private applyAtmosphericHeatingEffects(
+    body: Matter.Body,
+    primaryAtmosphericBody: ICelestialBody
+  ): void {
+    if (
+      body.isStatic ||
+      body.isSleeping ||
+      !body.velocity ||
+      (body.velocity.x === 0 && body.velocity.y === 0)
+    ) {
+      (body.plugin as ICustomBodyPlugin).currentHeatFlux = 0;
+      return;
+    }
+
+    const bodyPlugin = body.plugin as ICustomBodyPlugin;
+    const noseRadius = bodyPlugin.effectiveNoseRadius;
+
+    if (typeof noseRadius !== "number" || noseRadius <= 0) {
+      (body.plugin as ICustomBodyPlugin).currentHeatFlux = 0; // No nose radius, no heating calculation
+      return;
+    }
+
+    const bodyRadius = primaryAtmosphericBody.radius || 0;
+    const altitude =
+      Matter.Vector.magnitude(
+        Matter.Vector.sub(body.position, primaryAtmosphericBody.position)
+      ) - bodyRadius;
+
+    if (
+      altitude < 0 ||
+      altitude > (primaryAtmosphericBody.atmosphereLimitAltitude || Infinity)
+    ) {
+      (body.plugin as ICustomBodyPlugin).currentHeatFlux = 0;
+      return;
+    }
+
+    const surfaceDensity = primaryAtmosphericBody.surfaceAirDensity || 1.225;
+    const scaleHeight = primaryAtmosphericBody.scaleHeight || 8500;
+    const rho = surfaceDensity * Math.exp(-Math.max(0, altitude) / scaleHeight);
+
+    const V = Matter.Vector.magnitude(body.velocity);
+    if (V === 0) {
+      (body.plugin as ICustomBodyPlugin).currentHeatFlux = 0;
+      return;
+    }
+
+    const Rn = noseRadius;
+    const C_heating = 1.83e-4; // Sutton-Graves constant for Earth-like air (approx.)
+
+    const heatFlux = C_heating * Math.sqrt(rho / Rn) * Math.pow(V, 3);
+    (body.plugin as ICustomBodyPlugin).currentHeatFlux = heatFlux;
   }
 
   public step(deltaTime: number): void {
@@ -156,15 +228,32 @@ export class PhysicsEngine {
    * @param deltaMs The real time elapsed since the last call to this method.
    */
   public fixedStep(deltaMs: number): void {
+    // Original fixedStep logic:
     this.accumulatedTime += deltaMs;
     while (this.accumulatedTime >= this.fixedTimeStepMs) {
       // Apply custom forces like gravity before stepping the engine
       this.applyGravitationalForces();
       this.applyAtmosphericDragForces(); // Apply drag
 
+      // Apply atmospheric heating effects
+      const allBodies = Matter.Composite.allBodies(this.world);
+      for (const body of allBodies) {
+        const primaryAtmosphericBody = this.celestialBodies.find(
+          (cb) => cb.hasAtmosphere
+        );
+        if (primaryAtmosphericBody) {
+          this.applyAtmosphericHeatingEffects(body, primaryAtmosphericBody);
+        } else {
+          if (body.plugin) {
+            (body.plugin as ICustomBodyPlugin).currentHeatFlux = 0;
+          }
+        }
+      }
+
       Matter.Engine.update(this.engine, this.fixedTimeStepMs);
       this.accumulatedTime -= this.fixedTimeStepMs;
     }
+    // End Original fixedStep logic
   }
 
   public getWorld(): Matter.World {
@@ -259,9 +348,11 @@ export class PhysicsEngine {
   public applyForceToBody(
     body: Matter.Body,
     position: Matter.Vector,
-    force: Matter.Vector
+    trueForce: Matter.Vector // Assuming this is the desired physical force
   ): void {
-    Matter.Body.applyForce(body, position, force);
+    // Scale trueForce by (1 / fixedTimeStepMs) based on Matter.js Engine.update behavior
+    const scaledForce = Matter.Vector.mult(trueForce, 1 / this.fixedTimeStepMs);
+    Matter.Body.applyForce(body, position, scaledForce);
   }
 
   // Matter.js does not have a direct 'applyImpulse'.
