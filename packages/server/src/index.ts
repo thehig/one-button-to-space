@@ -7,9 +7,16 @@
  * Colyseus Server as documented here: 👉 https://docs.colyseus.io/server/api/#constructor-options
  */
 import { listen } from "@colyseus/tools";
+import {
+  SHARED_TEST_CONSTANT,
+  testSharedFunction,
+} from "../../shared/src/index";
 
 // Import arena config
 import appConfig from "./app.config";
+
+console.log("[SERVER] Testing shared package import:", SHARED_TEST_CONSTANT);
+console.log("[SERVER] Testing shared function:", testSharedFunction());
 
 // Create and listen on 2567 (or PORT environment variable.)
 listen(appConfig);

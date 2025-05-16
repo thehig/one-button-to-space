@@ -1,0 +1,22 @@
+{
+  "name": "@obts/shared",
+  "version": "0.0.0",
+  "description": "Shared code for One Button to Space (OBTS)",
+  "source": "src/index.ts",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc -w",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "catalog:"
+  },
+  "files": [
+    "lib/**/*"
+  ]
+}
