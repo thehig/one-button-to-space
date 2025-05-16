@@ -94,23 +94,12 @@ export class PhysicsEngine {
           );
           totalForce = Matter.Vector.add(totalForce, force);
         }
-        // Scale totalForce by (1 / fixedTimeStepMs) before applying
-        const scaledTotalForce = Matter.Vector.mult(
-          totalForce,
-          1 / this.fixedTimeStepMs
-        );
-
-        Matter.Body.applyForce(body, body.position, scaledTotalForce);
+        this.applyForceToBody(body, body.position, totalForce); // Use wrapper
       } else {
         // Fallback to simple downward gravity
         const downwardGravityForceMagnitude = body.mass * 0.001 * 9.81; // True force magnitude
         const downwardGravityForce = { x: 0, y: downwardGravityForceMagnitude };
-        // Scale by (1 / fixedTimeStepMs)
-        const scaledDownwardGravityForce = Matter.Vector.mult(
-          downwardGravityForce,
-          1 / this.fixedTimeStepMs
-        );
-        Matter.Body.applyForce(body, body.position, scaledDownwardGravityForce);
+        this.applyForceToBody(body, body.position, downwardGravityForce); // Use wrapper
       }
     }
   }
@@ -162,12 +151,7 @@ export class PhysicsEngine {
         -dragMagnitude
       );
 
-      // Scale dragForce by (1 / fixedTimeStepMs) before applying
-      const scaledDragForce = Matter.Vector.mult(
-        dragForce,
-        1 / this.fixedTimeStepMs
-      );
-      Matter.Body.applyForce(body, body.position, scaledDragForce);
+      this.applyForceToBody(body, body.position, dragForce); // Use wrapper
     }
   }
 
@@ -358,7 +342,19 @@ export class PhysicsEngine {
     trueForce: Matter.Vector // Assuming this is the desired physical force
   ): void {
     // Scale trueForce by (1 / fixedTimeStepMs) based on Matter.js Engine.update behavior
-    const scaledForce = Matter.Vector.mult(trueForce, 1 / this.fixedTimeStepMs);
+    let scaledForce = Matter.Vector.mult(trueForce, 1 / this.fixedTimeStepMs);
+
+    // TEMP: Cap scaledForce magnitude to avoid Matter.js instability with large forces
+    const maxScaledForceMagnitude = 50;
+    const currentScaledForceMagnitude = Matter.Vector.magnitude(scaledForce);
+    if (currentScaledForceMagnitude > maxScaledForceMagnitude) {
+      // console.warn(`PhysicsEngine: Capping scaledForce magnitude from ${currentScaledForceMagnitude.toFixed(2)} to ${maxScaledForceMagnitude} for body ${body.label || body.id}`);
+      scaledForce = Matter.Vector.mult(
+        Matter.Vector.normalise(scaledForce),
+        maxScaledForceMagnitude
+      );
+    }
+
     Matter.Body.applyForce(body, position, scaledForce);
   }
 

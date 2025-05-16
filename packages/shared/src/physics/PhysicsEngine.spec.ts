@@ -258,6 +258,52 @@ describe("PhysicsEngine", () => {
         expectedHeatFlux * 0.1
       ); // Allow 10% tolerance for now
     });
+
+    it("should simulate atmospheric drag in a VERY dense atmosphere", () => {
+      const engine = new PhysicsEngine();
+      const veryDenseAtmospherePlanet: ICelestialBody = {
+        id: "dense-planet-drag-test",
+        mass: 0, // Mass not relevant for this drag-only test
+        position: { x: 0, y: 0 },
+        gravityRadius: 6371000 * 10,
+        radius: 6371000,
+        hasAtmosphere: true,
+        atmosphereLimitAltitude: 100000,
+        surfaceAirDensity: 122.5, // 100x standard Earth density
+        scaleHeight: 8500,
+      };
+      engine.init([veryDenseAtmospherePlanet]);
+
+      const bodyInitialAltitude = 50000;
+      const bodyInitialSpeed = 1000;
+      const dragArea = 0.5;
+
+      const testBody = engine.createBox(
+        veryDenseAtmospherePlanet.radius! + bodyInitialAltitude,
+        0,
+        1,
+        1,
+        {
+          label: "testDenseDragBody",
+          density: 8,
+          plugin: {
+            dragCoefficientArea: dragArea,
+            effectiveNoseRadius: 0.1, // Required by ICustomBodyPlugin
+          } as ICustomBodyPlugin,
+        }
+      );
+      engine.setBodyVelocity(testBody, { x: -bodyInitialSpeed, y: 0 });
+
+      const initialSpeed = Vector.magnitude(testBody.velocity);
+      engine.fixedStep(1000 / 60); // Simulate one step
+      const finalSpeed = Vector.magnitude(testBody.velocity);
+
+      // console.log(`Dense Drag Test - InitialSpeed: ${initialSpeed}, FinalSpeed: ${finalSpeed}, FinalVelX: ${testBody.velocity.x}`);
+
+      expect(finalSpeed).to.be.lessThan(initialSpeed);
+      expect(testBody.velocity.x).to.be.greaterThan(-initialSpeed);
+      expect(finalSpeed).to.be.lessThan(initialSpeed * 0.9); // Expect speed to reduce by at least 10%
+    });
   });
 
   describe("celestial mechanics", () => {
@@ -309,6 +355,78 @@ describe("PhysicsEngine", () => {
       // console.log("Final Satellite Position:", satellite.position);
       // console.log("Initial Distance:", initialDistance);
       // console.log("Final Distance:", finalDistance);
+    });
+
+    it("should simulate gravitational pull from a VERY large celestial body", () => {
+      const engine = new PhysicsEngine();
+      const superEarth: ICelestialBody = {
+        id: "super-earth",
+        mass: 5.972e11, // Significantly larger mass
+        position: { x: 0, y: 0 },
+        gravityRadius: 50000, // Ensure gravity is active
+        radius: 12000, // Larger physical radius for context
+      };
+      engine.init([superEarth]);
+
+      const satelliteInitialPosition = { x: 20000, y: 0 }; // Start further away
+      const satellite = engine.createCircle(
+        satelliteInitialPosition.x,
+        satelliteInitialPosition.y,
+        5, // radius
+        { label: "satellite-far", density: 0.01 }
+      );
+
+      const initialDistance = Vector.magnitude(
+        Vector.sub(satellite.position, superEarth.position)
+      );
+
+      for (let i = 0; i < 5; i++) {
+        // Few steps to see initial pull
+        engine.fixedStep(1000 / 60);
+      }
+
+      const finalDistance = Vector.magnitude(
+        Vector.sub(satellite.position, superEarth.position)
+      );
+
+      expect(finalDistance).to.be.lessThan(initialDistance);
+      expect(finalDistance).to.be.greaterThan(0);
+    });
+
+    it("should simulate gravitational pull from a SMALL celestial body", () => {
+      const engine = new PhysicsEngine();
+      const smallPlanet: ICelestialBody = {
+        id: "small-planet",
+        mass: 5.972e5, // Much smaller mass
+        position: { x: 0, y: 0 },
+        gravityRadius: 1000, // Smaller gravity influence
+        radius: 100, // Smaller physical radius
+      };
+      engine.init([smallPlanet]);
+
+      const satelliteInitialPosition = { x: 200, y: 0 }; // Start closer
+      const satellite = engine.createCircle(
+        satelliteInitialPosition.x,
+        satelliteInitialPosition.y,
+        2, // smaller satellite radius
+        { label: "satellite-close", density: 0.01 }
+      );
+
+      const initialDistance = Vector.magnitude(
+        Vector.sub(satellite.position, smallPlanet.position)
+      );
+
+      for (let i = 0; i < 5; i++) {
+        // Few steps to see initial pull
+        engine.fixedStep(1000 / 60);
+      }
+
+      const finalDistance = Vector.magnitude(
+        Vector.sub(satellite.position, smallPlanet.position)
+      );
+
+      expect(finalDistance).to.be.lessThan(initialDistance);
+      expect(finalDistance).to.be.greaterThan(0);
     });
 
     it("should simulate an object orbiting a large celestial body", () => {
@@ -406,6 +524,85 @@ describe("PhysicsEngine", () => {
 
       // Optional: Could log trajectory for visual inspection if needed
       // fs.writeFileSync(path.join(__dirname, "orbit_trajectory.json"), JSON.stringify(positions, null, 2));
+    });
+
+    it("should simulate an object orbiting a SMALL celestial body", () => {
+      const engine = new PhysicsEngine();
+      const G = 0.001; // PhysicsEngine's G
+
+      const smallPlanet: ICelestialBody = {
+        id: "small-planet-orbit-test",
+        mass: 5.972e5,
+        position: { x: 0, y: 0 },
+        gravityRadius: 5000, // Increased from 1000
+        radius: 100,
+      };
+      engine.init([smallPlanet]);
+
+      const orbitalRadius = 400; // Increased from 200
+      const satelliteInitialPosition = { x: orbitalRadius, y: 0 };
+
+      const requiredSpeed = Math.sqrt((G * smallPlanet.mass) / orbitalRadius);
+
+      const satellite = engine.createCircle(
+        satelliteInitialPosition.x,
+        satelliteInitialPosition.y,
+        2, // satellite radius
+        {
+          label: "smallOrbitingSatellite",
+          density: 0.01,
+        }
+      );
+
+      engine.setBodyVelocity(satellite, { x: 0, y: requiredSpeed });
+
+      const numSteps = 30; // Reduced from 75
+      const positions: Matter.Vector[] = [];
+      positions.push({ ...satellite.position });
+
+      for (let i = 0; i < numSteps; i++) {
+        engine.fixedStep(1000 / 60);
+        positions.push({ ...satellite.position });
+      }
+
+      const initialPosition = positions[0];
+      const finalPosition = positions[numSteps];
+
+      const initialDistance = Vector.magnitude(
+        Vector.sub(initialPosition, smallPlanet.position)
+      );
+      const finalDistance = Vector.magnitude(
+        Vector.sub(finalPosition, smallPlanet.position)
+      );
+
+      expect(finalDistance).to.be.closeTo(
+        initialDistance,
+        orbitalRadius * 0.25 // 25% tolerance
+      );
+      expect(finalDistance).to.be.greaterThan(
+        smallPlanet.radius! * 0.5,
+        "Satellite crashed or got too close"
+      );
+
+      const angleInitial = Math.atan2(
+        initialPosition.y - smallPlanet.position.y,
+        initialPosition.x - smallPlanet.position.x
+      );
+      const angleFinal = Math.atan2(
+        finalPosition.y - smallPlanet.position.y,
+        finalPosition.x - smallPlanet.position.x
+      );
+      let angleDiff = angleFinal - angleInitial;
+      while (angleDiff <= -Math.PI) angleDiff += 2 * Math.PI;
+      while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+
+      const omega = requiredSpeed / orbitalRadius;
+      const theoreticalAngularDisplacement = omega * numSteps;
+
+      expect(angleDiff).to.be.closeTo(
+        theoreticalAngularDisplacement,
+        theoreticalAngularDisplacement * 0.5 // 50% tolerance
+      );
     });
   });
 });
