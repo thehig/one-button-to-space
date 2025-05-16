@@ -28,9 +28,27 @@ export default config({
    * Import the routes from `./routes/routes`
    */
   initializeExpress: (app) => {
-    Object.entries(routes(gameServerRef)).forEach(([key, value]) => {
-      app.use(key, value);
-    });
+    const setupRoutes = () => {
+      if (!gameServerRef) {
+        // Try again after a delay if gameServerRef isn't set yet
+        setTimeout(setupRoutes, 100);
+        return;
+      }
+
+      try {
+        const appRoutes = routes(gameServerRef);
+        Object.entries(appRoutes).forEach(([key, value]) => {
+          app.use(key, value);
+        });
+      } catch (error) {
+        console.error("Error setting up routes:", error);
+        // Try again after a longer delay if there was an error
+        setTimeout(setupRoutes, 500);
+      }
+    };
+
+    // Start the setup process
+    setupRoutes();
   },
 
   beforeListen: () => {

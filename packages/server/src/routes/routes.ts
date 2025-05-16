@@ -4,10 +4,12 @@ import { playground } from "@colyseus/playground";
 
 import { Request, Response } from "express";
 
+// This variable will hold the Server instance once it's received
 let gameServerRef: Server;
 let latencySimulationMs: number = 0;
 
 const routes = (_gameServerRef: Server) => {
+  // Store the provided reference instead of throwing an error
   gameServerRef = _gameServerRef;
 
   return {
