@@ -8,12 +8,19 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha --require ts-node/register src/**/*.spec.ts",
+    "test:update-snapshots": "cross-env UPDATE_SNAPSHOTS=true mocha --require ts-node/register src/**/*.spec.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^22.15.18",
+    "chai": "^4.3.10",
+    "mocha": "^10.2.0",
+    "ts-node": "^10.9.2",
     "typescript": "catalog:"
   },
   "files": [
@@ -21,6 +28,7 @@
   ],
   "dependencies": {
     "@types/matter-js": "^0.19.8",
+    "cross-env": "^7.0.3",
     "matter-js": "^0.20.0"
   }
 }
