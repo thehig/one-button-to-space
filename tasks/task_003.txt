@@ -1,6 +1,6 @@
 # Task ID: 3
 # Title: Define shared constants and types
-# Status: pending
+# Status: in-progress
 # Dependencies: 1
 # Priority: high
 # Description: Create shared constants, event names, and TypeScript interfaces/types to be used across client and server.

@@ -1,6 +1,6 @@
 # Task ID: 1
 # Title: Create and configure shared package
-# Status: in-progress
+# Status: done
 # Dependencies: None
 # Priority: high
 # Description: Create the crucial shared package for common code between client and server, particularly for Matter.js physics simulation.

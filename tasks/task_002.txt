@@ -1,6 +1,6 @@
 # Task ID: 2
 # Title: Implement shared Matter.js physics core
-# Status: pending
+# Status: done
 # Dependencies: 1
 # Priority: high
 # Description: Create the core deterministic physics simulation using Matter.js in the shared package that will be used by both client and server.

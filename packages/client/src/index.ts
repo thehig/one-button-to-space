@@ -33,9 +33,6 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 
-console.log("[CLIENT] Testing shared package import:", SHARED_TEST_CONSTANT);
-console.log("[CLIENT] Testing shared function:", testSharedFunction());
-
 /**
  * Create FPS selector
  */

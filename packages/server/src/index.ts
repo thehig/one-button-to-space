@@ -15,8 +15,5 @@ import {
 // Import arena config
 import appConfig from "./app.config";
 
-console.log("[SERVER] Testing shared package import:", SHARED_TEST_CONSTANT);
-console.log("[SERVER] Testing shared function:", testSharedFunction());
-
 // Create and listen on 2567 (or PORT environment variable.)
 listen(appConfig);

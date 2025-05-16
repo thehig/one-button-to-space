@@ -4,7 +4,7 @@
       "id": 1,
       "title": "Create and configure shared package",
       "description": "Create the crucial shared package for common code between client and server, particularly for Matter.js physics simulation.",
-      "status": "in-progress",
+      "status": "done",
       "dependencies": [],
       "priority": "high",
       "details": "1. Create a new package directory 'shared' in the monorepo root\n2. Initialize with package.json (name: @obts/shared)\n3. Configure TypeScript with strict tsconfig.json\n4. Set up proper exports in package.json\n5. Update pnpm workspace configuration to include the new package\n6. Verify the package can be imported from both client and server\n7. Add basic folder structure (physics/, types/, constants/, utils/)",
@@ -14,7 +14,7 @@
       "id": 2,
       "title": "Implement shared Matter.js physics core",
       "description": "Create the core deterministic physics simulation using Matter.js in the shared package that will be used by both client and server.",
-      "status": "pending",
+      "status": "done",
       "dependencies": [
         1
       ],
@@ -26,7 +26,7 @@
       "id": 3,
       "title": "Define shared constants and types",
       "description": "Create shared constants, event names, and TypeScript interfaces/types to be used across client and server.",
-      "status": "pending",
+      "status": "in-progress",
       "dependencies": [
         1
       ],
