@@ -1,25 +1,26 @@
 {
   "name": "one-button-to-space",
   "version": "1.0.0",
-  "description": "",
+  "description": "A physics-based rocket game with minimal controls.",
   "main": "index.js",
   "scripts": {
     "start": "concurrently \"pnpm start:client\" \"pnpm start:server\"",
-    "start:client": "pnpm --filter client start",
-    "start:server": "pnpm --filter server start",
+    "start:client": "pnpm --filter @one-button-to-space/client start",
+    "start:server": "pnpm --filter @one-button-to-space/server start",
     "build": "pnpm run build:client && pnpm run build:server",
-    "build:client": "pnpm --filter client build",
-    "build:server": "pnpm --filter server build",
+    "build:client": "pnpm --filter @one-button-to-space/client build",
+    "build:server": "pnpm --filter @one-button-to-space/server build",
     "test": "pnpm run test:client && pnpm run test:server",
-    "test:client": "pnpm --filter client test",
-    "test:server": "pnpm --filter server test",
+    "test:client": "pnpm --filter @one-button-to-space/client test",
+    "test:server": "pnpm --filter @one-button-to-space/server test",
     "lint": "pnpm run lint:client && pnpm run lint:server",
-    "lint:client": "pnpm --filter client lint",
-    "lint:server": "pnpm --filter server lint"
+    "lint:client": "pnpm --filter @one-button-to-space/client lint",
+    "lint:server": "pnpm --filter @one-button-to-space/server lint"
   },
-  "dependencies": {},
   "devDependencies": {
+    "buffer": "^6.0.3",
     "concurrently": "^8.2.2",
+    "process": "^0.11.10",
     "typescript": "catalog:"
   },
   "keywords": [],

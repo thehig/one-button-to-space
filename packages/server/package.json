@@ -1,8 +1,7 @@
 {
-  "private": true,
-  "name": "my-app",
-  "version": "1.0.0",
-  "description": "npm init template for bootstrapping an empty Colyseus project",
+  "name": "@one-button-to-space/server",
+  "version": "0.0.0",
+  "description": "Server for One Button to Space",
   "main": "lib/index.js",
   "scripts": {
     "start": "tsx watch src/index.ts",
@@ -11,12 +10,9 @@
     "clean": "node node_modules/rimraf/bin lib",
     "test": "mocha -r tsx test/**_test.ts --exit --timeout 15000"
   },
-  "author": "",
+  "author": "David Higgins <thehig@gmail.com>",
   "license": "UNLICENSED",
-  "bugs": {
-    "url": "https://github.com/colyseus/create-colyseus/issues"
-  },
-  "homepage": "https://github.com/colyseus/create-colyseus#readme",
+  "bugs": {},
   "devDependencies": {
     "@colyseus/loadtest": "catalog:",
     "@colyseus/testing": "catalog:",
