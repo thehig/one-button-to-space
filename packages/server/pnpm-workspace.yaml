@@ -1,0 +1,15 @@
+packages:
+  - "packages/*"
+
+catalog:
+  "colyseus.js": "^0.16.0"
+  "phaser": "^3.55.2"
+  "typescript": "^4.6.3"
+  "@colyseus/core": "^0.16.0"
+  "@colyseus/monitor": "^0.16.0"
+  "@colyseus/playground": "^0.16.0"
+  "@colyseus/tools": "^0.16.0"
+  "colyseus": "^0.16.0"
+  "@colyseus/loadtest": "^0.16.0"
+  "@colyseus/testing": "^0.16.0"
+  "tsx": "^3.12.7"
