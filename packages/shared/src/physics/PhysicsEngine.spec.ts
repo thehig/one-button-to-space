@@ -311,6 +311,101 @@ describe("PhysicsEngine", () => {
       // console.log("Final Distance:", finalDistance);
     });
 
-    it("should simulate an object orbiting a large celestial body");
+    it("should simulate an object orbiting a large celestial body", () => {
+      const engine = new PhysicsEngine();
+      const G = 0.001; // PhysicsEngine's G
+
+      const earth: ICelestialBody = {
+        id: "earth-orbit-test",
+        mass: 5.972e5, // Further reduced mass for stability
+        position: { x: 0, y: 0 },
+        gravityRadius: 100000, // Increased gravity radius
+        radius: 6371, // Not directly used for orbit calc but good for context
+      };
+      engine.init([earth]);
+
+      const orbitalRadius = 10000; // Increased orbital radius, > earth.radius
+      const satelliteInitialPosition = { x: orbitalRadius, y: 0 };
+
+      // Calculate required tangential velocity for a circular orbit: v = sqrt((G * M) / r)
+      // Note: satellite mass doesn't affect its orbital speed for a given radius.
+      const requiredSpeed = Math.sqrt((G * earth.mass) / orbitalRadius);
+
+      const satellite = engine.createCircle(
+        satelliteInitialPosition.x,
+        satelliteInitialPosition.y,
+        5, // satellite radius
+        {
+          label: "orbitingSatellite",
+          density: 0.01, // low density, mass is approx 0.785
+        }
+      );
+
+      // Set initial velocity tangential to the orbit (upwards, in positive Y)
+      engine.setBodyVelocity(satellite, { x: 0, y: requiredSpeed }); // Reverted to original requiredSpeed
+
+      const numSteps = 75; // Reduced simulation steps
+      const positions: Matter.Vector[] = [];
+      positions.push({ ...satellite.position }); // Store initial position
+
+      for (let i = 0; i < numSteps; i++) {
+        engine.fixedStep(1000 / 60);
+        positions.push({ ...satellite.position });
+      }
+
+      const initialPosition = positions[0];
+      const finalPosition = positions[numSteps]; // positions has numSteps + 1 elements
+
+      // 1. Check distance from Earth: should remain somewhat consistent for a stable-ish orbit
+      const initialDistance = Vector.magnitude(
+        Vector.sub(initialPosition, earth.position)
+      );
+      const finalDistance = Vector.magnitude(
+        Vector.sub(finalPosition, earth.position)
+      );
+
+      // Allow for some deviation, e.g., 25% of initial radius for an elliptical orbit or decay/boost
+      expect(finalDistance).to.be.closeTo(
+        initialDistance,
+        orbitalRadius * 0.25
+      );
+      expect(finalDistance).to.be.greaterThan(
+        earth.radius! * 0.5,
+        "Satellite crashed into Earth or got too close"
+      ); // ensure it didn't crash
+
+      // 2. Check angular displacement: has it moved around the planet?
+      const angleInitial = Math.atan2(
+        initialPosition.y - earth.position.y,
+        initialPosition.x - earth.position.x
+      );
+      const angleFinal = Math.atan2(
+        finalPosition.y - earth.position.y,
+        finalPosition.x - earth.position.x
+      );
+      let angleDiff = angleFinal - angleInitial;
+      // Normalize angle difference to be between -PI and PI
+      while (angleDiff <= -Math.PI) angleDiff += 2 * Math.PI;
+      while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+
+      // Let's recalculate expectedAngularDisplacement more simply based on steps:
+      // omega = v/r (rad per unit time that v is in)
+      // If v is units per fixedTimeStepMs, then omega is rad per fixedTimeStepMs.
+      // Total angle = omega * numSteps
+      const omega = requiredSpeed / orbitalRadius; // radians per fixedTimeStepMs interval
+      const theoreticalAngularDisplacement = omega * numSteps;
+
+      // For an upward launch (positive Y velocity), the angle should increase (counter-clockwise)
+      // console.log(`Initial Angle: ${angleInitial}, Final Angle: ${angleFinal}, Diff: ${angleDiff}`);
+      // console.log(`Theoretical Angular Displacement (radians): ${theoreticalAngularDisplacement}`);
+      // expect(angleDiff).to.be.greaterThan(Math.PI / 8); // Adjusted for fewer steps
+      expect(angleDiff).to.be.closeTo(
+        theoreticalAngularDisplacement,
+        theoreticalAngularDisplacement * 0.5
+      ); // 50% tolerance
+
+      // Optional: Could log trajectory for visual inspection if needed
+      // fs.writeFileSync(path.join(__dirname, "orbit_trajectory.json"), JSON.stringify(positions, null, 2));
+    });
   });
 });

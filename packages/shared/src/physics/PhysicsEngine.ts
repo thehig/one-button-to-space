@@ -72,7 +72,14 @@ export class PhysicsEngine {
         let totalForce = { x: 0, y: 0 };
         for (const celestial of this.celestialBodies) {
           const dVector = Matter.Vector.sub(celestial.position, body.position);
-          const distanceSq = Matter.Vector.magnitudeSquared(dVector);
+          let distanceSq = Matter.Vector.magnitudeSquared(dVector);
+
+          // Prevent extreme forces at very close distances
+          const r_min_sq = 1.0; // Minimum squared distance for force calculation
+          if (distanceSq < r_min_sq) {
+            distanceSq = r_min_sq;
+          }
+
           if (
             distanceSq === 0 ||
             distanceSq > celestial.gravityRadius * celestial.gravityRadius
