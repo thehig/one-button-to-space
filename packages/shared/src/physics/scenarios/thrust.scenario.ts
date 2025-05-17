@@ -1,61 +1,47 @@
-import { IScenario, ScenarioAction } from "./types";
+import {
+  IScenario,
+  ICustomBodyPlugin,
+  ScenarioAction,
+  ScenarioBodyInitialState,
+  ScenarioBodyType,
+} from "./types";
+// ICelestialBody not needed for thrust in vacuum
 
-const baseThrustActions: ScenarioAction[] = [
+const baseInitialRocket: ScenarioBodyInitialState = {
+  id: "thrustTestRocket",
+  type: "rocket" as ScenarioBodyType, // Assuming 'rocket' type is defined or handled
+  label: "testRocket_thrust",
+  initialPosition: { x: 0, y: 100 },
+  initialVelocity: { x: 0, y: 0 },
+  // width, height, radius might not be needed if 'rocket' type has defaults
+  options: {
+    density: 1,
+    plugin: {
+      // thrust, fuelMass, etc. could be here if ICustomBodyPlugin supports them
+    } as ICustomBodyPlugin,
+  },
+};
+
+const baseThrustAction: ScenarioAction[] = [
   {
-    step: 0, // Apply force at the beginning of the first step
-    targetBodyId: "thrustRocket",
-    actionType: "applyForce",
-    force: { x: 0, y: -100 }, // Upward thrust
-    applicationPoint: { x: 0, y: 0 },
+    step: 0, // Apply at the beginning of each relevant step for continuous thrust, or just once
+    targetBodyId: "thrustTestRocket",
+    actionType: "applyForce", // Or a specific "applyThrust" if available
+    force: { x: 0, y: -10 }, // Example: Upward thrust
+    // applicationPoint might be offset if thrust is not from center of mass
   },
 ];
 
-const baseThrustScenario: Omit<
-  IScenario,
-  "id" | "description" | "simulationSteps"
-> = {
-  name: "Base Thrust Scenario",
-  engineSettings: {},
+export const thrustScenario: IScenario = {
+  id: "thrust-test",
+  name: "Thrust Test",
+  description: "Tests rocket thrust at various simulation steps.",
+  engineSettings: {
+    customG: 0, // No gravity to isolate thrust
+  },
   celestialBodies: [],
-  initialBodies: [
-    {
-      id: "thrustRocket",
-      type: "rocket",
-      label: "testRocketThrust",
-      initialPosition: { x: 0, y: 0 },
-    },
-  ],
-  actions: baseThrustActions,
-};
-
-export const thrustScenario1Step: IScenario = {
-  ...baseThrustScenario,
-  id: "thrust-test-1-step",
-  name: "Thrust Test (1 Step)",
-  description: "Tests applying thrust for 1 simulation step.",
-  simulationSteps: 1,
-};
-
-export const thrustScenario10Steps: IScenario = {
-  ...baseThrustScenario,
-  id: "thrust-test-10-steps",
-  name: "Thrust Test (10 Steps)",
-  description: "Tests applying thrust for 10 simulation steps.",
-  simulationSteps: 10,
-};
-
-export const thrustScenario50Steps: IScenario = {
-  ...baseThrustScenario,
-  id: "thrust-test-50-steps",
-  name: "Thrust Test (50 Steps)",
-  description: "Tests applying thrust for 50 simulation steps.",
-  simulationSteps: 50,
-};
-
-export const thrustScenario100Steps: IScenario = {
-  ...baseThrustScenario,
-  id: "thrust-test-100-steps",
-  name: "Thrust Test (100 Steps)",
-  description: "Tests applying thrust for 100 simulation steps.",
+  initialBodies: [baseInitialRocket],
+  actions: baseThrustAction, // Apply the thrust action
   simulationSteps: 100,
+  snapshotSteps: [1, 10, 50, 100],
 };

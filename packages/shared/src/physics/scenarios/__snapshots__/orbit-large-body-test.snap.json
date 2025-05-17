@@ -1,45 +1,126 @@
 {
-  "10": {
-    "simulationTick": 10,
-    "fixedTimeStepMs": 16.666666666666668,
+  "1": {
+    "simulationTick": 1,
+    "fixedTimeStepMs": 1000,
     "accumulatedTime": 0,
-    "G": 0.001,
+    "G": 6.674e-11,
     "internalLoggingEnabled": false,
     "ownsEngine": true,
     "celestialBodies": [
       {
-        "id": "small-planet-gravity-pull",
-        "mass": 597200,
+        "id": "earth-like-planet-orbit-test",
+        "mass": 5972000,
         "position": {
           "x": 0,
           "y": 0
         },
-        "gravityRadius": 1000,
-        "radius": 100
+        "gravityRadius": 127420000,
+        "radius": 6371000,
+        "hasAtmosphere": false
       }
     ],
     "world": {
       "bodies": [
         {
           "id": 1,
-          "label": "satellite-close",
+          "label": "testSatellite_orbitLarge",
           "type": "body",
           "parts": [],
           "position": {
-            "x": 199.98671634711548,
-            "y": 0
+            "x": 7071000,
+            "y": 180000
           },
           "angle": 0,
           "velocity": {
-            "x": -0.00237939086963479,
-            "y": 0
+            "x": 0,
+            "y": 3000
           },
           "angularVelocity": 0,
-          "mass": 0.11756208000000001,
-          "inverseMass": 8.50614415804824,
-          "inertia": 0.88066136973824,
-          "inverseInertia": 1.1355102362412366,
-          "density": 0.01,
+          "mass": 293.89992,
+          "inverseMass": 0.0034025187893892586,
+          "inertia": 55039.357346901976,
+          "inverseInertia": 0.000018168816792267424,
+          "density": 1,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#f5d259",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": null,
+            "effectiveNoseRadius": null,
+            "currentHeatFlux": 0,
+            "creationParams": {
+              "type": "circle",
+              "radius": 10
+            }
+          }
+        }
+      ]
+    }
+  },
+  "10": {
+    "simulationTick": 10,
+    "fixedTimeStepMs": 1000,
+    "accumulatedTime": 0,
+    "G": 6.674e-11,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "earth-like-planet-orbit-test",
+        "mass": 5972000,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 127420000,
+        "radius": 6371000,
+        "hasAtmosphere": false
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testSatellite_orbitLarge",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 7071000,
+            "y": 299968.5427200001
+          },
+          "angle": 0,
+          "velocity": {
+            "x": 0,
+            "y": 0.7864320000003014
+          },
+          "angularVelocity": 0,
+          "mass": 293.89992,
+          "inverseMass": 0.0034025187893892586,
+          "inertia": 55039.357346901976,
+          "inverseInertia": 0.000018168816792267424,
+          "density": 1,
           "restitution": 0,
           "friction": 0.1,
           "frictionStatic": 0.5,
@@ -71,7 +152,7 @@
             "currentHeatFlux": 0,
             "creationParams": {
               "type": "circle",
-              "radius": 2
+              "radius": 10
             }
           }
         }
@@ -80,45 +161,46 @@
   },
   "50": {
     "simulationTick": 50,
-    "fixedTimeStepMs": 16.666666666666668,
+    "fixedTimeStepMs": 1000,
     "accumulatedTime": 0,
-    "G": 0.001,
+    "G": 6.674e-11,
     "internalLoggingEnabled": false,
     "ownsEngine": true,
     "celestialBodies": [
       {
-        "id": "small-planet-gravity-pull",
-        "mass": 597200,
+        "id": "earth-like-planet-orbit-test",
+        "mass": 5972000,
         "position": {
           "x": 0,
           "y": 0
         },
-        "gravityRadius": 1000,
-        "radius": 100
+        "gravityRadius": 127420000,
+        "radius": 6371000,
+        "hasAtmosphere": false
       }
     ],
     "world": {
       "bodies": [
         {
           "id": 1,
-          "label": "satellite-close",
+          "label": "testSatellite_orbitLarge",
           "type": "body",
           "parts": [],
           "position": {
-            "x": 199.728742073333,
-            "y": 0
+            "x": 7071000,
+            "y": 299999.99999999977
           },
           "angle": 0,
           "velocity": {
-            "x": -0.009838976642527086,
+            "x": 0,
             "y": 0
           },
           "angularVelocity": 0,
-          "mass": 0.11756208000000001,
-          "inverseMass": 8.50614415804824,
-          "inertia": 0.88066136973824,
-          "inverseInertia": 1.1355102362412366,
-          "density": 0.01,
+          "mass": 293.89992,
+          "inverseMass": 0.0034025187893892586,
+          "inertia": 55039.357346901976,
+          "inverseInertia": 0.000018168816792267424,
+          "density": 1,
           "restitution": 0,
           "friction": 0.1,
           "frictionStatic": 0.5,
@@ -135,7 +217,7 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#f55a3c",
+            "fillStyle": "#f19648",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {
@@ -150,54 +232,55 @@
             "currentHeatFlux": 0,
             "creationParams": {
               "type": "circle",
-              "radius": 2
+              "radius": 10
             }
           }
         }
       ]
     }
   },
-  "100": {
-    "simulationTick": 100,
-    "fixedTimeStepMs": 16.666666666666668,
+  "250": {
+    "simulationTick": 250,
+    "fixedTimeStepMs": 1000,
     "accumulatedTime": 0,
-    "G": 0.001,
+    "G": 6.674e-11,
     "internalLoggingEnabled": false,
     "ownsEngine": true,
     "celestialBodies": [
       {
-        "id": "small-planet-gravity-pull",
-        "mass": 597200,
+        "id": "earth-like-planet-orbit-test",
+        "mass": 5972000,
         "position": {
           "x": 0,
           "y": 0
         },
-        "gravityRadius": 1000,
-        "radius": 100
+        "gravityRadius": 127420000,
+        "radius": 6371000,
+        "hasAtmosphere": false
       }
     ],
     "world": {
       "bodies": [
         {
           "id": 1,
-          "label": "satellite-close",
+          "label": "testSatellite_orbitLarge",
           "type": "body",
           "parts": [],
           "position": {
-            "x": 199.0715969995207,
-            "y": 0
+            "x": 7071000,
+            "y": 299999.99999999977
           },
           "angle": 0,
           "velocity": {
-            "x": -0.015840271813630125,
+            "x": 0,
             "y": 0
           },
           "angularVelocity": 0,
-          "mass": 0.11756208000000001,
-          "inverseMass": 8.50614415804824,
-          "inertia": 0.88066136973824,
-          "inverseInertia": 1.1355102362412366,
-          "density": 0.01,
+          "mass": 293.89992,
+          "inverseMass": 0.0034025187893892586,
+          "inertia": 55039.357346901976,
+          "inverseInertia": 0.000018168816792267424,
+          "density": 1,
           "restitution": 0,
           "friction": 0.1,
           "frictionStatic": 0.5,
@@ -214,7 +297,7 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#ececd1",
+            "fillStyle": "#063e7b",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {
@@ -229,7 +312,7 @@
             "currentHeatFlux": 0,
             "creationParams": {
               "type": "circle",
-              "radius": 2
+              "radius": 10
             }
           }
         }

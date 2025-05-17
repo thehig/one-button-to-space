@@ -1,63 +1,26 @@
 import { expect } from "chai";
 import "mocha";
 import Matter, { Vector } from "matter-js";
-import {
-  IScenario,
-  ISerializedPhysicsEngineState,
-  ISerializedMatterBody,
-} from "./types";
-import { PhysicsEngine } from "../PhysicsEngine";
-import {
-  orbitLargeBodyScenario1Step,
-  orbitLargeBodyScenario10Steps,
-  orbitLargeBodyScenario50Steps,
-  orbitLargeBodyScenario250Steps,
-} from "./orbit-large-body.scenario";
+import { IScenario } from "./types";
+// PhysicsEngine import removed as it's not directly used
+
+// Import consolidated scenario
+import { orbitLargeBodyScenario } from "./orbit-large-body.scenario";
 import { runScenario, runTestAndSnapshot } from "./test-runner.helper";
 
 describe("PhysicsEngine Celestial Mechanics: Orbit (Large Body)", () => {
-  it("should show initial orbital movement for a large body (1 step - explicit assertions)", () => {
-    const scenario = orbitLargeBodyScenario1Step;
-    const celestialBodyDef = scenario.celestialBodies![0];
-    const satelliteDef = scenario.initialBodies[0];
-    const targetSatelliteLabel = satelliteDef.label || satelliteDef.id;
+  // Removed explicit 1-step assertion test in favor of snapshot test at step 1
 
-    const fullFinalState = runScenario(scenario);
-    const finalSatellite = fullFinalState.world.bodies.find(
-      (b) => b.label === targetSatelliteLabel
-    );
-
-    if (!finalSatellite) {
-      throw new Error(
-        `Satellite body with label ${targetSatelliteLabel} not found in final state.`
-      );
-    }
-
-    expect(finalSatellite.position.x).to.be.lessThan(
-      satelliteDef.initialPosition.x
-    );
-    expect(finalSatellite.position.y).to.be.greaterThan(
-      satelliteDef.initialPosition.y
-    );
-
-    const finalDistance = Vector.magnitude(
-      Vector.sub(finalSatellite.position as Vector, celestialBodyDef.position)
-    );
-    const initialDistance = Vector.magnitude(
-      Vector.sub(satelliteDef.initialPosition, celestialBodyDef.position)
-    );
-    expect(finalDistance).to.be.lessThan(initialDistance);
-  });
-
-  it("should match snapshot after 10 steps of orbit (large body)", () => {
-    runTestAndSnapshot(orbitLargeBodyScenario10Steps, "orbit-large-body", 10);
-  });
-
-  it("should match snapshot after 50 steps of orbit (large body)", () => {
-    runTestAndSnapshot(orbitLargeBodyScenario50Steps, "orbit-large-body", 50);
-  });
-
-  it("should match snapshot after 250 steps of orbit (large body)", () => {
-    runTestAndSnapshot(orbitLargeBodyScenario250Steps, "orbit-large-body", 250);
-  });
+  // Dynamically generate snapshot tests
+  if (orbitLargeBodyScenario.snapshotSteps) {
+    orbitLargeBodyScenario.snapshotSteps.forEach((steps) => {
+      it(`should match snapshot after ${steps} steps of orbit (large body)`, () => {
+        runTestAndSnapshot(
+          orbitLargeBodyScenario,
+          orbitLargeBodyScenario.id, // Use scenario ID
+          steps
+        );
+      });
+    });
+  }
 });

@@ -6,26 +6,26 @@ import {
 } from "./types";
 import { ICelestialBody } from "../PhysicsEngine";
 
-const baseDenseCelestialBody: ICelestialBody[] = [
+const baseCelestialBodyDense: ICelestialBody[] = [
   {
-    id: "dense-planet-drag-test",
+    id: "earth-like-dense-drag-test",
     mass: 0,
     position: { x: 0, y: 0 },
     gravityRadius: 6371000 * 10,
     radius: 6371000,
     hasAtmosphere: true,
     atmosphereLimitAltitude: 100000,
-    surfaceAirDensity: 122.5, // Denser atmosphere
+    surfaceAirDensity: 1.225 * 100, // 100x denser
     scaleHeight: 8500,
   },
 ];
 
-const baseDenseInitialBody: ScenarioBodyInitialState = {
+const baseInitialBodyDense: ScenarioBodyInitialState = {
   id: "denseDragTestBody",
   type: "box" as ScenarioBodyType,
   label: "testDenseDragBody",
   initialPosition: { x: 6371000 + 50000, y: 0 },
-  initialVelocity: { x: -1000, y: 0 },
+  initialVelocity: { x: -100, y: 0 }, // Reduced speed for denser atmosphere
   width: 1,
   height: 1,
   options: {
@@ -37,45 +37,15 @@ const baseDenseInitialBody: ScenarioBodyInitialState = {
   },
 };
 
-const baseDenseAtmosphereDragScenario: Omit<
-  IScenario,
-  "id" | "description" | "simulationSteps"
-> = {
-  name: "Base Dense Atmosphere Drag Scenario",
+export const denseAtmosphereDragScenario: IScenario = {
+  id: "dense-atmospheric-drag-test",
+  name: "Dense Atmospheric Drag Test",
+  description:
+    "Tests atmospheric drag in a very dense atmosphere at various steps.",
   engineSettings: {},
-  celestialBodies: baseDenseCelestialBody,
-  initialBodies: [baseDenseInitialBody],
+  celestialBodies: baseCelestialBodyDense,
+  initialBodies: [baseInitialBodyDense],
   actions: [],
-};
-
-export const denseAtmosphereDragScenario1Step: IScenario = {
-  ...baseDenseAtmosphereDragScenario,
-  id: "dense-atmospheric-drag-test-1-step",
-  name: "Dense Atmosphere Drag (1 Step)",
-  description: "Tests dense atmospheric drag for 1 simulation step.",
-  simulationSteps: 1,
-};
-
-export const denseAtmosphereDragScenario10Steps: IScenario = {
-  ...baseDenseAtmosphereDragScenario,
-  id: "dense-atmospheric-drag-test-10-steps",
-  name: "Dense Atmosphere Drag (10 Steps)",
-  description: "Tests dense atmospheric drag for 10 simulation steps.",
-  simulationSteps: 10,
-};
-
-export const denseAtmosphereDragScenario50Steps: IScenario = {
-  ...baseDenseAtmosphereDragScenario,
-  id: "dense-atmospheric-drag-test-50-steps",
-  name: "Dense Atmosphere Drag (50 Steps)",
-  description: "Tests dense atmospheric drag for 50 simulation steps.",
-  simulationSteps: 50,
-};
-
-export const denseAtmosphereDragScenario100Steps: IScenario = {
-  ...baseDenseAtmosphereDragScenario,
-  id: "dense-atmospheric-drag-test-100-steps",
-  name: "Dense Atmosphere Drag (100 Steps)",
-  description: "Tests dense atmospheric drag for 100 simulation steps.",
   simulationSteps: 100,
+  snapshotSteps: [1, 10, 50, 100],
 };

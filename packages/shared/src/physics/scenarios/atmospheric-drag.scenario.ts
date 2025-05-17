@@ -1,11 +1,11 @@
 import {
   IScenario,
   ICustomBodyPlugin,
-  ScenarioAction,
+  // ScenarioAction, // Unused in this consolidated version
   ScenarioBodyInitialState,
   ScenarioBodyType,
 } from "./types";
-import { ICelestialBody } from "../PhysicsEngine";
+import { ICelestialBody } from "../PhysicsEngine"; // Reverted to ICelestialBody
 
 const baseCelestialBody: ICelestialBody[] = [
   {
@@ -38,45 +38,21 @@ const baseInitialBody: ScenarioBodyInitialState = {
   },
 };
 
-const baseAtmosphericDragScenario: Omit<
-  IScenario,
-  "id" | "description" | "simulationSteps"
-> = {
-  name: "Base Atmospheric Drag Scenario",
+// Consolidated scenario definition
+export const atmosphericDragScenario: IScenario = {
+  id: "atmospheric-drag-test", // Base ID
+  name: "Atmospheric Drag Test", // Generic name
+  description: "Tests atmospheric drag at various simulation steps.",
   engineSettings: {},
   celestialBodies: baseCelestialBody,
   initialBodies: [baseInitialBody],
   actions: [],
+  simulationSteps: 100, // Max steps for this scenario configuration
+  snapshotSteps: [1, 10, 50, 100], // Steps at which to take snapshots
 };
 
-export const atmosphericDragScenario1Step: IScenario = {
-  ...baseAtmosphericDragScenario,
-  id: "atmospheric-drag-test-1-step",
-  name: "Atmospheric Drag (1 Step)",
-  description: "Tests atmospheric drag for 1 simulation step.",
-  simulationSteps: 1,
-};
-
-export const atmosphericDragScenario10Steps: IScenario = {
-  ...baseAtmosphericDragScenario,
-  id: "atmospheric-drag-test-10-steps",
-  name: "Atmospheric Drag (10 Steps)",
-  description: "Tests atmospheric drag for 10 simulation steps.",
-  simulationSteps: 10,
-};
-
-export const atmosphericDragScenario50Steps: IScenario = {
-  ...baseAtmosphericDragScenario,
-  id: "atmospheric-drag-test-50-steps",
-  name: "Atmospheric Drag (50 Steps)",
-  description: "Tests atmospheric drag for 50 simulation steps.",
-  simulationSteps: 50,
-};
-
-export const atmosphericDragScenario100Steps: IScenario = {
-  ...baseAtmosphericDragScenario,
-  id: "atmospheric-drag-test-100-steps",
-  name: "Atmospheric Drag (100 Steps)",
-  description: "Tests atmospheric drag for 100 simulation steps.",
-  simulationSteps: 100,
-};
+// Remove old individual exports
+// export const atmosphericDragScenario1Step: IScenario = { ... };
+// export const atmosphericDragScenario10Steps: IScenario = { ... };
+// export const atmosphericDragScenario50Steps: IScenario = { ... };
+// export const atmosphericDragScenario100Steps: IScenario = { ... };

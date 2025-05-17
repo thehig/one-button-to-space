@@ -1,6 +1,6 @@
 {
-  "10": {
-    "simulationTick": 10,
+  "1": {
+    "simulationTick": 1,
     "fixedTimeStepMs": 16.666666666666668,
     "accumulatedTime": 0,
     "G": 0.001,
@@ -9,7 +9,7 @@
     "celestialBodies": [
       {
         "id": "earth-like-heating-test",
-        "mass": 5.972e+24,
+        "mass": 0,
         "position": {
           "x": 0,
           "y": 0
@@ -26,192 +26,24 @@
       "bodies": [
         {
           "id": 1,
-          "label": "testEntryBodyHeating",
+          "label": "testHeatingBody",
           "type": "body",
           "parts": [],
           "position": {
-            "x": -1562879381.690947,
+            "x": 6444083.888888889,
             "y": 0
           },
           "angle": 0,
           "velocity": {
-            "x": -188642948.44016504,
+            "x": -6916.111111111008,
             "y": 0
           },
           "angularVelocity": 0,
-          "mass": 0.001,
-          "inverseMass": 1000,
-          "inertia": 0.0006666666666666666,
-          "inverseInertia": 1500,
-          "density": 0.001,
-          "restitution": 0,
-          "friction": 0.1,
-          "frictionStatic": 0.5,
-          "frictionAir": 0.01,
-          "slop": 0.05,
-          "isStatic": false,
-          "isSensor": false,
-          "isSleeping": false,
-          "collisionFilter": {
-            "category": 1,
-            "mask": 65535,
-            "group": 0
-          },
-          "render": {
-            "visible": true,
-            "opacity": 1,
-            "fillStyle": "#f19648",
-            "strokeStyle": "#ccc",
-            "lineWidth": 0,
-            "sprite": {
-              "texture": null,
-              "xScale": 1,
-              "yScale": 1
-            }
-          },
-          "plugin": {
-            "dragCoefficientArea": 0.1,
-            "effectiveNoseRadius": 0.5,
-            "currentHeatFlux": 0,
-            "creationParams": {
-              "type": "box",
-              "width": 1,
-              "height": 1
-            }
-          }
-        }
-      ]
-    }
-  },
-  "50": {
-    "simulationTick": 50,
-    "fixedTimeStepMs": 16.666666666666668,
-    "accumulatedTime": 0,
-    "G": 0.001,
-    "internalLoggingEnabled": false,
-    "ownsEngine": true,
-    "celestialBodies": [
-      {
-        "id": "earth-like-heating-test",
-        "mass": 5.972e+24,
-        "position": {
-          "x": 0,
-          "y": 0
-        },
-        "gravityRadius": 63710000,
-        "radius": 6371000,
-        "hasAtmosphere": true,
-        "atmosphereLimitAltitude": 100000,
-        "surfaceAirDensity": 1.225,
-        "scaleHeight": 8500
-      }
-    ],
-    "world": {
-      "bodies": [
-        {
-          "id": 1,
-          "label": "testEntryBodyHeating",
-          "type": "body",
-          "parts": [],
-          "position": {
-            "x": -7745047586.2484255,
-            "y": 0
-          },
-          "angle": 0,
-          "velocity": {
-            "x": -126196804.95978737,
-            "y": 0
-          },
-          "angularVelocity": 0,
-          "mass": 0.001,
-          "inverseMass": 1000,
-          "inertia": 0.0006666666666666666,
-          "inverseInertia": 1500,
-          "density": 0.001,
-          "restitution": 0,
-          "friction": 0.1,
-          "frictionStatic": 0.5,
-          "frictionAir": 0.01,
-          "slop": 0.05,
-          "isStatic": false,
-          "isSensor": false,
-          "isSleeping": false,
-          "collisionFilter": {
-            "category": 1,
-            "mask": 65535,
-            "group": 0
-          },
-          "render": {
-            "visible": true,
-            "opacity": 1,
-            "fillStyle": "#f5d259",
-            "strokeStyle": "#ccc",
-            "lineWidth": 0,
-            "sprite": {
-              "texture": null,
-              "xScale": 1,
-              "yScale": 1
-            }
-          },
-          "plugin": {
-            "dragCoefficientArea": 0.1,
-            "effectiveNoseRadius": 0.5,
-            "currentHeatFlux": 0,
-            "creationParams": {
-              "type": "box",
-              "width": 1,
-              "height": 1
-            }
-          }
-        }
-      ]
-    }
-  },
-  "100": {
-    "simulationTick": 100,
-    "fixedTimeStepMs": 16.666666666666668,
-    "accumulatedTime": 0,
-    "G": 0.001,
-    "internalLoggingEnabled": false,
-    "ownsEngine": true,
-    "celestialBodies": [
-      {
-        "id": "earth-like-heating-test",
-        "mass": 5.972e+24,
-        "position": {
-          "x": 0,
-          "y": 0
-        },
-        "gravityRadius": 63710000,
-        "radius": 6371000,
-        "hasAtmosphere": true,
-        "atmosphereLimitAltitude": 100000,
-        "surfaceAirDensity": 1.225,
-        "scaleHeight": 8500
-      }
-    ],
-    "world": {
-      "bodies": [
-        {
-          "id": 1,
-          "label": "testEntryBodyHeating",
-          "type": "body",
-          "parts": [],
-          "position": {
-            "x": -12679897844.517176,
-            "y": 0
-          },
-          "angle": 0,
-          "velocity": {
-            "x": -76349832.65404892,
-            "y": 0
-          },
-          "angularVelocity": 0,
-          "mass": 0.001,
-          "inverseMass": 1000,
-          "inertia": 0.0006666666666666666,
-          "inverseInertia": 1500,
-          "density": 0.001,
+          "mass": 1000,
+          "inverseMass": 0.001,
+          "inertia": 666.6666666666666,
+          "inverseInertia": 0.0015,
+          "density": 1000,
           "restitution": 0,
           "friction": 0.1,
           "frictionStatic": 0.5,
@@ -238,7 +70,259 @@
             }
           },
           "plugin": {
-            "dragCoefficientArea": 0.1,
+            "dragCoefficientArea": 1,
+            "effectiveNoseRadius": 0.5,
+            "currentHeatFlux": 888361.0599042762,
+            "creationParams": {
+              "type": "box",
+              "width": 1,
+              "height": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "10": {
+    "simulationTick": 10,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "earth-like-heating-test",
+        "mass": 0,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 63710000,
+        "radius": 6371000,
+        "hasAtmosphere": true,
+        "atmosphereLimitAltitude": 100000,
+        "surfaceAirDensity": 1.225,
+        "scaleHeight": 8500
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testHeatingBody",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 6385478.2021836955,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": -6197.871851463802,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 1000,
+          "inverseMass": 0.001,
+          "inertia": 666.6666666666666,
+          "inverseInertia": 0.0015,
+          "density": 1000,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#f19648",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": 1,
+            "effectiveNoseRadius": 0.5,
+            "currentHeatFlux": 20968460.14836803,
+            "creationParams": {
+              "type": "box",
+              "width": 1,
+              "height": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "50": {
+    "simulationTick": 50,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "earth-like-heating-test",
+        "mass": 0,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 63710000,
+        "radius": 6371000,
+        "hasAtmosphere": true,
+        "atmosphereLimitAltitude": 100000,
+        "surfaceAirDensity": 1.225,
+        "scaleHeight": 8500
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testHeatingBody",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 6183713.845006241,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": -4117.760499502532,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 1000,
+          "inverseMass": 0.001,
+          "inertia": 666.6666666666666,
+          "inverseInertia": 0.0015,
+          "density": 1000,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#f5d259",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": 1,
+            "effectiveNoseRadius": 0.5,
+            "currentHeatFlux": 0,
+            "creationParams": {
+              "type": "box",
+              "width": 1,
+              "height": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "100": {
+    "simulationTick": 100,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "earth-like-heating-test",
+        "mass": 0,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 63710000,
+        "radius": 6371000,
+        "hasAtmosphere": true,
+        "atmosphereLimitAltitude": 100000,
+        "surfaceAirDensity": 1.225,
+        "scaleHeight": 8500
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testHeatingBody",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 6022691.293992037,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": -2491.270085219294,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 1000,
+          "inverseMass": 0.001,
+          "inertia": 666.6666666666666,
+          "inverseInertia": 0.0015,
+          "density": 1000,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#ececd1",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": 1,
             "effectiveNoseRadius": 0.5,
             "currentHeatFlux": 0,
             "creationParams": {

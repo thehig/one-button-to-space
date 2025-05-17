@@ -36,4 +36,5 @@ export const determinismBaseScenario: IScenario = {
     },
   ],
   simulationSteps: 10,
+  snapshotSteps: [1, 10], // Snapshot at the end of the simulationSteps
 };

@@ -1,63 +1,44 @@
-import { IScenario, ScenarioAction } from "./types";
+import {
+  IScenario,
+  ScenarioAction,
+  ScenarioBodyInitialState,
+  ScenarioBodyType,
+} from "./types";
 
-const baseRotationActions: ScenarioAction[] = [
+const baseInitialBox: ScenarioBodyInitialState = {
+  id: "rotationTestBox",
+  type: "box" as ScenarioBodyType,
+  label: "testRotationBox",
+  initialPosition: { x: 0, y: 0 },
+  initialAngle: 0,
+  initialAngularVelocity: 0,
+  width: 10,
+  height: 20, // Make it non-square to easily see rotation
+  options: {
+    density: 1,
+  },
+};
+
+const baseRotationAction: ScenarioAction[] = [
   {
-    step: 0, // Apply force at the beginning of the first step
-    targetBodyId: "rotationBox",
+    step: 0,
+    targetBodyId: "rotationTestBox",
     actionType: "applyForce",
-    force: { x: 50, y: 0 }, // Force to the right
-    applicationPoint: { x: 0, y: -5 }, // Apply slightly below center to cause rotation
+    force: { x: 10, y: 0 },
+    applicationPoint: { x: 0, y: 5 },
   },
 ];
 
-const baseRotationScenario: Omit<
-  IScenario,
-  "id" | "description" | "simulationSteps"
-> = {
-  name: "Base Rotation Scenario",
-  engineSettings: {},
+export const rotationScenario: IScenario = {
+  id: "rotation-test",
+  name: "Rotation Test",
+  description: "Tests body rotation at various simulation steps.",
+  engineSettings: {
+    customG: 0, // No gravity
+  },
   celestialBodies: [],
-  initialBodies: [
-    {
-      id: "rotationBox",
-      type: "box",
-      label: "testRotationBox",
-      initialPosition: { x: 0, y: 0 },
-      width: 20,
-      height: 20,
-    },
-  ],
-  actions: baseRotationActions,
-};
-
-export const rotationScenario1Step: IScenario = {
-  ...baseRotationScenario,
-  id: "rotation-test-1-step",
-  name: "Rotation Test (1 Step)",
-  description: "Tests applying an off-center force for 1 simulation step.",
-  simulationSteps: 1,
-};
-
-export const rotationScenario10Steps: IScenario = {
-  ...baseRotationScenario,
-  id: "rotation-test-10-steps",
-  name: "Rotation Test (10 Steps)",
-  description: "Tests applying an off-center force for 10 simulation steps.",
-  simulationSteps: 10,
-};
-
-export const rotationScenario50Steps: IScenario = {
-  ...baseRotationScenario,
-  id: "rotation-test-50-steps",
-  name: "Rotation Test (50 Steps)",
-  description: "Tests applying an off-center force for 50 simulation steps.",
-  simulationSteps: 50,
-};
-
-export const rotationScenario100Steps: IScenario = {
-  ...baseRotationScenario,
-  id: "rotation-test-100-steps",
-  name: "Rotation Test (100 Steps)",
-  description: "Tests applying an off-center force for 100 simulation steps.",
+  initialBodies: [baseInitialBox],
+  actions: baseRotationAction,
   simulationSteps: 100,
+  snapshotSteps: [1, 10, 50, 100],
 };

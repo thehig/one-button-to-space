@@ -26,10 +26,12 @@ if (typeof window === "undefined") {
 /**
  * Runs a defined physics scenario and returns the full serialized state of the physics engine.
  * @param scenario The scenario definition.
+ * @param runUpToSteps Optional parameter to run the scenario up to a certain step.
  * @returns The full ISerializedPhysicsEngineState from physicsEngine.toJSON().
  */
 export const runScenario = (
-  scenario: IScenario
+  scenario: IScenario,
+  runUpToSteps?: number
 ): ISerializedPhysicsEngineState => {
   // Reset Matter.js internal ID counters for deterministic tests
   (Matter.Body as any)._nextId = 0;
@@ -40,7 +42,7 @@ export const runScenario = (
   const engineSettings = scenario.engineSettings;
   const engine = new PhysicsEngine(
     engineSettings?.fixedTimeStepMs,
-    engineSettings?.customG
+    engineSettings?.customG === null ? undefined : engineSettings?.customG
   );
   if (engineSettings?.enableInternalLogging !== undefined) {
     engine.setInternalLogging(engineSettings.enableInternalLogging);
@@ -104,8 +106,9 @@ export const runScenario = (
   }
 
   const fixedTimeStep = engineSettings?.fixedTimeStepMs || 1000 / 60;
+  const totalStepsToRun = runUpToSteps ?? scenario.simulationSteps;
 
-  for (let i = 0; i < scenario.simulationSteps; i++) {
+  for (let i = 0; i < totalStepsToRun; i++) {
     if (scenario.actions) {
       for (const action of scenario.actions) {
         if (action.step === i) {
@@ -163,7 +166,7 @@ export const runTestAndSnapshot = (
     snapshotDir,
     `${baseSnapshotName}.snap.json`
   );
-  const currentResults = runScenario(scenario);
+  const currentResults = runScenario(scenario, steps);
 
   if (process.env.UPDATE_SNAPSHOTS === "true") {
     if (!fs.existsSync(snapshotDir)) {

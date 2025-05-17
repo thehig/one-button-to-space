@@ -1,73 +1,37 @@
 import { IScenario, ScenarioBodyInitialState, ScenarioBodyType } from "./types";
 import { ICelestialBody } from "../PhysicsEngine";
 
-const baseGravityPullSmallBodyCelestial: ICelestialBody[] = [
+const baseCelestialBodySmall: ICelestialBody[] = [
   {
-    id: "small-planet-gravity-pull",
-    mass: 5.972e5, // Small planet mass
+    id: "small-star-gravity-test",
+    mass: 1.989e3, // Much smaller star mass (e.g., 1000x Earth)
     position: { x: 0, y: 0 },
-    gravityRadius: 1000,
-    radius: 100,
+    gravityRadius: 695700 * 10, // Approx Sun radius * 10
+    radius: 695700, // Approx Sun radius
+    hasAtmosphere: false,
   },
 ];
 
-const baseGravityPullSmallBodySatellite: ScenarioBodyInitialState = {
-  id: "satelliteGPSmall",
+const baseInitialSatelliteSmallGravity: ScenarioBodyInitialState = {
+  id: "gravityTestSatelliteSmall",
   type: "circle" as ScenarioBodyType,
-  label: "satellite-close",
-  initialPosition: { x: 200, y: 0 }, // Closer initial position for smaller body
-  // No initialVelocity, starts from rest relative to the system
-  radius: 2,
+  label: "testSatellite_gravitySmall",
+  initialPosition: { x: 695700 * 2, y: 0 }, // Start at 2 radii distance
+  initialVelocity: { x: 0, y: 0 }, // Start at rest
+  radius: 100,
   options: {
-    density: 0.01,
+    density: 0.1,
   },
 };
 
-const baseGravityPullSmallBodyScenario: Omit<
-  IScenario,
-  "id" | "description" | "simulationSteps"
-> = {
-  name: "Base Gravity Pull Small Body Scenario",
-  engineSettings: {
-    // Default G, default timestep
-  },
-  celestialBodies: baseGravityPullSmallBodyCelestial,
-  initialBodies: [baseGravityPullSmallBodySatellite],
+export const gravityPullSmallBodyScenario: IScenario = {
+  id: "gravity-pull-small-body-test",
+  name: "Gravity Pull (Small Body) Test",
+  description: "Tests gravitational pull from a small celestial body.",
+  engineSettings: {},
+  celestialBodies: baseCelestialBodySmall,
+  initialBodies: [baseInitialSatelliteSmallGravity],
   actions: [],
-};
-
-export const gravityPullSmallBodyScenario1Step: IScenario = {
-  ...baseGravityPullSmallBodyScenario,
-  id: "gravity-pull-small-body-1-step",
-  name: "Gravity Pull Small Body (1 Step)",
-  description:
-    "Tests gravitational pull from a small body for 1 simulation step.",
-  simulationSteps: 1,
-};
-
-export const gravityPullSmallBodyScenario10Steps: IScenario = {
-  ...baseGravityPullSmallBodyScenario,
-  id: "gravity-pull-small-body-10-steps",
-  name: "Gravity Pull Small Body (10 Steps)",
-  description:
-    "Tests gravitational pull from a small body for 10 simulation steps.",
-  simulationSteps: 10,
-};
-
-export const gravityPullSmallBodyScenario50Steps: IScenario = {
-  ...baseGravityPullSmallBodyScenario,
-  id: "gravity-pull-small-body-50-steps",
-  name: "Gravity Pull Small Body (50 Steps)",
-  description:
-    "Tests gravitational pull from a small body for 50 simulation steps.",
-  simulationSteps: 50,
-};
-
-export const gravityPullSmallBodyScenario100Steps: IScenario = {
-  ...baseGravityPullSmallBodyScenario,
-  id: "gravity-pull-small-body-100-steps",
-  name: "Gravity Pull Small Body (100 Steps)",
-  description:
-    "Tests gravitational pull from a small body for 100 simulation steps.",
   simulationSteps: 100,
+  snapshotSteps: [1, 10, 50, 100],
 };

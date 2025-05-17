@@ -6,78 +6,46 @@ import {
 } from "./types";
 import { ICelestialBody } from "../PhysicsEngine";
 
-const baseAtmosphericHeatingCelestial: ICelestialBody[] = [
+const baseCelestialBodyHeating: ICelestialBody[] = [
   {
     id: "earth-like-heating-test",
-    mass: 5.972e24, // kg
+    mass: 0, // No gravity for this test, isolate heating
     position: { x: 0, y: 0 },
-    gravityRadius: 6371000 * 10, // meters
-    radius: 6371000, // meters
+    gravityRadius: 6371000 * 10,
+    radius: 6371000,
     hasAtmosphere: true,
-    atmosphereLimitAltitude: 100000, // 100 km
-    surfaceAirDensity: 1.225, // kg/m^3
-    scaleHeight: 8500, // meters
+    atmosphereLimitAltitude: 100000,
+    surfaceAirDensity: 1.225,
+    scaleHeight: 8500,
   },
 ];
 
-const baseAtmosphericHeatingBody: ScenarioBodyInitialState = {
+const baseInitialBodyHeating: ScenarioBodyInitialState = {
   id: "heatingTestBody",
   type: "box" as ScenarioBodyType,
-  label: "testEntryBodyHeating",
-  initialPosition: { x: 6371000 + 90000, y: 0 }, // Start at 90km altitude
-  initialVelocity: { x: -7000, y: 0 }, // Re-entry speed
+  label: "testHeatingBody",
+  initialPosition: { x: 6371000 + 80000, y: 0 }, // Start at 80km altitude
+  initialVelocity: { x: -7000, y: 0 }, // High speed for significant heating
   width: 1,
   height: 1,
   options: {
+    density: 1000, // Denser body for more pronounced heating effect if mass plays a role
     plugin: {
-      effectiveNoseRadius: 0.5,
-      dragCoefficientArea: 0.1, // This was in the original, ensure it's used or remove if not needed for heating
+      dragCoefficientArea: 1.0, // Higher drag might lead to more heating
+      effectiveNoseRadius: 0.5, // Larger nose radius
+      currentHeatFlux: 0, // Start with no heat flux
     } as ICustomBodyPlugin,
   },
 };
 
-const baseAtmosphericHeatingScenario: Omit<
-  IScenario,
-  "id" | "description" | "simulationSteps"
-> = {
-  name: "Base Atmospheric Heating Scenario",
-  engineSettings: {
-    // Default engine settings
-  },
-  celestialBodies: baseAtmosphericHeatingCelestial,
-  initialBodies: [baseAtmosphericHeatingBody],
+export const atmosphericHeatingScenario: IScenario = {
+  id: "atmospheric-heating-test",
+  name: "Atmospheric Heating Test",
+  description: "Tests atmospheric heating at various simulation steps.",
+  engineSettings: {},
+  celestialBodies: baseCelestialBodyHeating,
+  initialBodies: [baseInitialBodyHeating],
   actions: [],
-};
-
-export const atmosphericHeatingScenario1Step: IScenario = {
-  ...baseAtmosphericHeatingScenario,
-  id: "atmospheric-heating-1-step",
-  name: "Atmospheric Heating (1 Step)",
-  description: "Tests atmospheric heating for 1 simulation step.",
-  simulationSteps: 1,
-};
-
-export const atmosphericHeatingScenario10Steps: IScenario = {
-  ...baseAtmosphericHeatingScenario,
-  id: "atmospheric-heating-10-steps",
-  name: "Atmospheric Heating (10 Steps)",
-  description: "Tests atmospheric heating for 10 simulation steps.",
-  simulationSteps: 10,
-  // Potentially adjust initial position/velocity for longer runs if needed to stay in atmosphere
-};
-
-export const atmosphericHeatingScenario50Steps: IScenario = {
-  ...baseAtmosphericHeatingScenario,
-  id: "atmospheric-heating-50-steps",
-  name: "Atmospheric Heating (50 Steps)",
-  description: "Tests atmospheric heating for 50 simulation steps.",
-  simulationSteps: 50,
-};
-
-export const atmosphericHeatingScenario100Steps: IScenario = {
-  ...baseAtmosphericHeatingScenario,
-  id: "atmospheric-heating-100-steps",
-  name: "Atmospheric Heating (100 Steps)",
-  description: "Tests atmospheric heating for 100 simulation steps.",
   simulationSteps: 100,
+  snapshotSteps: [1, 10, 50, 100],
 };

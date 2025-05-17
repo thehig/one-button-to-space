@@ -43,11 +43,17 @@ export interface IScenario {
   id: string; // Unique identifier for the scenario
   name: string; // Display name for the scenario
   description?: string;
-  engineSettings?: ScenarioEngineSettings;
+  engineSettings?: Partial<{
+    fixedTimeStepMs: number;
+    customG: number | null; // Allow null for default G behavior
+    enableInternalLogging: boolean;
+    // Potentially other settings from PhysicsEngine
+  }>;
   celestialBodies?: ICelestialBodyData[];
   initialBodies: ScenarioBodyInitialState[];
   actions?: ScenarioAction[];
   simulationSteps: number; // Total number of fixed steps to run for the main simulation phase
+  snapshotSteps?: number[]; // New: Steps at which to take snapshots
   // Expected outcomes could be defined here for programmatic validation,
   // or handled by the test runner consuming the scenario.
   // For now, assertions will remain in the .spec.ts files.

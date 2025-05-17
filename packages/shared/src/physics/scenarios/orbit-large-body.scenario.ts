@@ -1,77 +1,40 @@
 import { IScenario, ScenarioBodyInitialState, ScenarioBodyType } from "./types";
 import { ICelestialBody } from "../PhysicsEngine";
 
-const baseOrbitLargeBodyCelestial: ICelestialBody[] = [
+const baseCelestialBodyLargeOrbit: ICelestialBody[] = [
   {
-    id: "earth-orbit-test-large",
-    mass: 5.972e5, // Large mass for orbit test
+    id: "earth-like-planet-orbit-test",
+    mass: 5.972e6, // Earth-like mass
     position: { x: 0, y: 0 },
-    gravityRadius: 100000,
-    radius: 6371,
+    gravityRadius: 6371000 * 20, // Earth radius * 20
+    radius: 6371000, // Earth radius
+    hasAtmosphere: false,
   },
 ];
 
-const baseOrbitLargeBodySatellite: ScenarioBodyInitialState = {
-  id: "orbitingSatelliteLarge",
+const baseInitialSatelliteLargeOrbit: ScenarioBodyInitialState = {
+  id: "orbitTestSatelliteLarge",
   type: "circle" as ScenarioBodyType,
-  label: "orbitingSatellite",
-  initialPosition: { x: 10000, y: 0 },
-  initialVelocity: { x: 0, y: 0.24 }, // Tuned for a somewhat circular orbit
-  radius: 5,
+  label: "testSatellite_orbitLarge",
+  initialPosition: { x: 6371000 + 700000, y: 0 }, // 700km altitude over Earth-like planet
+  initialVelocity: { x: 0, y: 7500 }, // Approx LEO speed
+  radius: 10,
   options: {
-    density: 0.01,
-    frictionAir: 0, // No air friction for orbit tests
+    density: 1,
   },
 };
 
-const baseOrbitLargeBodyScenario: Omit<
-  IScenario,
-  "id" | "description" | "simulationSteps"
-> = {
-  name: "Base Orbit Large Body Scenario",
+export const orbitLargeBodyScenario: IScenario = {
+  id: "orbit-large-body-test",
+  name: "Orbit (Large Body) Test",
+  description: "Tests orbit around a large celestial body.",
   engineSettings: {
-    customG: 0.001, // Consistent G for orbit tests
-    // fixedTimeStepMs: 1000 / 60, // Default timestep
+    customG: 6.674e-11,
+    fixedTimeStepMs: 1000,
   },
-  celestialBodies: baseOrbitLargeBodyCelestial,
-  initialBodies: [baseOrbitLargeBodySatellite],
+  celestialBodies: baseCelestialBodyLargeOrbit,
+  initialBodies: [baseInitialSatelliteLargeOrbit],
   actions: [],
-};
-
-export const orbitLargeBodyScenario1Step: IScenario = {
-  ...baseOrbitLargeBodyScenario,
-  id: "orbit-large-body-1-step",
-  name: "Orbit Large Body (1 Step)",
-  description: "Tests orbit around a large body for 1 simulation step.",
-  simulationSteps: 1,
-  engineSettings: {
-    ...baseOrbitLargeBodyScenario.engineSettings,
-    customG: 0.1,
-  },
-};
-
-export const orbitLargeBodyScenario10Steps: IScenario = {
-  ...baseOrbitLargeBodyScenario,
-  id: "orbit-large-body-10-steps",
-  name: "Orbit Large Body (10 Steps)",
-  description: "Tests orbit around a large body for 10 simulation steps.",
-  simulationSteps: 10,
-};
-
-export const orbitLargeBodyScenario50Steps: IScenario = {
-  ...baseOrbitLargeBodyScenario,
-  id: "orbit-large-body-50-steps",
-  name: "Orbit Large Body (50 Steps)",
-  description: "Tests orbit around a large body for 50 simulation steps.",
-  simulationSteps: 50,
-};
-
-// For longer orbits, we might need more steps to see a significant portion of the orbit
-export const orbitLargeBodyScenario250Steps: IScenario = {
-  // Changed from 100 to 250 for better orbit visibility
-  ...baseOrbitLargeBodyScenario,
-  id: "orbit-large-body-250-steps",
-  name: "Orbit Large Body (250 Steps)",
-  description: "Tests orbit around a large body for 250 simulation steps.",
-  simulationSteps: 250, // Increased steps for orbit
+  simulationSteps: 250,
+  snapshotSteps: [1, 10, 50, 250],
 };

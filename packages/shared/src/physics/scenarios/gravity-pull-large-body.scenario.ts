@@ -1,73 +1,37 @@
 import { IScenario, ScenarioBodyInitialState, ScenarioBodyType } from "./types";
 import { ICelestialBody } from "../PhysicsEngine";
 
-const baseGravityPullLargeBodyCelestial: ICelestialBody[] = [
+const baseCelestialBodyLarge: ICelestialBody[] = [
   {
-    id: "earth-gravity-pull-large",
-    mass: 5.972e8,
+    id: "large-planet-gravity-test",
+    mass: 5.972e6, // Earth-like mass (original was e24, scaled down for simulation speed)
     position: { x: 0, y: 0 },
-    gravityRadius: 10000,
-    radius: 6371,
+    gravityRadius: 6371000 * 10, // Earth radius * 10
+    radius: 6371000, // Earth radius
+    hasAtmosphere: false,
   },
 ];
 
-const baseGravityPullLargeBodySatellite: ScenarioBodyInitialState = {
-  id: "satelliteGP",
+const baseInitialSatelliteLargeGravity: ScenarioBodyInitialState = {
+  id: "gravityTestSatelliteLarge",
   type: "circle" as ScenarioBodyType,
-  label: "satellite",
-  initialPosition: { x: 1000, y: 0 },
-  // No initialVelocity, starts from rest relative to the system
-  radius: 5,
+  label: "testSatellite_gravityLarge",
+  initialPosition: { x: 6371000 * 2, y: 0 }, // Start at 2 Earth radii
+  initialVelocity: { x: 0, y: 0 },
+  radius: 100,
   options: {
-    density: 0.01,
+    density: 0.1,
   },
 };
 
-const baseGravityPullLargeBodyScenario: Omit<
-  IScenario,
-  "id" | "description" | "simulationSteps"
-> = {
-  name: "Base Gravity Pull Large Body Scenario",
-  engineSettings: {
-    // Default G, default timestep
-  },
-  celestialBodies: baseGravityPullLargeBodyCelestial,
-  initialBodies: [baseGravityPullLargeBodySatellite],
+export const gravityPullLargeBodyScenario: IScenario = {
+  id: "gravity-pull-large-body-test",
+  name: "Gravity Pull (Large Body) Test",
+  description: "Tests gravitational pull from a large celestial body.",
+  engineSettings: {},
+  celestialBodies: baseCelestialBodyLarge,
+  initialBodies: [baseInitialSatelliteLargeGravity],
   actions: [],
-};
-
-export const gravityPullLargeBodyScenario1Step: IScenario = {
-  ...baseGravityPullLargeBodyScenario,
-  id: "gravity-pull-large-body-1-step",
-  name: "Gravity Pull Large Body (1 Step)",
-  description:
-    "Tests gravitational pull from a large body for 1 simulation step.",
-  simulationSteps: 1,
-};
-
-export const gravityPullLargeBodyScenario10Steps: IScenario = {
-  ...baseGravityPullLargeBodyScenario,
-  id: "gravity-pull-large-body-10-steps",
-  name: "Gravity Pull Large Body (10 Steps)",
-  description:
-    "Tests gravitational pull from a large body for 10 simulation steps.",
-  simulationSteps: 10,
-};
-
-export const gravityPullLargeBodyScenario50Steps: IScenario = {
-  ...baseGravityPullLargeBodyScenario,
-  id: "gravity-pull-large-body-50-steps",
-  name: "Gravity Pull Large Body (50 Steps)",
-  description:
-    "Tests gravitational pull from a large body for 50 simulation steps.",
-  simulationSteps: 50,
-};
-
-export const gravityPullLargeBodyScenario100Steps: IScenario = {
-  ...baseGravityPullLargeBodyScenario,
-  id: "gravity-pull-large-body-100-steps",
-  name: "Gravity Pull Large Body (100 Steps)",
-  description:
-    "Tests gravitational pull from a large body for 100 simulation steps.",
   simulationSteps: 100,
+  snapshotSteps: [1, 10, 50, 100],
 };

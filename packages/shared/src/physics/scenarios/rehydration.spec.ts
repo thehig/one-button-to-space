@@ -54,7 +54,9 @@ describe("PhysicsEngine: Rehydration Logic", () => {
     // --- Original Engine Run --- (engine1)
     const engine1 = new PhysicsEngine(
       rehydrationTestScenario.engineSettings?.fixedTimeStepMs,
-      rehydrationTestScenario.engineSettings?.customG
+      rehydrationTestScenario.engineSettings?.customG === null
+        ? undefined
+        : rehydrationTestScenario.engineSettings?.customG
     );
     engine1.setInternalLogging(
       rehydrationTestScenario.engineSettings?.enableInternalLogging || false
@@ -89,7 +91,9 @@ describe("PhysicsEngine: Rehydration Logic", () => {
     // --- Rehydrated Engine Run --- (engine2)
     const engine2 = new PhysicsEngine(
       rehydrationTestScenario.engineSettings?.fixedTimeStepMs,
-      rehydrationTestScenario.engineSettings?.customG // Ensure G is the same
+      rehydrationTestScenario.engineSettings?.customG === null
+        ? undefined
+        : rehydrationTestScenario.engineSettings?.customG // Ensure G is the same
     );
     engine2.setInternalLogging(
       rehydrationTestScenario.engineSettings?.enableInternalLogging || false

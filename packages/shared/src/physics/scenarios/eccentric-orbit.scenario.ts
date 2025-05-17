@@ -1,71 +1,52 @@
-import { IScenario, ScenarioBodyInitialState, ScenarioBodyType } from "./types";
+import {
+  IScenario,
+  ICustomBodyPlugin,
+  ScenarioBodyInitialState,
+  ScenarioBodyType,
+} from "./types";
 import { ICelestialBody } from "../PhysicsEngine";
 
-const baseEccentricOrbitCelestial: ICelestialBody[] = [
+const baseCelestialBody: ICelestialBody[] = [
   {
-    id: "large-planet-eccentric-orbit-scenario",
-    mass: 5.972e2, // Reduced mass significantly
+    id: "earth-like-orbit-test",
+    mass: 5.972e6, // Increased mass for more pronounced orbital mechanics. Original was 5.972e2
     position: { x: 0, y: 0 },
-    gravityRadius: 1000 * 10,
-    radius: 1000 / 2,
+    gravityRadius: 6371000 * 50, // Extended gravity radius
+    radius: 6371000,
+    hasAtmosphere: false, // No atmosphere for pure orbit test
   },
 ];
 
-const baseEccentricOrbitSatellite: ScenarioBodyInitialState = {
-  id: "eccentricSatelliteScenario",
+const baseInitialSatellite: ScenarioBodyInitialState = {
+  id: "orbitTestSatellite",
   type: "circle" as ScenarioBodyType,
-  label: "eccentricSatellite",
-  initialPosition: { x: 1000, y: 0 },
-  initialVelocity: { x: 0.1, y: 0.6 }, // Added small outward X, adjusted Y
-  radius: 5,
+  label: "testOrbitSatellite",
+  initialPosition: { x: 6371000 + 700000, y: 0 }, // 700km altitude
+  initialVelocity: { x: 0, y: 7500 }, // Approx LEO speed (m/s). Original was x: 0.1, y: 0.6 - too slow
+  radius: 1,
   options: {
-    density: 0.01,
-    frictionAir: 0,
+    density: 10, // Density in kg/m^3 (arbitrary for test)
+    plugin: {
+      // No specific plugin needed for basic orbit
+    } as ICustomBodyPlugin,
   },
 };
 
-const baseEccentricOrbitScenario: Omit<
-  IScenario,
-  "id" | "description" | "simulationSteps"
-> = {
-  name: "Base Eccentric Orbit Scenario",
+// Consolidated scenario definition
+export const eccentricOrbitScenario: IScenario = {
+  id: "eccentric-orbit-test",
+  name: "Eccentric Orbit Test",
+  description: "Tests eccentric orbit at various simulation steps.",
   engineSettings: {
-    customG: 0.001,
-    enableInternalLogging: false, // Keep internal logging off by default for base
+    customG: 6.674e-11, // Use realistic G for orbital mechanics
+    fixedTimeStepMs: 1000, // 1 second per step for orbital scale
+    enableInternalLogging: false,
   },
-  celestialBodies: baseEccentricOrbitCelestial,
-  initialBodies: [baseEccentricOrbitSatellite],
+  celestialBodies: baseCelestialBody,
+  initialBodies: [baseInitialSatellite],
   actions: [],
+  simulationSteps: 250, // Max steps for this scenario configuration
+  snapshotSteps: [1, 10, 50, 250], // Steps at which to take snapshots
 };
 
-export const eccentricOrbitScenario1Step: IScenario = {
-  ...baseEccentricOrbitScenario,
-  id: "eccentric-orbit-1-step",
-  name: "Eccentric Orbit (1 Step)",
-  description: "Tests an eccentric orbit for 1 simulation step.",
-  simulationSteps: 1,
-};
-
-export const eccentricOrbitScenario10Steps: IScenario = {
-  ...baseEccentricOrbitScenario,
-  id: "eccentric-orbit-10-steps",
-  name: "Eccentric Orbit (10 Steps)",
-  description: "Tests an eccentric orbit for 10 simulation steps.",
-  simulationSteps: 10,
-};
-
-export const eccentricOrbitScenario50Steps: IScenario = {
-  ...baseEccentricOrbitScenario,
-  id: "eccentric-orbit-50-steps",
-  name: "Eccentric Orbit (50 Steps)",
-  description: "Tests an eccentric orbit for 50 simulation steps.",
-  simulationSteps: 50,
-};
-
-export const eccentricOrbitScenario250Steps: IScenario = {
-  ...baseEccentricOrbitScenario,
-  id: "eccentric-orbit-250-steps",
-  name: "Eccentric Orbit (250 Steps)",
-  description: "Tests an eccentric orbit for 250 simulation steps.",
-  simulationSteps: 250, // Reduced from original 5000 for snapshot brevity
-};
+// Remove old individual exports
