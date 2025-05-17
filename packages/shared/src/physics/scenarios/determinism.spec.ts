@@ -18,16 +18,20 @@ describe("determinism", () => {
       determinismBaseScenario
     ); // Removed targetBodyId
 
-    // Instead of individual properties, compare the entire state object.
-    // Note: Timestamps within the state will differ. We might need a custom deep equal
-    // or to exclude timestamp from comparison for this specific test if it's too strict.
-    // For now, a direct deep equal might fail due to timestamp.
-    // A better approach for determinism would be to compare relevant parts like body states.
-    // However, to keep it simple, let's stringify and compare without timestamp for this test.
-    const { timestamp: ts1, ...comparableResults1 } = results1;
-    const { timestamp: ts2, ...comparableResults2 } = results2;
+    // Exclude the timestamp for direct comparison as it will always differ slightly
+    const { simulationTick: tick1, ...comparableResults1 } = results1;
+    const { simulationTick: tick2, ...comparableResults2 } = results2;
 
-    expect(comparableResults1).to.deep.equal(comparableResults2);
+    // First, ensure the ticks themselves are identical
+    expect(tick1).to.equal(
+      tick2,
+      "Simulation ticks should be identical for two identical runs"
+    );
+
+    expect(comparableResults1).to.deep.equal(
+      comparableResults2,
+      "Simulation results (excluding tick) should be identical for two identical runs"
+    );
 
     // Original detailed check if they differ (can be kept for debugging)
     if (

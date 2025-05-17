@@ -177,19 +177,6 @@ function loadScenario(displayName: string) {
   // If not, setGravity would need to be added to PE or handled differently.
   // For now, assuming constructor handles customG if provided.
 
-  if (currentScenario.engineSettings?.fixedTimeStepMs !== undefined) {
-    // This log is slightly misleading now as PE's fixedTimeStepMs is set by constructor if provided
-    // And visualizer's gameLoop runs at its own 'timeStep', calling PE.update()
-    // The PE.update() method then uses its own fixedTimeStep for internal logic IF it were using the fixedStep() method.
-    // Currently, PE.update directly calls Matter.Engine.update with the visualizer's timeStep.
-    // We might need to reconcile how fixedTimeStep is used/logged.
-    console.warn(
-      `Scenario specified fixedTimeStepMs: ${
-        currentScenario.engineSettings.fixedTimeStepMs
-      }. Visualizer loop is ~${timeStep.toFixed(2)}ms.`
-    );
-  }
-
   physicsEngine.setExternalMatterEngine(engine);
 
   const celestialBodiesFromScenario = currentScenario.celestialBodies || [];

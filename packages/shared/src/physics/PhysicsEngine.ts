@@ -40,6 +40,7 @@ export class PhysicsEngine {
   private accumulatedTime: number = 0;
   private celestialBodies: ICelestialBody[] = []; // For variable gravity
   private G: number; // Gravitational constant, now instance-specific
+  private currentTick: number = 0; // <<< ADDED THIS LINE
   // Potentially a renderer if we want to debug draw on server or share debug logic
   // private renderer: Matter.Render;
   private internalLoggingEnabled: boolean = false;
@@ -295,6 +296,7 @@ export class PhysicsEngine {
 
       Matter.Engine.update(this.engine, this.fixedTimeStepMs);
       this.accumulatedTime -= this.fixedTimeStepMs;
+      this.currentTick++; // <<< ADDED THIS LINE
     }
     // End Original fixedStep logic
   }
@@ -563,6 +565,7 @@ export class PhysicsEngine {
     }
 
     Matter.Engine.update(this.engine, deltaTimeSeconds * 1000);
+    this.currentTick++; // <<< ADDED THIS LINE (for non-fixedStep usage like visualizer)
   }
 
   public toJSON(): ISerializedPhysicsEngineState {
@@ -627,20 +630,34 @@ export class PhysicsEngine {
     );
 
     const serializedCelestialBodies: ICelestialBodyData[] =
-      this.celestialBodies.map((cb) => ({
-        id: cb.id,
-        mass: cb.mass,
-        position: { x: cb.position.x, y: cb.position.y },
-        gravityRadius: cb.gravityRadius,
-        radius: cb.radius,
-        hasAtmosphere: cb.hasAtmosphere,
-        atmosphereLimitAltitude: cb.atmosphereLimitAltitude,
-        surfaceAirDensity: cb.surfaceAirDensity,
-        scaleHeight: cb.scaleHeight,
-      }));
+      this.celestialBodies.map((cb) => {
+        const serializedCb: ICelestialBodyData = {
+          id: cb.id,
+          mass: cb.mass,
+          position: { x: cb.position.x, y: cb.position.y },
+          gravityRadius: cb.gravityRadius,
+        };
+
+        if (cb.radius !== undefined) {
+          serializedCb.radius = cb.radius;
+        }
+        if (cb.hasAtmosphere !== undefined) {
+          serializedCb.hasAtmosphere = cb.hasAtmosphere;
+        }
+        if (cb.atmosphereLimitAltitude !== undefined) {
+          serializedCb.atmosphereLimitAltitude = cb.atmosphereLimitAltitude;
+        }
+        if (cb.surfaceAirDensity !== undefined) {
+          serializedCb.surfaceAirDensity = cb.surfaceAirDensity;
+        }
+        if (cb.scaleHeight !== undefined) {
+          serializedCb.scaleHeight = cb.scaleHeight;
+        }
+        return serializedCb;
+      });
 
     return {
-      timestamp: Date.now(),
+      simulationTick: this.currentTick, // <<< MODIFIED THIS LINE
       fixedTimeStepMs: this.fixedTimeStepMs,
       accumulatedTime: this.accumulatedTime,
       G: this.G,

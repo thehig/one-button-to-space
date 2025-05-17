@@ -1,5 +1,5 @@
 {
-  "timestamp": 1747505020754,
+  "simulationTick": 100,
   "fixedTimeStepMs": 16.666666666666668,
   "accumulatedTime": 0,
   "G": 0.001,

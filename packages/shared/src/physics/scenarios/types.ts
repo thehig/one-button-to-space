@@ -133,7 +133,7 @@ export interface ISerializedMatterBody {
 }
 
 export interface ISerializedPhysicsEngineState {
-  timestamp: number; // When the state was captured
+  simulationTick: number; // Number of simulation steps taken
   fixedTimeStepMs: number;
   accumulatedTime: number;
   G: number;
