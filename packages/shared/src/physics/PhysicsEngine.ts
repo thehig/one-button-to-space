@@ -4,6 +4,13 @@ import {
   CollisionMasks,
   createCollisionFilter,
 } from "../constants/collisionCategories";
+import type {
+  ISerializedPhysicsEngineState,
+  ISerializedMatterBody,
+  ISerializedBodyRenderOptions,
+  ISerializedCustomBodyPlugin,
+  ICelestialBodyData,
+} from "./scenarios/types"; // Added import for serialization types
 
 export interface ICelestialBody {
   id: string;
@@ -438,6 +445,17 @@ export class PhysicsEngine {
    * @param deltaTimeSeconds The time elapsed since the last update, in seconds.
    */
   public update(deltaTimeSeconds: number): void {
+    // If internalLoggingEnabled is true, log more frequently within update
+    if (this.internalLoggingEnabled) {
+      console.log(
+        `[PhysicsEngine.update] Called. deltaTime: ${deltaTimeSeconds}, LoggingEnabled: ${this.internalLoggingEnabled}`
+      );
+      console.log(
+        "[PhysicsEngine.update] Bodies in world:",
+        Matter.Composite.allBodies(this.world).length
+      );
+    }
+
     // Apply custom forces like gravity and drag
     this.applyGravitationalForces();
     this.applyAtmosphericDragForces();
@@ -460,6 +478,96 @@ export class PhysicsEngine {
     // Update the Matter.js engine
     // Matter.Engine.update expects delta in milliseconds
     Matter.Engine.update(this.engine, deltaTimeSeconds * 1000);
+  }
+
+  public toJSON(): ISerializedPhysicsEngineState {
+    const allBodiesInWorld = Matter.Composite.allBodies(this.world);
+    const serializedBodies: ISerializedMatterBody[] = allBodiesInWorld.map(
+      (body) => {
+        const pluginData = (body.plugin as ICustomBodyPlugin) || {};
+        const renderData = body.render || {};
+
+        return {
+          id: body.id,
+          label: body.label || `body-${body.id}`,
+          type: body.type,
+          parts:
+            body.parts && body.parts.length > 1
+              ? body.parts.map((p) => p.id).filter((id) => id !== body.id)
+              : [], // Store IDs of parts, excluding self
+          position: { x: body.position.x, y: body.position.y },
+          angle: body.angle,
+          velocity: { x: body.velocity.x, y: body.velocity.y },
+          angularVelocity: body.angularVelocity,
+          mass: body.mass,
+          inverseMass: body.inverseMass,
+          inertia: body.inertia,
+          inverseInertia: body.inverseInertia,
+          density: body.density,
+          restitution: body.restitution,
+          friction: body.friction,
+          frictionStatic: body.frictionStatic,
+          frictionAir: body.frictionAir,
+          slop: body.slop,
+          isStatic: body.isStatic,
+          isSensor: body.isSensor,
+          isSleeping: body.isSleeping,
+          collisionFilter: {
+            category:
+              body.collisionFilter.category || CollisionCategories.DEFAULT,
+            mask: body.collisionFilter.mask || CollisionMasks.DEFAULT,
+            group: body.collisionFilter.group || 0,
+          },
+          render: {
+            visible: renderData.visible,
+            opacity: renderData.opacity,
+            fillStyle: renderData.fillStyle,
+            strokeStyle: renderData.strokeStyle,
+            lineWidth: renderData.lineWidth,
+            sprite: renderData.sprite
+              ? {
+                  texture: renderData.sprite.texture,
+                  xScale: renderData.sprite.xScale,
+                  yScale: renderData.sprite.yScale,
+                  xOffset: renderData.sprite.xOffset,
+                  yOffset: renderData.sprite.yOffset,
+                }
+              : undefined,
+          } as ISerializedBodyRenderOptions,
+          plugin: {
+            dragCoefficientArea: pluginData.dragCoefficientArea,
+            effectiveNoseRadius: pluginData.effectiveNoseRadius,
+            currentHeatFlux: pluginData.currentHeatFlux,
+          } as ISerializedCustomBodyPlugin,
+        };
+      }
+    );
+
+    const serializedCelestialBodies: ICelestialBodyData[] =
+      this.celestialBodies.map((cb) => ({
+        id: cb.id,
+        mass: cb.mass,
+        position: { x: cb.position.x, y: cb.position.y }, // Already {x, y} in ICelestialBody
+        gravityRadius: cb.gravityRadius,
+        radius: cb.radius,
+        hasAtmosphere: cb.hasAtmosphere,
+        atmosphereLimitAltitude: cb.atmosphereLimitAltitude,
+        surfaceAirDensity: cb.surfaceAirDensity,
+        scaleHeight: cb.scaleHeight,
+      }));
+
+    return {
+      timestamp: Date.now(),
+      fixedTimeStepMs: this.fixedTimeStepMs,
+      accumulatedTime: this.accumulatedTime,
+      G: this.G,
+      internalLoggingEnabled: this.internalLoggingEnabled,
+      ownsEngine: this.ownsEngine,
+      celestialBodies: serializedCelestialBodies,
+      world: {
+        bodies: serializedBodies,
+      },
+    };
   }
 
   // Add more methods as needed for interacting with the physics world

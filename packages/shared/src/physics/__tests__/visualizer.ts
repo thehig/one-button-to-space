@@ -33,6 +33,9 @@ const resetButton = document.getElementById(
 const matterContainer = document.getElementById(
   "matter-container"
 ) as HTMLDivElement;
+const debugLoggingCheckbox = document.getElementById(
+  "debug-logging-checkbox"
+) as HTMLInputElement;
 
 // Matter.js specific
 let engine: Matter.Engine;
@@ -66,6 +69,8 @@ function setupMatter() {
 
   engine = Matter.Engine.create();
   engine.world.gravity.y = 0;
+  engine.world.gravity.x = 0;
+  engine.world.gravity.scale = 0;
 
   render = Matter.Render.create({
     element: matterContainer,
@@ -73,17 +78,39 @@ function setupMatter() {
     options: {
       width: 800,
       height: 600,
-      wireframes: false,
-      showAngleIndicator: true,
-      showCollisions: true,
-      showVelocity: true,
-      background: "#ffffff",
+      wireframes: true,
+      showBounds: true,
+      showAxes: true,
+      background: "#eeeeee",
     },
   });
 
+  // Explicitly set canvas size and log container rect
+  if (render.canvas && render.options.width && render.options.height) {
+    render.canvas.width = render.options.width;
+    render.canvas.height = render.options.height;
+    console.log(
+      `[Visualizer] Canvas size set to: ${render.canvas.width}x${render.canvas.height}`
+    );
+  }
+  if (matterContainer) {
+    const rect = matterContainer.getBoundingClientRect();
+    console.log(
+      `[Visualizer] matterContainer Rect: w=${rect.width}, h=${rect.height}, x=${rect.left}, y=${rect.top}`
+    );
+  }
+
+  // Temporarily set very wide, fixed bounds
+  render.bounds.min.x = -2000;
+  render.bounds.min.y = -2000;
+  render.bounds.max.x = 2000;
+  render.bounds.max.y = 2000;
+
   Matter.Render.run(render);
   runner = Matter.Runner.create();
-  console.log("Matter.js engine and renderer (re)initialized.");
+  console.log(
+    "Matter.js engine and renderer (re)initialized WITH SIMPLIFIED/WIDE VIEW."
+  );
 }
 
 function populateScenarioSelector() {
@@ -97,6 +124,7 @@ function populateScenarioSelector() {
     option.textContent = displayName;
     scenarioSelect.appendChild(option);
   });
+  playPauseButton.textContent = "Play";
 }
 
 function clearSimulationState() {
@@ -126,15 +154,39 @@ function loadScenario(displayName: string) {
 
   console.log(`Loading scenario: ${displayName} (ID: ${currentScenario.id})`);
 
-  physicsEngine = new PhysicsEngine(
-    currentScenario.engineSettings?.enableInternalLogging || false
-  );
-  if (currentScenario.engineSettings?.customG !== undefined) {
-    physicsEngine.setGravity(currentScenario.engineSettings.customG);
+  // Correctly instantiate PhysicsEngine
+  const scenarioSettings = currentScenario.engineSettings;
+  const peFixedTimeStep = scenarioSettings?.fixedTimeStepMs; // undefined will use PE default
+  const peCustomG = scenarioSettings?.customG; // undefined will use PE default
+
+  physicsEngine = new PhysicsEngine(peFixedTimeStep, peCustomG);
+
+  // Handle logging settings
+  const scenarioWantsLogging = scenarioSettings?.enableInternalLogging || false;
+  if (debugLoggingCheckbox) {
+    physicsEngine.setInternalLogging(
+      debugLoggingCheckbox.checked || scenarioWantsLogging
+    );
+  } else {
+    physicsEngine.setInternalLogging(scenarioWantsLogging);
   }
+
+  // The old setGravity call is redundant if customG is passed to constructor.
+  // However, PhysicsEngine doesn't currently have a setGravity method.
+  // If customG was part of engineSettings and PE constructor handles it, this is fine.
+  // If not, setGravity would need to be added to PE or handled differently.
+  // For now, assuming constructor handles customG if provided.
+
   if (currentScenario.engineSettings?.fixedTimeStepMs !== undefined) {
+    // This log is slightly misleading now as PE's fixedTimeStepMs is set by constructor if provided
+    // And visualizer's gameLoop runs at its own 'timeStep', calling PE.update()
+    // The PE.update() method then uses its own fixedTimeStep for internal logic IF it were using the fixedStep() method.
+    // Currently, PE.update directly calls Matter.Engine.update with the visualizer's timeStep.
+    // We might need to reconcile how fixedTimeStep is used/logged.
     console.warn(
-      "Scenario's fixedTimeStepMs is noted, but visualizer runs on its own ~60FPS loop."
+      `Scenario specified fixedTimeStepMs: ${
+        currentScenario.engineSettings.fixedTimeStepMs
+      }. Visualizer loop is ~${timeStep.toFixed(2)}ms.`
     );
   }
 
@@ -145,18 +197,82 @@ function loadScenario(displayName: string) {
   );
 
   currentScenario.initialBodies.forEach((bodyDef: ScenarioBodyInitialState) => {
-    physicsEngine.addBody(
-      bodyDef.id,
-      bodyDef.type as "box" | "circle",
-      bodyDef.initialPosition,
-      bodyDef.width || (bodyDef.radius ? bodyDef.radius * 2 : 0),
-      bodyDef.height || (bodyDef.radius ? bodyDef.radius * 2 : 0),
-      bodyDef.initialAngle,
-      bodyDef.initialVelocity,
-      bodyDef.initialAngularVelocity,
-      bodyDef.label,
-      bodyDef.options
-    );
+    const bodyOptions = {
+      ...bodyDef.options,
+      label: bodyDef.id,
+      angle: bodyDef.initialAngle,
+    };
+
+    let newBody: Matter.Body | null = null;
+    switch (bodyDef.type) {
+      case "box":
+        newBody = physicsEngine.createBox(
+          bodyDef.initialPosition.x,
+          bodyDef.initialPosition.y,
+          bodyDef.width || 0,
+          bodyDef.height || 0,
+          bodyOptions
+        );
+        break;
+      case "circle":
+        newBody = physicsEngine.createCircle(
+          bodyDef.initialPosition.x,
+          bodyDef.initialPosition.y,
+          bodyDef.radius || 0,
+          bodyOptions
+        );
+        break;
+      case "rocket":
+        console.warn(
+          `Visualizer using default for 'rocket' type. Ensure createRocketBody in PhysicsEngine is suitable or enhance options.`
+        );
+        if (typeof physicsEngine.createRocketBody === "function") {
+          newBody = (physicsEngine as any).createRocketBody(
+            bodyDef.initialPosition.x,
+            bodyDef.initialPosition.y,
+            bodyOptions
+          );
+        } else {
+          console.error(
+            "physicsEngine.createRocketBody does not exist or is not being called correctly."
+          );
+        }
+        break;
+      default:
+        console.warn(`Unsupported body type in scenario: ${bodyDef.type}`);
+    }
+
+    if (newBody) {
+      if (bodyDef.initialVelocity) {
+        Matter.Body.setVelocity(newBody, bodyDef.initialVelocity);
+      }
+      if (bodyDef.initialAngularVelocity) {
+        Matter.Body.setAngularVelocity(newBody, bodyDef.initialAngularVelocity);
+      }
+      if (newBody.label !== bodyDef.id) {
+        Matter.Body.set(newBody, "label", bodyDef.id);
+      }
+      // Log body details
+      console.log(
+        `[Visualizer] Created body: ID='${bodyDef.id}', Label='${
+          newBody.label
+        }', Pos=(${newBody.position.x.toFixed(2)}, ${newBody.position.y.toFixed(
+          2
+        )})`
+      );
+      console.log(
+        `[Visualizer] Body bounds: min=(${newBody.bounds.min.x.toFixed(
+          2
+        )}, ${newBody.bounds.min.y.toFixed(
+          2
+        )}), max=(${newBody.bounds.max.x.toFixed(
+          2
+        )}, ${newBody.bounds.max.y.toFixed(2)})`
+      );
+      console.log(
+        `[Visualizer] Body render.visible: ${newBody.render.visible}`
+      );
+    }
   });
 
   actionQueue = currentScenario.actions ? [...currentScenario.actions] : [];
@@ -165,6 +281,36 @@ function loadScenario(displayName: string) {
   currentTick = 0;
   isPlaying = false;
   playPauseButton.textContent = "Play";
+
+  // Adjust camera to view the bodies
+  // const allBodies = Matter.Composite.allBodies(engine.world);
+  // if (allBodies.length > 0) {
+  //   // Calculate bounds of all bodies
+  //   const bodiesBounds = Matter.Bounds.create(allBodies);
+  //
+  //   // Use Render.lookAt to center the view on the bounds
+  //   Matter.Render.lookAt(render, {
+  //     min: { x: bodiesBounds.min.x, y: bodiesBounds.min.y },
+  //     max: { x: bodiesBounds.max.x, y: bodiesBounds.max.y },
+  //   });
+  //
+  //   // Add some padding to the view after lookAt
+  //   const padding = 0.2; // 20% padding, adjust as needed
+  //   const worldViewWidth = render.bounds.max.x - render.bounds.min.x;
+  //   const worldViewHeight = render.bounds.max.y - render.bounds.min.y;
+  //
+  //   render.bounds.min.x -= worldViewWidth * padding;
+  //   render.bounds.max.x += worldViewWidth * padding;
+  //   render.bounds.min.y -= worldViewHeight * padding;
+  //   render.bounds.max.y += worldViewHeight * padding;
+  //
+  // } else {
+  //   // Default view if no bodies (e.g., centered at 0,0)
+  //   Matter.Render.lookAt(render, {
+  //     min: { x: -render.options.width! / 2, y: -render.options.height! / 2 },
+  //     max: { x: render.options.width! / 2, y: render.options.height! / 2 },
+  //   });
+  // }
 }
 
 function gameLoop() {
@@ -180,16 +326,26 @@ function gameLoop() {
         actionDef.targetBodyId
       ); // Check existence
       if (!targetBodyExists) {
-        // Corrected variable name from targetBody to targetBodyExists
         console.warn(`Action target body ${actionDef.targetBodyId} not found.`);
         continue;
       }
       if (actionDef.actionType === "applyForce" && actionDef.force) {
-        physicsEngine.applyForce(
-          actionDef.targetBodyId,
-          actionDef.force,
-          actionDef.applicationPoint
+        const bodyToApplyForce = physicsEngine.getBodyById(
+          actionDef.targetBodyId
         );
+        if (bodyToApplyForce) {
+          physicsEngine.applyForceToBody(
+            bodyToApplyForce,
+            actionDef.applicationPoint || bodyToApplyForce.position, // Apply at point or body center
+            actionDef.force
+          );
+        } else {
+          // This case should ideally not be hit if targetBodyExists check above is thorough
+          // and getBodyById is consistent.
+          console.warn(
+            `Could not retrieve body ${actionDef.targetBodyId} for applying force, though it existed moments ago.`
+          );
+        }
       } else {
         console.warn(
           `Unsupported action type: ${actionDef.actionType} or missing parameters.`
@@ -199,6 +355,17 @@ function gameLoop() {
   }
 
   physicsEngine.update(timeStep / 1000);
+
+  if (debugLoggingCheckbox && debugLoggingCheckbox.checked) {
+    if (physicsEngine && typeof physicsEngine.toJSON === "function") {
+      console.log("[PhysicsEngine State JSON]:", physicsEngine.toJSON());
+    } else {
+      console.warn(
+        "[Visualizer] physicsEngine.toJSON is not available or not a function."
+      );
+    }
+  }
+
   currentTick++;
 
   const scenarioDurationSteps = currentScenario.simulationSteps;
@@ -267,6 +434,18 @@ resetButton.addEventListener("click", () => {
     pauseSimulation();
     loadScenario(scenarioSelect.value);
     console.log(`Scenario ${scenarioSelect.value} loaded and reset.`);
+  }
+});
+
+debugLoggingCheckbox.addEventListener("change", () => {
+  if (physicsEngine) {
+    physicsEngine.setInternalLogging(debugLoggingCheckbox.checked);
+    console.log(
+      `PhysicsEngine internal logging set to: ${debugLoggingCheckbox.checked}`
+    );
+    // If a scenario is loaded, you might want to reload it to see logs from its setup phase
+    // or just accept that logging changes take effect from this point onwards.
+    // For now, it just affects future logs from the existing physicsEngine instance.
   }
 });
 
