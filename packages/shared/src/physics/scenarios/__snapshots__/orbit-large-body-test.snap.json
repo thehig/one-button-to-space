@@ -57,7 +57,7 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#f19648",
+            "fillStyle": "#f5d259",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {
@@ -137,7 +137,7 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#063e7b",
+            "fillStyle": "#f5d259",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {
@@ -217,7 +217,7 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#ececd1",
+            "fillStyle": "#f5d259",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {
@@ -297,7 +297,7 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#f5d259",
+            "fillStyle": "#063e7b",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {

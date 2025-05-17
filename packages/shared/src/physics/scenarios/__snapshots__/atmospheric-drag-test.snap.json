@@ -334,5 +334,425 @@
         }
       ]
     }
+  },
+  "200": {
+    "simulationTick": 200,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "earth-like-drag-test",
+        "mass": 0,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 63710000,
+        "radius": 6371000,
+        "hasAtmosphere": true,
+        "atmosphereLimitAltitude": 100000,
+        "surfaceAirDensity": 1.225,
+        "scaleHeight": 8500
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testDragBody",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 6419975.760249728,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": -0.7711664447560906,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 8,
+          "inverseMass": 0.125,
+          "inertia": 5.333333333333333,
+          "inverseInertia": 0.1875,
+          "density": 8,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#f5d259",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": 0.5,
+            "effectiveNoseRadius": 0.1,
+            "currentHeatFlux": 0.000017058050412715708,
+            "creationParams": {
+              "type": "box",
+              "width": 1,
+              "height": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "300": {
+    "simulationTick": 300,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "earth-like-drag-test",
+        "mass": 0,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 63710000,
+        "radius": 6371000,
+        "hasAtmosphere": true,
+        "atmosphereLimitAltitude": 100000,
+        "surfaceAirDensity": 1.225,
+        "scaleHeight": 8500
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testDragBody",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 6419929.640793622,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": -0.2567336978390813,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 8,
+          "inverseMass": 0.125,
+          "inertia": 5.333333333333333,
+          "inverseInertia": 0.1875,
+          "density": 8,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#ececd1",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": 0.5,
+            "effectiveNoseRadius": 0.1,
+            "currentHeatFlux": 6.291471256370871e-7,
+            "creationParams": {
+              "type": "box",
+              "width": 1,
+              "height": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "400": {
+    "simulationTick": 400,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "earth-like-drag-test",
+        "mass": 0,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 63710000,
+        "radius": 6371000,
+        "hasAtmosphere": true,
+        "atmosphereLimitAltitude": 100000,
+        "surfaceAirDensity": 1.225,
+        "scaleHeight": 8500
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testDragBody",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 6419913.7920325,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": -0.0909519586712122,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 8,
+          "inverseMass": 0.125,
+          "inertia": 5.333333333333333,
+          "inverseInertia": 0.1875,
+          "density": 8,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#ececd1",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": 0.5,
+            "effectiveNoseRadius": 0.1,
+            "currentHeatFlux": 2.7970756909440857e-8,
+            "creationParams": {
+              "type": "box",
+              "width": 1,
+              "height": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "500": {
+    "simulationTick": 500,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "earth-like-drag-test",
+        "mass": 0,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 63710000,
+        "radius": 6371000,
+        "hasAtmosphere": true,
+        "atmosphereLimitAltitude": 100000,
+        "surfaceAirDensity": 1.225,
+        "scaleHeight": 8500
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testDragBody",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 6419908.117347637,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": -0.03290379140526056,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 8,
+          "inverseMass": 0.125,
+          "inertia": 5.333333333333333,
+          "inverseInertia": 0.1875,
+          "density": 8,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#f55a3c",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": 0.5,
+            "effectiveNoseRadius": 0.1,
+            "currentHeatFlux": 1.3243303758381135e-9,
+            "creationParams": {
+              "type": "box",
+              "width": 1,
+              "height": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "1000": {
+    "simulationTick": 1000,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "earth-like-drag-test",
+        "mass": 0,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 63710000,
+        "radius": 6371000,
+        "hasAtmosphere": true,
+        "atmosphereLimitAltitude": 100000,
+        "surfaceAirDensity": 1.225,
+        "scaleHeight": 8500
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testDragBody",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 6419904.892090499,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": -0.00021475832909345627,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 8,
+          "inverseMass": 0.125,
+          "inertia": 5.333333333333333,
+          "inverseInertia": 0.1875,
+          "density": 8,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#f19648",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": 0.5,
+            "effectiveNoseRadius": 0.1,
+            "currentHeatFlux": 3.6821540743768757e-16,
+            "creationParams": {
+              "type": "box",
+              "width": 1,
+              "height": 1
+            }
+          }
+        }
+      ]
+    }
   }
 }

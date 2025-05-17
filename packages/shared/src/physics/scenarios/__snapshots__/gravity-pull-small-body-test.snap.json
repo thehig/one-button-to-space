@@ -57,7 +57,7 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#ececd1",
+            "fillStyle": "#063e7b",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {
@@ -137,7 +137,7 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#f55a3c",
+            "fillStyle": "#f19648",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {
@@ -297,7 +297,407 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#ececd1",
+            "fillStyle": "#f55a3c",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": null,
+            "effectiveNoseRadius": null,
+            "currentHeatFlux": 0,
+            "creationParams": {
+              "type": "circle",
+              "radius": 100
+            }
+          }
+        }
+      ]
+    }
+  },
+  "200": {
+    "simulationTick": 200,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "small-star-gravity-test",
+        "mass": 1989,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 6957000,
+        "radius": 695700,
+        "hasAtmosphere": false
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testSatellite_gravitySmall",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 1391400,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": 0,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 3111.100203999999,
+          "inverseMass": 0.0003214296983151753,
+          "inertia": 61619249.993237026,
+          "inverseInertia": 1.6228694768432824e-8,
+          "density": 0.1,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#f19648",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": null,
+            "effectiveNoseRadius": null,
+            "currentHeatFlux": 0,
+            "creationParams": {
+              "type": "circle",
+              "radius": 100
+            }
+          }
+        }
+      ]
+    }
+  },
+  "300": {
+    "simulationTick": 300,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "small-star-gravity-test",
+        "mass": 1989,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 6957000,
+        "radius": 695700,
+        "hasAtmosphere": false
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testSatellite_gravitySmall",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 1391400,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": 0,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 3111.100203999999,
+          "inverseMass": 0.0003214296983151753,
+          "inertia": 61619249.993237026,
+          "inverseInertia": 1.6228694768432824e-8,
+          "density": 0.1,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#f55a3c",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": null,
+            "effectiveNoseRadius": null,
+            "currentHeatFlux": 0,
+            "creationParams": {
+              "type": "circle",
+              "radius": 100
+            }
+          }
+        }
+      ]
+    }
+  },
+  "400": {
+    "simulationTick": 400,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "small-star-gravity-test",
+        "mass": 1989,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 6957000,
+        "radius": 695700,
+        "hasAtmosphere": false
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testSatellite_gravitySmall",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 1391400,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": 0,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 3111.100203999999,
+          "inverseMass": 0.0003214296983151753,
+          "inertia": 61619249.993237026,
+          "inverseInertia": 1.6228694768432824e-8,
+          "density": 0.1,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#f55a3c",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": null,
+            "effectiveNoseRadius": null,
+            "currentHeatFlux": 0,
+            "creationParams": {
+              "type": "circle",
+              "radius": 100
+            }
+          }
+        }
+      ]
+    }
+  },
+  "500": {
+    "simulationTick": 500,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "small-star-gravity-test",
+        "mass": 1989,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 6957000,
+        "radius": 695700,
+        "hasAtmosphere": false
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testSatellite_gravitySmall",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 1391400,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": 0,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 3111.100203999999,
+          "inverseMass": 0.0003214296983151753,
+          "inertia": 61619249.993237026,
+          "inverseInertia": 1.6228694768432824e-8,
+          "density": 0.1,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#f5d259",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": null,
+            "effectiveNoseRadius": null,
+            "currentHeatFlux": 0,
+            "creationParams": {
+              "type": "circle",
+              "radius": 100
+            }
+          }
+        }
+      ]
+    }
+  },
+  "1000": {
+    "simulationTick": 1000,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [
+      {
+        "id": "small-star-gravity-test",
+        "mass": 1989,
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "gravityRadius": 6957000,
+        "radius": 695700,
+        "hasAtmosphere": false
+      }
+    ],
+    "world": {
+      "bodies": [
+        {
+          "id": 1,
+          "label": "testSatellite_gravitySmall",
+          "type": "body",
+          "parts": [],
+          "position": {
+            "x": 1391400,
+            "y": 0
+          },
+          "angle": 0,
+          "velocity": {
+            "x": 0,
+            "y": 0
+          },
+          "angularVelocity": 0,
+          "mass": 3111.100203999999,
+          "inverseMass": 0.0003214296983151753,
+          "inertia": 61619249.993237026,
+          "inverseInertia": 1.6228694768432824e-8,
+          "density": 0.1,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 1,
+            "mask": 65535,
+            "group": 0
+          },
+          "render": {
+            "visible": true,
+            "opacity": 1,
+            "fillStyle": "#f5d259",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {
