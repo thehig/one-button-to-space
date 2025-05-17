@@ -524,20 +524,18 @@ export class PhysicsEngine {
             fillStyle: renderData.fillStyle,
             strokeStyle: renderData.strokeStyle,
             lineWidth: renderData.lineWidth,
-            sprite: renderData.sprite
-              ? {
-                  texture: renderData.sprite.texture,
-                  xScale: renderData.sprite.xScale,
-                  yScale: renderData.sprite.yScale,
-                  xOffset: renderData.sprite.xOffset,
-                  yOffset: renderData.sprite.yOffset,
-                }
-              : undefined,
+            sprite: {
+              texture: renderData.sprite?.texture ?? null,
+              xScale: renderData.sprite?.xScale ?? 1,
+              yScale: renderData.sprite?.yScale ?? 1,
+              xOffset: (renderData.sprite as any)?.xOffset ?? null,
+              yOffset: (renderData.sprite as any)?.yOffset ?? null,
+            },
           } as ISerializedBodyRenderOptions,
           plugin: {
-            dragCoefficientArea: pluginData.dragCoefficientArea,
-            effectiveNoseRadius: pluginData.effectiveNoseRadius,
-            currentHeatFlux: pluginData.currentHeatFlux,
+            dragCoefficientArea: pluginData.dragCoefficientArea ?? null,
+            effectiveNoseRadius: pluginData.effectiveNoseRadius ?? null,
+            currentHeatFlux: pluginData.currentHeatFlux ?? null,
           } as ISerializedCustomBodyPlugin,
         };
       }

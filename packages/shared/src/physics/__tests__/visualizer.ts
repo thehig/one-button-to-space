@@ -1,7 +1,7 @@
 import Matter from "matter-js";
 import { PhysicsEngine } from "../PhysicsEngine";
 // Import the scenariosMap from the new index file
-import { scenariosMap } from "../scenarios/index.ts";
+import { scenariosMap } from "../scenarios/index";
 // Import types from the types.ts file in the scenarios folder
 import type {
   IScenario,
@@ -192,8 +192,14 @@ function loadScenario(displayName: string) {
 
   physicsEngine.setExternalMatterEngine(engine);
 
-  (currentScenario.celestialBodies || []).forEach((cb) =>
-    physicsEngine.addCelestialBody(cb)
+  const celestialBodiesFromScenario = currentScenario.celestialBodies || [];
+  // Call init to set celestial bodies. If a scenario has none,
+  // this effectively initializes with an empty array if init handles undefined correctly
+  // or just ensures init is called.
+  physicsEngine.init(
+    celestialBodiesFromScenario.length > 0
+      ? celestialBodiesFromScenario
+      : undefined
   );
 
   currentScenario.initialBodies.forEach((bodyDef: ScenarioBodyInitialState) => {
@@ -340,8 +346,6 @@ function gameLoop() {
             actionDef.force
           );
         } else {
-          // This case should ideally not be hit if targetBodyExists check above is thorough
-          // and getBodyById is consistent.
           console.warn(
             `Could not retrieve body ${actionDef.targetBodyId} for applying force, though it existed moments ago.`
           );
@@ -358,7 +362,12 @@ function gameLoop() {
 
   if (debugLoggingCheckbox && debugLoggingCheckbox.checked) {
     if (physicsEngine && typeof physicsEngine.toJSON === "function") {
-      console.log("[PhysicsEngine State JSON]:", physicsEngine.toJSON());
+      const currentState = physicsEngine.toJSON();
+      console.log("[PhysicsEngine Current State JSON (Object)]:", currentState);
+      console.log(
+        "[PhysicsEngine Current State JSON (String)]:",
+        JSON.stringify(currentState, null, 2)
+      );
     } else {
       console.warn(
         "[Visualizer] physicsEngine.toJSON is not available or not a function."

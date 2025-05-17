@@ -84,11 +84,11 @@ export interface ISerializedBodyRenderOptions {
   lineWidth?: number;
   // Add other relevant render options, e.g., sprite texture, xScale, yScale
   sprite?: {
-    texture?: string;
-    xScale?: number;
-    yScale?: number;
-    xOffset?: number;
-    yOffset?: number;
+    texture?: string | null;
+    xScale?: number | null;
+    yScale?: number | null;
+    xOffset?: number | null;
+    yOffset?: number | null;
   };
 }
 
@@ -105,9 +105,9 @@ export interface ISerializedMatterBody {
   type: string; // 'body', 'composite', etc.
   parts: number[]; // IDs of part bodies if composite, or empty array
   position: ISerializedVector;
-  angle: number;
+  angle: number | null;
   velocity: ISerializedVector;
-  angularVelocity: number;
+  angularVelocity: number | null;
   mass: number;
   inverseMass: number;
   inertia: number;
