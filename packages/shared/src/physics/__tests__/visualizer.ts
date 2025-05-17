@@ -1,22 +1,25 @@
 import Matter from "matter-js";
 import { PhysicsEngine } from "../PhysicsEngine";
-// Import the scenariosMap from the new index file
-import { scenariosMap } from "../scenarios/index";
-// Import types from the types.ts file in the scenarios folder
+// Import the scenariosToRun array directly
+import { scenariosToRun, ScenarioEntry } from "../scenarios/index";
+// Import runScenario helper
+import { runScenario } from "../scenarios/scenario-runner.helper";
 import type {
   IScenario,
   ScenarioAction,
   ScenarioBodyInitialState,
-  ScenarioEngineSettings,
+  // ScenarioEngineSettings, // Potentially unused if runScenario handles it all
+  ISerializedPhysicsEngineState, // To type the output of runScenario
 } from "../scenarios/types.ts";
 
 console.log(
   "Visualizer script loaded. Matter:",
   Matter ? "loaded" : "not loaded"
 );
-if (scenariosMap.size === 0) {
+// Check the array length
+if (scenariosToRun.length === 0) {
   console.warn(
-    "Scenarios Map is empty! Check scenarios/index.ts and individual scenario files."
+    "scenariosToRun is empty! Check scenarios/index.ts and individual scenario files."
   );
 }
 
@@ -48,6 +51,7 @@ let physicsEngine: PhysicsEngine;
 // Visualizer state
 let currentScenario: IScenario | null = null;
 let currentScenarioDisplayName: string | null = null; // This will be the key from scenariosMap
+let currentScenarioEntry: ScenarioEntry | null = null; // To store the full ScenarioEntry
 let actionQueue: ScenarioAction[] = [];
 let currentTick = 0;
 let isPlaying = false;
@@ -117,11 +121,11 @@ function populateScenarioSelector() {
   while (scenarioSelect.options.length > 1) {
     scenarioSelect.remove(1);
   }
-  // Iterate over the keys of scenariosMap (which are the display names)
-  scenariosMap.forEach((_scenario, displayName) => {
+  // Iterate over the scenariosToRun array
+  scenariosToRun.forEach((entry, index) => {
     const option = document.createElement("option");
-    option.value = displayName;
-    option.textContent = displayName;
+    option.value = entry.scenario.id; // Use scenario ID as value for robust lookup
+    option.textContent = entry.scenario.name; // Use scenario name for display
     scenarioSelect.appendChild(option);
   });
   playPauseButton.textContent = "Play";
@@ -135,256 +139,276 @@ function clearSimulationState() {
     gameLoopIntervalId = undefined;
   }
   isPlaying = false;
+  currentScenario = null; // Clear currentScenario
+  currentScenarioEntry = null; // Clear currentScenarioEntry
   playPauseButton.textContent = "Play";
 }
 
-function loadScenario(displayName: string) {
+function loadScenario(selectedId: string) {
+  // selectedId will be scenario.id
   clearSimulationState();
-  setupMatter();
+  setupMatter(); // Keep Matter.Render setup
 
-  currentScenarioDisplayName = displayName;
-  currentScenario = scenariosMap.get(displayName) || null;
+  // Find the selected scenario entry from the scenariosToRun array
+  currentScenarioEntry =
+    scenariosToRun.find((entry) => entry.scenario.id === selectedId) || null;
 
-  if (!currentScenario) {
+  if (!currentScenarioEntry) {
     console.error(
-      `Scenario with display name ${displayName} not found in scenariosMap!`
+      `Scenario with ID ${selectedId} not found in scenariosToRun!`
     );
+    currentScenario = null;
     return;
   }
+  currentScenario = currentScenarioEntry.scenario; // Assign to currentScenario
 
-  console.log(`Loading scenario: ${displayName} (ID: ${currentScenario.id})`);
-
-  // Correctly instantiate PhysicsEngine
-  const scenarioSettings = currentScenario.engineSettings;
-  const peFixedTimeStep = scenarioSettings?.fixedTimeStepMs; // undefined will use PE default
-  const peCustomG = scenarioSettings?.customG; // undefined will use PE default
-
-  physicsEngine = new PhysicsEngine(peFixedTimeStep, peCustomG);
-
-  // Handle logging settings
-  const scenarioWantsLogging = scenarioSettings?.enableInternalLogging || false;
-  if (debugLoggingCheckbox) {
-    physicsEngine.setInternalLogging(
-      debugLoggingCheckbox.checked || scenarioWantsLogging
-    );
-  } else {
-    physicsEngine.setInternalLogging(scenarioWantsLogging);
-  }
-
-  // The old setGravity call is redundant if customG is passed to constructor.
-  // However, PhysicsEngine doesn't currently have a setGravity method.
-  // If customG was part of engineSettings and PE constructor handles it, this is fine.
-  // If not, setGravity would need to be added to PE or handled differently.
-  // For now, assuming constructor handles customG if provided.
-
-  physicsEngine.setExternalMatterEngine(engine);
-
-  const celestialBodiesFromScenario = currentScenario.celestialBodies || [];
-  // Call init to set celestial bodies. If a scenario has none,
-  // this effectively initializes with an empty array if init handles undefined correctly
-  // or just ensures init is called.
-  physicsEngine.init(
-    celestialBodiesFromScenario.length > 0
-      ? celestialBodiesFromScenario
-      : undefined
+  console.log(
+    `Loading scenario: ${currentScenario.name} (ID: ${currentScenario.id})`
   );
 
-  currentScenario.initialBodies.forEach((bodyDef: ScenarioBodyInitialState) => {
-    const bodyOptions = {
-      ...bodyDef.options,
-      label: bodyDef.id,
-      angle: bodyDef.initialAngle,
-    };
+  // No longer need to manually instantiate PhysicsEngine or create bodies here.
+  // runScenario will handle the simulation state generation.
+  // We just need to render the initial state (tick 0).
 
-    let newBody: Matter.Body | null = null;
-    switch (bodyDef.type) {
-      case "box":
-        newBody = physicsEngine.createBox(
-          bodyDef.initialPosition.x,
-          bodyDef.initialPosition.y,
-          bodyDef.width || 0,
-          bodyDef.height || 0,
-          bodyOptions
-        );
-        break;
-      case "circle":
-        newBody = physicsEngine.createCircle(
-          bodyDef.initialPosition.x,
-          bodyDef.initialPosition.y,
-          bodyDef.radius || 0,
-          bodyOptions
-        );
-        break;
-      case "rocket":
-        console.warn(
-          `Visualizer using default for 'rocket' type. Ensure createRocketBody in PhysicsEngine is suitable or enhance options.`
-        );
-        if (typeof physicsEngine.createRocketBody === "function") {
-          newBody = (physicsEngine as any).createRocketBody(
-            bodyDef.initialPosition.x,
-            bodyDef.initialPosition.y,
-            bodyOptions
-          );
-        } else {
-          console.error(
-            "physicsEngine.createRocketBody does not exist or is not being called correctly."
-          );
+  if (debugLoggingCheckbox && currentScenario.engineSettings) {
+    // This is tricky. runScenario uses the scenario's engineSettings directly.
+    // To reflect the checkbox, we'd ideally pass an override to runScenario,
+    // or runScenario's internal PhysicsEngine would need a global way to set logging.
+    // For now, the scenario's own setting will primarily dictate logging within runScenario.
+    // We can log a message here though.
+    console.log(
+      "Debug logging checkbox state:",
+      debugLoggingCheckbox.checked,
+      "Scenario wants logging:",
+      currentScenario.engineSettings.enableInternalLogging
+    );
+  }
+
+  // Render initial state (tick 0)
+  if (currentScenario) {
+    const initialState = runScenario(currentScenario, 0);
+    renderState(initialState);
+  }
+}
+
+// New function to render state from runScenario
+function renderState(state: ISerializedPhysicsEngineState) {
+  if (!engine || !render) {
+    console.error("Matter engine or renderer not setup for renderState");
+    return;
+  }
+  Matter.World.clear(engine.world, false);
+
+  const bodiesToRender: Matter.Body[] = [];
+  if (state.world && state.world.bodies) {
+    state.world.bodies.forEach((bodyData) => {
+      let visualBody: Matter.Body | undefined;
+      const creationParams = (bodyData.plugin as any)?.creationParams as
+        | Record<string, any>
+        | undefined;
+
+      // Base options from serialized data
+      const options: Matter.IBodyDefinition = {
+        angle: bodyData.angle,
+        // position: bodyData.position, // Will be set by Matter.Bodies factory functions
+        // velocity: bodyData.velocity, // Set after creation if needed
+        // angularVelocity: bodyData.angularVelocity, // Set after creation if needed
+        isStatic: bodyData.isStatic,
+        isSensor: bodyData.isSensor,
+        label: bodyData.label || `body-${bodyData.id}`,
+        render: {
+          visible: bodyData.render?.visible ?? true,
+          fillStyle: bodyData.render?.fillStyle,
+          strokeStyle: bodyData.render?.strokeStyle,
+          lineWidth: bodyData.render?.lineWidth,
+          // sprite: bodyData.render?.sprite // Sprite handling can be complex
+        },
+      };
+
+      // More robust body creation using creationParams from the plugin if available
+      if (creationParams?.type) {
+        switch (creationParams.type) {
+          case "box":
+            if (
+              typeof creationParams.width === "number" &&
+              typeof creationParams.height === "number"
+            ) {
+              visualBody = Matter.Bodies.rectangle(
+                bodyData.position.x,
+                bodyData.position.y,
+                creationParams.width,
+                creationParams.height,
+                options
+              );
+            } else {
+              console.warn(
+                `Box body ID ${bodyData.id} missing width/height in creationParams.`
+              );
+            }
+            break;
+          case "circle":
+            if (typeof creationParams.radius === "number") {
+              visualBody = Matter.Bodies.circle(
+                bodyData.position.x,
+                bodyData.position.y,
+                creationParams.radius,
+                options
+              );
+            } else {
+              console.warn(
+                `Circle body ID ${bodyData.id} missing radius in creationParams.`
+              );
+            }
+            break;
+          case "rocket": // Rockets are composite, this is a simplified representation of the main part
+            // For rockets, creationParams might include definitions for multiple parts.
+            // This example just creates a main rectangle. A true representation would need to parse parts.
+            if (
+              typeof creationParams.width === "number" &&
+              typeof creationParams.height === "number"
+            ) {
+              options.label = options.label
+                ? `${options.label} (Rocket)`
+                : `rocket-${bodyData.id}`;
+              visualBody = Matter.Bodies.rectangle(
+                bodyData.position.x,
+                bodyData.position.y,
+                creationParams.width,
+                creationParams.height,
+                options
+              );
+              console.log("[Visualizer] Simplified rocket body rendered.");
+            } else if (
+              bodyData.parts &&
+              bodyData.parts.length > 0 &&
+              bodyData.vertices
+            ) {
+              // Fallback if rocket creationParams are not as expected, but has vertices for the main part
+              options.label = options.label
+                ? `${options.label} (Rocket-Vertices)`
+                : `rocket-vertices-${bodyData.id}`;
+              visualBody = Matter.Body.create({
+                ...options,
+                position: bodyData.position,
+                vertices: bodyData.vertices,
+              });
+            } else {
+              console.warn(
+                `Rocket body ID ${bodyData.id} has insufficient creationParams or vertex data for simple rendering.`
+              );
+            }
+            break;
+          default:
+            console.warn(
+              `Unknown type '${creationParams.type}' in creationParams for body ID ${bodyData.id}.`
+            );
         }
-        break;
-      default:
-        console.warn(`Unsupported body type in scenario: ${bodyDef.type}`);
-    }
-
-    if (newBody) {
-      if (bodyDef.initialVelocity) {
-        Matter.Body.setVelocity(newBody, bodyDef.initialVelocity);
       }
-      if (bodyDef.initialAngularVelocity) {
-        Matter.Body.setAngularVelocity(newBody, bodyDef.initialAngularVelocity);
-      }
-      if (newBody.label !== bodyDef.id) {
-        Matter.Body.set(newBody, "label", bodyDef.id);
-      }
-      // Log body details
-      console.log(
-        `[Visualizer] Created body: ID='${bodyDef.id}', Label='${
-          newBody.label
-        }', Pos=(${newBody.position.x.toFixed(2)}, ${newBody.position.y.toFixed(
-          2
-        )})`
-      );
-      console.log(
-        `[Visualizer] Body bounds: min=(${newBody.bounds.min.x.toFixed(
-          2
-        )}, ${newBody.bounds.min.y.toFixed(
-          2
-        )}), max=(${newBody.bounds.max.x.toFixed(
-          2
-        )}, ${newBody.bounds.max.y.toFixed(2)})`
-      );
-      console.log(
-        `[Visualizer] Body render.visible: ${newBody.render.visible}`
-      );
-    }
-  });
 
-  actionQueue = currentScenario.actions ? [...currentScenario.actions] : [];
-  actionQueue.sort((a, b) => a.step - b.step);
+      // Fallback to vertices if no visualBody created yet and vertices exist (e.g. for generic polygons)
+      if (!visualBody && bodyData.vertices && bodyData.vertices.length > 0) {
+        // Ensure vertices are in the correct Matter.js format (array of {x, y})
+        // The snapshot seems to provide them correctly.
+        visualBody = Matter.Body.create({
+          ...options,
+          position: bodyData.position,
+          vertices: bodyData.vertices,
+        });
+      }
 
-  currentTick = 0;
-  isPlaying = false;
-  playPauseButton.textContent = "Play";
+      // Final fallback if still no body
+      if (!visualBody) {
+        console.warn(
+          `Could not determine geometry for body ID ${bodyData.id}. Rendering as placeholder circle.`
+        );
+        visualBody = Matter.Bodies.circle(
+          bodyData.position.x,
+          bodyData.position.y,
+          5,
+          {
+            ...options,
+            label: `${options.label} (Placeholder)`,
+            render: { fillStyle: "magenta" },
+          }
+        );
+      }
+
+      if (visualBody) {
+        // Apply velocity and angularVelocity after creation
+        Matter.Body.setVelocity(
+          visualBody,
+          bodyData.velocity || { x: 0, y: 0 }
+        );
+        Matter.Body.setAngularVelocity(
+          visualBody,
+          bodyData.angularVelocity || 0
+        );
+
+        // Preserve original ID from snapshot if needed for debugging, though Matter assigns its own
+        // (visualBody as any).originalSnapshotId = bodyData.id;
+        bodiesToRender.push(visualBody);
+      }
+    });
+  }
+  Matter.World.add(engine.world, bodiesToRender);
 
   // Adjust camera to view the bodies
-  // const allBodies = Matter.Composite.allBodies(engine.world);
-  // if (allBodies.length > 0) {
-  //   // Calculate bounds of all bodies
-  //   const bodiesBounds = Matter.Bounds.create(allBodies);
-  //
-  //   // Use Render.lookAt to center the view on the bounds
-  //   Matter.Render.lookAt(render, {
-  //     min: { x: bodiesBounds.min.x, y: bodiesBounds.min.y },
-  //     max: { x: bodiesBounds.max.x, y: bodiesBounds.max.y },
-  //   });
-  //
-  //   // Add some padding to the view after lookAt
-  //   const padding = 0.2; // 20% padding, adjust as needed
-  //   const worldViewWidth = render.bounds.max.x - render.bounds.min.x;
-  //   const worldViewHeight = render.bounds.max.y - render.bounds.min.y;
-  //
-  //   render.bounds.min.x -= worldViewWidth * padding;
-  //   render.bounds.max.x += worldViewWidth * padding;
-  //   render.bounds.min.y -= worldViewHeight * padding;
-  //   render.bounds.max.y += worldViewHeight * padding;
-  //
-  // } else {
-  //   // Default view if no bodies (e.g., centered at 0,0)
-  //   Matter.Render.lookAt(render, {
-  //     min: { x: -render.options.width! / 2, y: -render.options.height! / 2 },
-  //     max: { x: render.options.width! / 2, y: render.options.height! / 2 },
-  //   });
-  // }
+  if (render && bodiesToRender.length > 0) {
+    const allRenderBodies = Matter.Composite.allBodies(engine.world);
+    if (allRenderBodies.length > 0) {
+      const bodiesBounds = Matter.Bounds.create(allRenderBodies);
+      Matter.Render.lookAt(render, {
+        min: { x: bodiesBounds.min.x, y: bodiesBounds.min.y },
+        max: { x: bodiesBounds.max.x, y: bodiesBounds.max.y },
+      });
+
+      // Add some padding
+      const padding = 0.2;
+      const viewWidth = render.bounds.max.x - render.bounds.min.x;
+      const viewHeight = render.bounds.max.y - render.bounds.min.y;
+      render.bounds.min.x -= viewWidth * padding;
+      render.bounds.max.x += viewWidth * padding;
+      render.bounds.min.y -= viewHeight * padding;
+      render.bounds.max.y += viewHeight * padding;
+    }
+  } else if (render) {
+    // Default view if no bodies
+    Matter.Render.lookAt(render, {
+      min: { x: -render.options.width! / 2, y: -render.options.height! / 2 },
+      max: { x: render.options.width! / 2, y: render.options.height! / 2 },
+    });
+  }
 }
 
 function gameLoop() {
-  if (!isPlaying || !currentScenario || !physicsEngine || !engine) return;
-
-  while (actionQueue.length > 0 && actionQueue[0].step === currentTick) {
-    const actionDef = actionQueue.shift();
-    if (actionDef) {
-      console.log(
-        `Tick ${currentTick}: Action ${actionDef.actionType} for ${actionDef.targetBodyId}`
-      );
-      const targetBodyExists = !!physicsEngine.getBodyById(
-        actionDef.targetBodyId
-      ); // Check existence
-      if (!targetBodyExists) {
-        console.warn(`Action target body ${actionDef.targetBodyId} not found.`);
-        continue;
-      }
-      if (actionDef.actionType === "applyForce" && actionDef.force) {
-        const bodyToApplyForce = physicsEngine.getBodyById(
-          actionDef.targetBodyId
-        );
-        if (bodyToApplyForce) {
-          physicsEngine.applyForceToBody(
-            bodyToApplyForce,
-            actionDef.applicationPoint || bodyToApplyForce.position, // Apply at point or body center
-            actionDef.force
-          );
-        } else {
-          console.warn(
-            `Could not retrieve body ${actionDef.targetBodyId} for applying force, though it existed moments ago.`
-          );
-        }
-      } else {
-        console.warn(
-          `Unsupported action type: ${actionDef.actionType} or missing parameters.`
-        );
-      }
-    }
-  }
-
-  physicsEngine.update(timeStep / 1000);
-
-  if (debugLoggingCheckbox && debugLoggingCheckbox.checked) {
-    if (physicsEngine && typeof physicsEngine.toJSON === "function") {
-      const currentState = physicsEngine.toJSON();
-      console.log("[PhysicsEngine Current State JSON (Object)]:", currentState);
-      console.log(
-        "[PhysicsEngine Current State JSON (String)]:",
-        JSON.stringify(currentState, null, 2)
-      );
-    } else {
-      console.warn(
-        "[Visualizer] physicsEngine.toJSON is not available or not a function."
-      );
-    }
+  if (!isPlaying || !currentScenario) {
+    return;
   }
 
   currentTick++;
+  // console.log(`Tick: ${currentTick}`);
 
-  const scenarioDurationSteps = currentScenario.simulationSteps;
-  if (currentTick >= scenarioDurationSteps) {
+  const currentState = runScenario(currentScenario, currentTick);
+  renderState(currentState);
+
+  if (currentTick >= currentScenario.simulationSteps) {
     pauseSimulation();
-    console.log(
-      `Scenario ${currentScenarioDisplayName} finished after ${scenarioDurationSteps} steps.`
-    );
+    currentTick = currentScenario.simulationSteps; // Ensure it doesn't overshoot
+    console.log("Scenario reached its simulationSteps.");
   }
 }
 
 function playSimulation() {
-  if (
-    !currentScenarioDisplayName ||
-    !scenariosMap.has(currentScenarioDisplayName)
-  ) {
+  if (!currentScenarioEntry) {
+    // Check currentScenarioEntry instead of displayName
     alert("Please select and load a scenario first.");
     return;
   }
-  if (!currentScenario) {
-    loadScenario(currentScenarioDisplayName);
-    if (!currentScenario) return;
-  }
+  // currentScenario is already set if currentScenarioEntry is set
+  // if (!currentScenario) {
+  //   loadScenario(currentScenarioEntry.scenario.id); // load by ID
+  //   if (!currentScenario) return;
+  // }
 
   if (isPlaying) return;
   isPlaying = true;
@@ -434,24 +458,25 @@ resetButton.addEventListener("click", () => {
 });
 
 debugLoggingCheckbox.addEventListener("change", () => {
-  if (physicsEngine) {
-    physicsEngine.setInternalLogging(debugLoggingCheckbox.checked);
-    console.log(
-      `PhysicsEngine internal logging set to: ${debugLoggingCheckbox.checked}`
-    );
-    // If a scenario is loaded, you might want to reload it to see logs from its setup phase
-    // or just accept that logging changes take effect from this point onwards.
-    // For now, it just affects future logs from the existing physicsEngine instance.
-  }
+  // The direct call to physicsEngine.setInternalLogging may not be effective
+  // as the simulation is driven by runScenario, which creates its own engine instance.
+  // For now, this checkbox will primarily affect logging within the visualizer.ts scope if any.
+  console.log(
+    `Debug logging checkbox changed to: ${debugLoggingCheckbox.checked}. ` +
+      `Note: This primarily affects visualizer-specific logs, not deep engine logs from runScenario unless scenario is reloaded with new settings.`
+  );
+  // To make it affect runScenario, one might reload the scenario or pass params to runScenario.
+  // Example: if (currentScenarioEntry) { loadScenario(currentScenarioEntry.scenario.id); }
 });
 
 document.addEventListener("DOMContentLoaded", () => {
   // processScenarioModules(); // This is no longer needed, scenariosMap is directly imported
-  if (scenariosMap.size > 0) {
+  if (scenariosToRun.length > 0) {
+    // Check array length
     populateScenarioSelector();
   } else {
     console.error(
-      "No scenarios were loaded. Check 'packages/shared/src/physics/scenarios/index.ts' and ensure it populates scenariosMap correctly."
+      "No scenarios were loaded. Check 'packages/shared/src/physics/scenarios/index.ts' and ensure it populates scenariosToRun correctly."
     );
     // Optionally, display a message to the user in the UI
     const scenarioSelectLabel = document.querySelector(

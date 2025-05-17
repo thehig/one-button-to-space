@@ -3,7 +3,8 @@ import "mocha";
 // import { expect } from "chai";
 
 import { scenariosToRun } from "./index";
-import { runTestAndSnapshot } from "./scenario-runner.helper";
+// Import from the new Node.js specific snapshotter file
+import { runTestAndSnapshot } from "./scenario-snapshotter.node";
 
 describe("Physics Scenarios Runner", () => {
   scenariosToRun.forEach((entry) => {
