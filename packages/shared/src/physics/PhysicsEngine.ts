@@ -49,7 +49,7 @@ export class PhysicsEngine {
     this.engine.gravity.scale = 0;
     // this.engine.gravity.y = 1; // Old simple gravity
 
-    console.log("PhysicsEngine initialized");
+    if (this.internalLoggingEnabled) console.log("PhysicsEngine initialized");
   }
 
   public init(celestialBodies?: ICelestialBody[]): void {
@@ -62,7 +62,6 @@ export class PhysicsEngine {
     // }
     if (this.internalLoggingEnabled)
       console.log("PhysicsEngine explicit init called");
-    else console.log("PhysicsEngine explicit init called"); // Keep original for now unless specified to remove
   }
 
   /**

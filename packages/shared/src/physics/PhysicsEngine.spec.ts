@@ -608,9 +608,11 @@ describe("PhysicsEngine", () => {
     });
 
     it("should simulate an eccentric orbit around a large celestial body", () => {
-      const debugEccentricOrbit = true; // <-- Toggle for this test's specific logging
+      const debugEccentricOrbit = false; // <-- Toggle for this test's specific logging
 
       const engine = new PhysicsEngine(); // REVERT to default G
+      engine.setInternalLogging(debugEccentricOrbit); // Control engine's internal logs
+
       const testG = 0.001; // PhysicsEngine's G
 
       // Parameters for a more pronounced eccentric orbit
