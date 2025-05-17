@@ -45,8 +45,8 @@
           "visible": true,
           "opacity": 1,
           "fillStyle": "#ABCDEF",
-          "strokeStyle": "#505050",
-          "lineWidth": 1,
+          "strokeStyle": "#ccc",
+          "lineWidth": 0,
           "sprite": {
             "texture": null,
             "xScale": 1,
@@ -56,7 +56,12 @@
         "plugin": {
           "dragCoefficientArea": null,
           "effectiveNoseRadius": null,
-          "currentHeatFlux": 0
+          "currentHeatFlux": 0,
+          "creationParams": {
+            "type": "box",
+            "width": 10,
+            "height": 10
+          }
         }
       }
     ]

@@ -48,7 +48,7 @@
         "render": {
           "visible": false,
           "opacity": 1,
-          "fillStyle": "#f5d259",
+          "fillStyle": "#ececd1",
           "strokeStyle": "#ccc",
           "lineWidth": 0,
           "sprite": {
@@ -60,7 +60,10 @@
         "plugin": {
           "dragCoefficientArea": null,
           "effectiveNoseRadius": null,
-          "currentHeatFlux": 0
+          "currentHeatFlux": 0,
+          "creationParams": {
+            "type": "rocket"
+          }
         }
       }
     ]
