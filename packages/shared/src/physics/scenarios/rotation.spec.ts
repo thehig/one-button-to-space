@@ -1,13 +1,12 @@
 import { expect } from "chai";
 import "mocha";
-import * as fs from "fs";
-import * as path from "path";
-// import { Vector } from "matter-js"; // Not directly used
+// import * as fs from "fs"; // No longer needed
+// import * as path from "path"; // No longer needed
 import {
   IScenario,
   ISerializedPhysicsEngineState,
   ISerializedMatterBody,
-} from "./types"; // Added ISerializedTypes
+} from "./types";
 
 import {
   rotationScenario1Step,
@@ -15,39 +14,15 @@ import {
   rotationScenario50Steps,
   rotationScenario100Steps,
 } from "./rotation.scenario";
-import { runScenario } from "./test-runner.helper"; // ScenarioResult removed
+// Import runTestAndSnapshot from the helper
+import { runScenario, runTestAndSnapshot } from "./test-runner.helper";
 
-const snapshotDir = path.join(__dirname, "__snapshots__");
+// const snapshotDir = path.join(__dirname, "__snapshots__"); // No longer needed
 
-const runTestAndSnapshot = (
-  scenario: IScenario,
-  // targetBodyId: string, // Removed
-  snapshotFileName: string
-): ISerializedPhysicsEngineState => {
-  // Updated return type
-  const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario); // Removed targetBodyId
-
-  if (process.env.UPDATE_SNAPSHOTS === "true") {
-    if (!fs.existsSync(snapshotDir)) {
-      fs.mkdirSync(snapshotDir, { recursive: true });
-    }
-    fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
-    console.log(`  Snapshot updated: ${snapshotFileName}`);
-    return currentResults;
-  } else {
-    if (!fs.existsSync(snapshotFile)) {
-      throw new Error(
-        `Snapshot file not found: ${snapshotFileName}. Run with UPDATE_SNAPSHOTS=true to create it.`
-      );
-    }
-    const expectedResults = JSON.parse(
-      fs.readFileSync(snapshotFile, "utf-8")
-    ) as ISerializedPhysicsEngineState; // Updated type cast
-    expect(currentResults).to.deep.equal(expectedResults);
-    return currentResults;
-  }
-};
+// // Local runTestAndSnapshot removed
+// const runTestAndSnapshot = (
+//   // ... implementation removed ...
+// );
 
 describe("PhysicsEngine Basic Actions: Rotation", () => {
   it("should correctly apply rotation to a body (1 step - explicit assertions)", () => {
@@ -75,17 +50,13 @@ describe("PhysicsEngine Basic Actions: Rotation", () => {
       );
     }
 
-    // Ensure angle and angularVelocity are not null before comparison if their type allows null
-    // ISerializedMatterBody has angle: number | null and angularVelocity: number | null
     expect(finalBox.angle).to.not.be.null;
     expect(finalBox.angularVelocity).to.not.be.null;
 
     if (finalBox.angle !== null) {
-      // Type guard for Chai
       expect(finalBox.angle).to.be.greaterThan(initialAngle);
     }
     if (finalBox.angularVelocity !== null) {
-      // Type guard for Chai
       expect(finalBox.angularVelocity).to.be.greaterThan(
         initialAngularVelocity
       );
@@ -93,26 +64,14 @@ describe("PhysicsEngine Basic Actions: Rotation", () => {
   });
 
   it("should match snapshot after 10 steps of rotation", () => {
-    runTestAndSnapshot(
-      rotationScenario10Steps,
-      // "rotationBox", // Removed
-      "rotation.10steps.snap.json"
-    );
+    runTestAndSnapshot(rotationScenario10Steps, "rotation", 10);
   });
 
   it("should match snapshot after 50 steps of rotation", () => {
-    runTestAndSnapshot(
-      rotationScenario50Steps,
-      // "rotationBox", // Removed
-      "rotation.50steps.snap.json"
-    );
+    runTestAndSnapshot(rotationScenario50Steps, "rotation", 50);
   });
 
   it("should match snapshot after 100 steps of rotation", () => {
-    runTestAndSnapshot(
-      rotationScenario100Steps,
-      // "rotationBox", // Removed
-      "rotation.100steps.snap.json"
-    );
+    runTestAndSnapshot(rotationScenario100Steps, "rotation", 100);
   });
 });

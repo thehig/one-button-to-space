@@ -1,7 +1,5 @@
 import { expect } from "chai";
 import "mocha";
-import * as fs from "fs";
-import * as path from "path";
 import { Vector } from "matter-js";
 import {
   IScenario,
@@ -15,37 +13,7 @@ import {
   thrustScenario50Steps,
   thrustScenario100Steps,
 } from "./thrust.scenario";
-import { runScenario } from "./test-runner.helper";
-
-const snapshotDir = path.join(__dirname, "__snapshots__");
-
-const runTestAndSnapshot = (
-  scenario: IScenario,
-  snapshotFileName: string
-): ISerializedPhysicsEngineState => {
-  const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario);
-
-  if (process.env.UPDATE_SNAPSHOTS === "true") {
-    if (!fs.existsSync(snapshotDir)) {
-      fs.mkdirSync(snapshotDir, { recursive: true });
-    }
-    fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
-    console.log(`  Snapshot updated: ${snapshotFileName}`);
-    return currentResults;
-  } else {
-    if (!fs.existsSync(snapshotFile)) {
-      throw new Error(
-        `Snapshot file not found: ${snapshotFileName}. Run with UPDATE_SNAPSHOTS=true to create it.`
-      );
-    }
-    const expectedResults = JSON.parse(
-      fs.readFileSync(snapshotFile, "utf-8")
-    ) as ISerializedPhysicsEngineState;
-    expect(currentResults).to.deep.equal(expectedResults);
-    return currentResults;
-  }
-};
+import { runScenario, runTestAndSnapshot } from "./test-runner.helper";
 
 describe("PhysicsEngine Basic Actions: Thrust", () => {
   it("should correctly apply thrust to a body (1 step - explicit assertions)", () => {
@@ -81,14 +49,14 @@ describe("PhysicsEngine Basic Actions: Thrust", () => {
   });
 
   it("should match snapshot after 10 steps of thrust", () => {
-    runTestAndSnapshot(thrustScenario10Steps, "thrust.10steps.snap.json");
+    runTestAndSnapshot(thrustScenario10Steps, "thrust", 10);
   });
 
   it("should match snapshot after 50 steps of thrust", () => {
-    runTestAndSnapshot(thrustScenario50Steps, "thrust.50steps.snap.json");
+    runTestAndSnapshot(thrustScenario50Steps, "thrust", 50);
   });
 
   it("should match snapshot after 100 steps of thrust", () => {
-    runTestAndSnapshot(thrustScenario100Steps, "thrust.100steps.snap.json");
+    runTestAndSnapshot(thrustScenario100Steps, "thrust", 100);
   });
 });

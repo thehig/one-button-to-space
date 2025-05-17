@@ -1,8 +1,6 @@
 import { expect } from "chai";
 import "mocha";
 import Matter, { Vector } from "matter-js";
-import * as fs from "fs";
-import * as path from "path";
 import {
   IScenario,
   ISerializedPhysicsEngineState,
@@ -15,37 +13,7 @@ import {
   orbitLargeBodyScenario50Steps,
   orbitLargeBodyScenario250Steps,
 } from "./orbit-large-body.scenario";
-import { runScenario } from "./test-runner.helper";
-
-const snapshotDir = path.join(__dirname, "__snapshots__");
-
-const runTestAndSnapshot = (
-  scenario: IScenario,
-  snapshotFileName: string
-): ISerializedPhysicsEngineState => {
-  const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario);
-
-  if (process.env.UPDATE_SNAPSHOTS === "true") {
-    if (!fs.existsSync(snapshotDir)) {
-      fs.mkdirSync(snapshotDir, { recursive: true });
-    }
-    fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
-    console.log(`  Snapshot updated: ${snapshotFileName}`);
-    return currentResults;
-  } else {
-    if (!fs.existsSync(snapshotFile)) {
-      throw new Error(
-        `Snapshot file not found: ${snapshotFileName}. Run with UPDATE_SNAPSHOTS=true to create it.`
-      );
-    }
-    const expectedResults = JSON.parse(
-      fs.readFileSync(snapshotFile, "utf-8")
-    ) as ISerializedPhysicsEngineState;
-    expect(currentResults).to.deep.equal(expectedResults);
-    return currentResults;
-  }
-};
+import { runScenario, runTestAndSnapshot } from "./test-runner.helper";
 
 describe("PhysicsEngine Celestial Mechanics: Orbit (Large Body)", () => {
   it("should show initial orbital movement for a large body (1 step - explicit assertions)", () => {
@@ -82,23 +50,14 @@ describe("PhysicsEngine Celestial Mechanics: Orbit (Large Body)", () => {
   });
 
   it("should match snapshot after 10 steps of orbit (large body)", () => {
-    runTestAndSnapshot(
-      orbitLargeBodyScenario10Steps,
-      "orbit-large-body.10steps.snap.json"
-    );
+    runTestAndSnapshot(orbitLargeBodyScenario10Steps, "orbit-large-body", 10);
   });
 
   it("should match snapshot after 50 steps of orbit (large body)", () => {
-    runTestAndSnapshot(
-      orbitLargeBodyScenario50Steps,
-      "orbit-large-body.50steps.snap.json"
-    );
+    runTestAndSnapshot(orbitLargeBodyScenario50Steps, "orbit-large-body", 50);
   });
 
   it("should match snapshot after 250 steps of orbit (large body)", () => {
-    runTestAndSnapshot(
-      orbitLargeBodyScenario250Steps,
-      "orbit-large-body.250steps.snap.json"
-    );
+    runTestAndSnapshot(orbitLargeBodyScenario250Steps, "orbit-large-body", 250);
   });
 });

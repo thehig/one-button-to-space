@@ -1,14 +1,14 @@
 import { expect } from "chai";
 import "mocha";
 import Matter from "matter-js"; // Matter needed for Vector, Body etc.
-import * as fs from "fs";
-import * as path from "path";
+// import * as fs from "fs"; // No longer needed
+// import * as path from "path"; // No longer needed
 import {
   IScenario,
   ISerializedPhysicsEngineState,
   ISerializedMatterBody,
 } from "./types";
-import { PhysicsEngine, ICustomBodyPlugin } from "../PhysicsEngine";
+import { PhysicsEngine, ICustomBodyPlugin } from "../PhysicsEngine"; // PhysicsEngine unused
 
 import {
   atmosphericHeatingScenario1Step,
@@ -16,37 +16,14 @@ import {
   atmosphericHeatingScenario50Steps,
   atmosphericHeatingScenario100Steps,
 } from "./atmospheric-heating.scenario";
-import { runScenario } from "./test-runner.helper";
+import { runScenario, runTestAndSnapshot } from "./test-runner.helper";
 
-const snapshotDir = path.join(__dirname, "__snapshots__");
+// const snapshotDir = path.join(__dirname, "__snapshots__"); // No longer needed
 
-const runTestAndSnapshot = (
-  scenario: IScenario,
-  snapshotFileName: string
-): ISerializedPhysicsEngineState => {
-  const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario);
-
-  if (process.env.UPDATE_SNAPSHOTS === "true") {
-    if (!fs.existsSync(snapshotDir)) {
-      fs.mkdirSync(snapshotDir, { recursive: true });
-    }
-    fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
-    console.log(`  Snapshot updated: ${snapshotFileName}`);
-    return currentResults;
-  } else {
-    if (!fs.existsSync(snapshotFile)) {
-      throw new Error(
-        `Snapshot file not found: ${snapshotFileName}. Run with UPDATE_SNAPSHOTS=true to create it.`
-      );
-    }
-    const expectedResults = JSON.parse(
-      fs.readFileSync(snapshotFile, "utf-8")
-    ) as ISerializedPhysicsEngineState;
-    expect(currentResults).to.deep.equal(expectedResults);
-    return currentResults;
-  }
-};
+// // Local runTestAndSnapshot removed
+// const runTestAndSnapshot = (
+//   // ... implementation removed ...
+// );
 
 describe("PhysicsEngine Environmental Effects: Atmospheric Heating", () => {
   it("should simulate atmospheric heating (1 step - explicit assertions)", () => {
@@ -95,21 +72,24 @@ describe("PhysicsEngine Environmental Effects: Atmospheric Heating", () => {
   it("should match snapshot after 10 steps of atmospheric heating", () => {
     runTestAndSnapshot(
       atmosphericHeatingScenario10Steps,
-      "atmospheric-heating.10steps.snap.json"
+      "atmospheric-heating",
+      10
     );
   });
 
   it("should match snapshot after 50 steps of atmospheric heating", () => {
     runTestAndSnapshot(
       atmosphericHeatingScenario50Steps,
-      "atmospheric-heating.50steps.snap.json"
+      "atmospheric-heating",
+      50
     );
   });
 
   it("should match snapshot after 100 steps of atmospheric heating", () => {
     runTestAndSnapshot(
       atmosphericHeatingScenario100Steps,
-      "atmospheric-heating.100steps.snap.json"
+      "atmospheric-heating",
+      100
     );
   });
 });

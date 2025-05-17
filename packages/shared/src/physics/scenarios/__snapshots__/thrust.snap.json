@@ -1,0 +1,215 @@
+{
+  "10": {
+    "simulationTick": 10,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [],
+    "world": {
+      "bodies": [
+        {
+          "id": 4,
+          "label": "testRocketThrust",
+          "type": "body",
+          "parts": [
+            1,
+            2,
+            3
+          ],
+          "position": {
+            "x": 0,
+            "y": -8525.576501811891
+          },
+          "angle": 0,
+          "velocity": {
+            "x": 0,
+            "y": -801.405390334502
+          },
+          "angularVelocity": 0,
+          "mass": 1.8399999999999999,
+          "inverseMass": 0.5434782608695653,
+          "inertia": 1760.7644444444443,
+          "inverseInertia": 0.0005679351392829378,
+          "density": 0.001,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 2,
+            "mask": 28,
+            "group": 0
+          },
+          "render": {
+            "visible": false,
+            "opacity": 1,
+            "fillStyle": "#f5d259",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": null,
+            "effectiveNoseRadius": null,
+            "currentHeatFlux": 0,
+            "creationParams": {
+              "type": "rocket"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "50": {
+    "simulationTick": 50,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [],
+    "world": {
+      "bodies": [
+        {
+          "id": 4,
+          "label": "testRocketThrust",
+          "type": "body",
+          "parts": [
+            1,
+            2,
+            3
+          ],
+          "position": {
+            "x": 0,
+            "y": -32819.38477148414
+          },
+          "angle": 0,
+          "velocity": {
+            "x": 0,
+            "y": -445.91237750953223
+          },
+          "angularVelocity": 0,
+          "mass": 1.8399999999999999,
+          "inverseMass": 0.5434782608695653,
+          "inertia": 1760.7644444444443,
+          "inverseInertia": 0.0005679351392829378,
+          "density": 0.001,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 2,
+            "mask": 28,
+            "group": 0
+          },
+          "render": {
+            "visible": false,
+            "opacity": 1,
+            "fillStyle": "#ececd1",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": null,
+            "effectiveNoseRadius": null,
+            "currentHeatFlux": 0,
+            "creationParams": {
+              "type": "rocket"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "100": {
+    "simulationTick": 100,
+    "fixedTimeStepMs": 16.666666666666668,
+    "accumulatedTime": 0,
+    "G": 0.001,
+    "internalLoggingEnabled": false,
+    "ownsEngine": true,
+    "celestialBodies": [],
+    "world": {
+      "bodies": [
+        {
+          "id": 4,
+          "label": "testRocketThrust",
+          "type": "body",
+          "parts": [
+            1,
+            2,
+            3
+          ],
+          "position": {
+            "x": 0,
+            "y": -47287.46928203084
+          },
+          "angle": 0,
+          "velocity": {
+            "x": 0,
+            "y": -162.14384709995647
+          },
+          "angularVelocity": 0,
+          "mass": 1.8399999999999999,
+          "inverseMass": 0.5434782608695653,
+          "inertia": 1760.7644444444443,
+          "inverseInertia": 0.0005679351392829378,
+          "density": 0.001,
+          "restitution": 0,
+          "friction": 0.1,
+          "frictionStatic": 0.5,
+          "frictionAir": 0.01,
+          "slop": 0.05,
+          "isStatic": false,
+          "isSensor": false,
+          "isSleeping": false,
+          "collisionFilter": {
+            "category": 2,
+            "mask": 28,
+            "group": 0
+          },
+          "render": {
+            "visible": false,
+            "opacity": 1,
+            "fillStyle": "#f55a3c",
+            "strokeStyle": "#ccc",
+            "lineWidth": 0,
+            "sprite": {
+              "texture": null,
+              "xScale": 1,
+              "yScale": 1
+            }
+          },
+          "plugin": {
+            "dragCoefficientArea": null,
+            "effectiveNoseRadius": null,
+            "currentHeatFlux": 0,
+            "creationParams": {
+              "type": "rocket"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

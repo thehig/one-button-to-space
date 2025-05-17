@@ -1,8 +1,6 @@
 import { expect } from "chai";
 import "mocha";
 import { Vector } from "matter-js";
-import * as fs from "fs";
-import * as path from "path";
 import {
   IScenario,
   ISerializedPhysicsEngineState,
@@ -15,37 +13,7 @@ import {
   gravityPullSmallBodyScenario50Steps,
   gravityPullSmallBodyScenario100Steps,
 } from "./gravity-pull-small-body.scenario";
-import { runScenario } from "./test-runner.helper";
-
-const snapshotDir = path.join(__dirname, "__snapshots__");
-
-const runTestAndSnapshot = (
-  scenario: IScenario,
-  snapshotFileName: string
-): ISerializedPhysicsEngineState => {
-  const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario);
-
-  if (process.env.UPDATE_SNAPSHOTS === "true") {
-    if (!fs.existsSync(snapshotDir)) {
-      fs.mkdirSync(snapshotDir, { recursive: true });
-    }
-    fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
-    console.log(`  Snapshot updated: ${snapshotFileName}`);
-    return currentResults;
-  } else {
-    if (!fs.existsSync(snapshotFile)) {
-      throw new Error(
-        `Snapshot file not found: ${snapshotFileName}. Run with UPDATE_SNAPSHOTS=true to create it.`
-      );
-    }
-    const expectedResults = JSON.parse(
-      fs.readFileSync(snapshotFile, "utf-8")
-    ) as ISerializedPhysicsEngineState;
-    expect(currentResults).to.deep.equal(expectedResults);
-    return currentResults;
-  }
-};
+import { runScenario, runTestAndSnapshot } from "./test-runner.helper";
 
 describe("PhysicsEngine Celestial Mechanics: Gravity Pull (Small)", () => {
   it("should simulate gravitational pull from a small celestial body (1 step - explicit assertions)", () => {
@@ -87,21 +55,24 @@ describe("PhysicsEngine Celestial Mechanics: Gravity Pull (Small)", () => {
   it("should match snapshot after 10 steps of gravity pull (small body)", () => {
     runTestAndSnapshot(
       gravityPullSmallBodyScenario10Steps,
-      "gravity-pull-small-body.10steps.snap.json"
+      "gravity-pull-small-body",
+      10
     );
   });
 
   it("should match snapshot after 50 steps of gravity pull (small body)", () => {
     runTestAndSnapshot(
       gravityPullSmallBodyScenario50Steps,
-      "gravity-pull-small-body.50steps.snap.json"
+      "gravity-pull-small-body",
+      50
     );
   });
 
   it("should match snapshot after 100 steps of gravity pull (small body)", () => {
     runTestAndSnapshot(
       gravityPullSmallBodyScenario100Steps,
-      "gravity-pull-small-body.100steps.snap.json"
+      "gravity-pull-small-body",
+      100
     );
   });
 });

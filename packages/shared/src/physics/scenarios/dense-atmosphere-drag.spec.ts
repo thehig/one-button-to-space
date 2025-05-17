@@ -1,7 +1,5 @@
 import { expect } from "chai";
 import "mocha";
-import * as fs from "fs";
-import * as path from "path";
 import { Vector } from "matter-js";
 import {
   IScenario,
@@ -15,37 +13,7 @@ import {
   denseAtmosphereDragScenario50Steps,
   denseAtmosphereDragScenario100Steps,
 } from "./dense-atmosphere-drag.scenario";
-import { runScenario } from "./test-runner.helper";
-
-const snapshotDir = path.join(__dirname, "__snapshots__");
-
-const runTestAndSnapshot = (
-  scenario: IScenario,
-  snapshotFileName: string
-): ISerializedPhysicsEngineState => {
-  const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario);
-
-  if (process.env.UPDATE_SNAPSHOTS === "true") {
-    if (!fs.existsSync(snapshotDir)) {
-      fs.mkdirSync(snapshotDir, { recursive: true });
-    }
-    fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
-    console.log(`  Snapshot updated: ${snapshotFileName}`);
-    return currentResults;
-  } else {
-    if (!fs.existsSync(snapshotFile)) {
-      throw new Error(
-        `Snapshot file not found: ${snapshotFileName}. Run with UPDATE_SNAPSHOTS=true to create it.`
-      );
-    }
-    const expectedResults = JSON.parse(
-      fs.readFileSync(snapshotFile, "utf-8")
-    ) as ISerializedPhysicsEngineState;
-    expect(currentResults).to.deep.equal(expectedResults);
-    return currentResults;
-  }
-};
+import { runScenario, runTestAndSnapshot } from "./test-runner.helper";
 
 describe("PhysicsEngine Environmental Effects: Dense Atmospheric Drag", () => {
   it("should simulate atmospheric drag in a VERY dense atmosphere (1 step - explicit assertions)", () => {
@@ -86,21 +54,24 @@ describe("PhysicsEngine Environmental Effects: Dense Atmospheric Drag", () => {
   it("should match snapshot after 10 steps of dense atmospheric drag", () => {
     runTestAndSnapshot(
       denseAtmosphereDragScenario10Steps,
-      "dense-atmospheric-drag.10steps.snap.json"
+      "dense-atmospheric-drag",
+      10
     );
   });
 
   it("should match snapshot after 50 steps of dense atmospheric drag", () => {
     runTestAndSnapshot(
       denseAtmosphereDragScenario50Steps,
-      "dense-atmospheric-drag.50steps.snap.json"
+      "dense-atmospheric-drag",
+      50
     );
   });
 
   it("should match snapshot after 100 steps of dense atmospheric drag", () => {
     runTestAndSnapshot(
       denseAtmosphereDragScenario100Steps,
-      "dense-atmospheric-drag.100steps.snap.json"
+      "dense-atmospheric-drag",
+      100
     );
   });
 });

@@ -1,28 +1,25 @@
 import { expect } from "chai";
 import "mocha";
-import * as fs from "fs";
-import * as path from "path";
-import { ISerializedPhysicsEngineState } from "./types"; // Added for the new return type
-// import Matter from "matter-js"; // Not directly used in assertions, Vector is from Matter
-// import { PhysicsEngine, ICelestialBody, ICustomBodyPlugin } from "../PhysicsEngine"; // PhysicsEngine not directly used
+// import * as fs from "fs"; // No longer needed
+// import * as path from "path"; // No longer needed
+import { ISerializedPhysicsEngineState } from "./types";
 
 import { determinismBaseScenario } from "./determinism.scenario";
-import { runScenario } from "./test-runner.helper"; // ScenarioResult removed
+// Import runTestAndSnapshot from the helper
+import { runScenario, runTestAndSnapshot } from "./test-runner.helper";
 
 describe("determinism", () => {
   it("should produce identical results for identical inputs across multiple runs", () => {
     const results1: ISerializedPhysicsEngineState = runScenario(
       determinismBaseScenario
-    ); // Removed targetBodyId
+    );
     const results2: ISerializedPhysicsEngineState = runScenario(
       determinismBaseScenario
-    ); // Removed targetBodyId
+    );
 
-    // Exclude the timestamp for direct comparison as it will always differ slightly
     const { simulationTick: tick1, ...comparableResults1 } = results1;
     const { simulationTick: tick2, ...comparableResults2 } = results2;
 
-    // First, ensure the ticks themselves are identical
     expect(tick1).to.equal(
       tick2,
       "Simulation ticks should be identical for two identical runs"
@@ -33,7 +30,6 @@ describe("determinism", () => {
       "Simulation results (excluding tick) should be identical for two identical runs"
     );
 
-    // Original detailed check if they differ (can be kept for debugging)
     if (
       JSON.stringify(comparableResults1) !== JSON.stringify(comparableResults2)
     ) {
@@ -43,41 +39,11 @@ describe("determinism", () => {
   });
 
   it("should match known good simulation data (snapshot)", () => {
-    const snapshotDir = path.join(__dirname, "__snapshots__");
-    // Consider renaming snapshot file to reflect full state, e.g., PhysicsEngine.determinism.fullstate.snap.json
-    // For now, keeping original name. Update if convention changes.
-    const snapshotFileName = "PhysicsEngine.determinism.snap.json";
-    const snapshotFile = path.join(snapshotDir, snapshotFileName);
-
-    const currentResults: ISerializedPhysicsEngineState = runScenario(
-      determinismBaseScenario
-    ); // Removed targetBodyId
-
-    if (process.env.UPDATE_SNAPSHOTS === "true") {
-      if (!fs.existsSync(snapshotDir)) {
-        fs.mkdirSync(snapshotDir, { recursive: true });
-      }
-      // Timestamp will be part of the snapshot. This is usually fine for snapshots,
-      // as it ensures the snapshot was taken at a specific time if that matters.
-      // If timestamp variations are problematic, it could be set to a fixed value or removed before stringifying.
-      fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
-      console.log(`Snapshot updated: ${snapshotFile}`);
-      expect(true).to.equal(true); // Test passes by updating
-    } else {
-      if (!fs.existsSync(snapshotFile)) {
-        throw new Error(
-          `Snapshot file not found: ${snapshotFile}. Run with UPDATE_SNAPSHOTS=true to create it.`
-        );
-      }
-      const expectedResults = JSON.parse(
-        fs.readFileSync(snapshotFile, "utf-8")
-      ) as ISerializedPhysicsEngineState; // Updated type cast
-
-      // Direct deep comparison. Timestamps might cause failures if not handled.
-      // If snapshots are updated, the new timestamp will be saved.
-      // If comparing against an old snapshot with a different timestamp, this will fail.
-      // This is standard behavior for snapshots; they should be updated if the code changes output.
-      expect(currentResults).to.deep.equal(expectedResults);
-    }
+    // The inline snapshot logic is replaced by a call to runTestAndSnapshot
+    runTestAndSnapshot(
+      determinismBaseScenario,
+      "PhysicsEngine.determinism", // baseSnapshotName from "PhysicsEngine.determinism.snap.json"
+      determinismBaseScenario.simulationSteps // steps from the scenario definition
+    );
   });
 });

@@ -1,8 +1,6 @@
 import { expect } from "chai";
 import "mocha";
 import Matter, { Vector } from "matter-js";
-import * as fs from "fs";
-import * as path from "path";
 import { IScenario, ISerializedPhysicsEngineState } from "./types";
 import { PhysicsEngine } from "../PhysicsEngine";
 import {
@@ -11,37 +9,7 @@ import {
   eccentricOrbitScenario50Steps,
   eccentricOrbitScenario250Steps, // This will be used for the detailed explicit test
 } from "./eccentric-orbit.scenario";
-import { runScenario } from "./test-runner.helper";
-
-const snapshotDir = path.join(__dirname, "__snapshots__");
-
-const runTestAndSnapshot = (
-  scenario: IScenario,
-  snapshotFileName: string
-): ISerializedPhysicsEngineState => {
-  const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario);
-
-  if (process.env.UPDATE_SNAPSHOTS === "true") {
-    if (!fs.existsSync(snapshotDir)) {
-      fs.mkdirSync(snapshotDir, { recursive: true });
-    }
-    fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
-    console.log(`  Snapshot updated: ${snapshotFileName}`);
-    return currentResults;
-  } else {
-    if (!fs.existsSync(snapshotFile)) {
-      throw new Error(
-        `Snapshot file not found: ${snapshotFileName}. Run with UPDATE_SNAPSHOTS=true to create it.`
-      );
-    }
-    const expectedResults = JSON.parse(
-      fs.readFileSync(snapshotFile, "utf-8")
-    ) as ISerializedPhysicsEngineState;
-    expect(currentResults).to.deep.equal(expectedResults);
-    return currentResults;
-  }
-};
+import { runScenario, runTestAndSnapshot } from "./test-runner.helper";
 
 describe("PhysicsEngine Celestial Mechanics: Eccentric Orbit", () => {
   // This test retains the detailed assertions from the original eccentric orbit test,
@@ -138,30 +106,18 @@ describe("PhysicsEngine Celestial Mechanics: Eccentric Orbit", () => {
   });
 
   it("should match snapshot after 1 step of eccentric orbit", () => {
-    runTestAndSnapshot(
-      eccentricOrbitScenario1Step,
-      "eccentric-orbit.1step.snap.json"
-    );
+    runTestAndSnapshot(eccentricOrbitScenario1Step, "eccentric-orbit", 1);
   });
 
   it("should match snapshot after 10 steps of eccentric orbit", () => {
-    runTestAndSnapshot(
-      eccentricOrbitScenario10Steps,
-      "eccentric-orbit.10steps.snap.json"
-    );
+    runTestAndSnapshot(eccentricOrbitScenario10Steps, "eccentric-orbit", 10);
   });
 
   it("should match snapshot after 50 steps of eccentric orbit", () => {
-    runTestAndSnapshot(
-      eccentricOrbitScenario50Steps,
-      "eccentric-orbit.50steps.snap.json"
-    );
+    runTestAndSnapshot(eccentricOrbitScenario50Steps, "eccentric-orbit", 50);
   });
 
   it("should match snapshot after 250 steps of eccentric orbit", () => {
-    runTestAndSnapshot(
-      eccentricOrbitScenario250Steps,
-      "eccentric-orbit.250steps.snap.json"
-    );
+    runTestAndSnapshot(eccentricOrbitScenario250Steps, "eccentric-orbit", 250);
   });
 });
