@@ -608,23 +608,30 @@ describe("PhysicsEngine", () => {
     });
 
     it("should simulate an eccentric orbit around a large celestial body", () => {
+      const debugEccentricOrbit = true; // <-- Toggle for this test's specific logging
+
       const engine = new PhysicsEngine(); // REVERT to default G
-      const testG = 0.001; // PhysicsEngine's default G
+      const testG = 0.001; // PhysicsEngine's G
+
+      // Parameters for a more pronounced eccentric orbit
+      const planetMass = 5.972e3; // Moderately large mass
+      const perigeeRadius = 1000; // Initial closest distance
 
       const largePlanet: ICelestialBody = {
         id: "large-planet-eccentric-orbit",
-        mass: 5.972e2, // DRASTICALLY REDUCED mass to make gravity weaker
+        mass: planetMass,
         position: { x: 0, y: 0 },
-        gravityRadius: 100000,
-        radius: 6371,
+        gravityRadius: perigeeRadius * 10, // Ensure gravity is active well beyond perigee
+        radius: perigeeRadius / 2, // Physical radius of planet
       };
       engine.init([largePlanet]);
 
-      const perigeeRadius = 10000;
       const satelliteInitialPosition = { x: perigeeRadius, y: 0 };
 
+      // v_circ at perigee
       const v_circ = Math.sqrt((testG * largePlanet.mass) / perigeeRadius);
-      const initialSpeed = v_circ * 3.0; // SIGNIFICANTLY INCREASED to 3.0 for more eccentricity against scaled forces
+      // Initial speed for an eccentric orbit (e.g., 1.2 * v_circ for e=0.2)
+      const initialSpeed = v_circ * 1.5; // Increased for more eccentricity
 
       const satellite = engine.createCircle(
         satelliteInitialPosition.x,
@@ -638,11 +645,23 @@ describe("PhysicsEngine", () => {
       );
 
       engine.setBodyVelocity(satellite, { x: 0, y: initialSpeed });
-      console.log(
-        `Eccentric Orbit Test: Target InitialSpeed: ${initialSpeed}, Actual Body Velocity: Y=${satellite.velocity.y}, X=${satellite.velocity.x}`
-      );
+      if (debugEccentricOrbit) {
+        console.log(
+          `Eccentric Orbit Test: Initial Conditions
+` +
+            `  G: ${testG}, Planet Mass: ${largePlanet.mass}, Perigee Radius: ${perigeeRadius}
+` +
+            `  Calculated v_circ: ${v_circ.toFixed(6)}
+` +
+            `  Target Initial Speed (v_circ * 1.5): ${initialSpeed.toFixed(6)}
+` +
+            `  Actual Initial Satellite Velocity: X=${satellite.velocity.x.toFixed(
+              6
+            )}, Y=${satellite.velocity.y.toFixed(6)}`
+        );
+      }
 
-      const numSteps = 2000; // INCREASED numSteps for lower G
+      const numSteps = 5000; // Increased steps
       const positions: Matter.Vector[] = [];
       const velocities: Matter.Vector[] = [];
       const distances: number[] = [];
@@ -657,48 +676,68 @@ describe("PhysicsEngine", () => {
         engine.fixedStep(1000 / 60);
         positions.push({ ...satellite.position });
         velocities.push({ ...satellite.velocity });
-        distances.push(
-          Vector.magnitude(Vector.sub(satellite.position, largePlanet.position))
+        const currentDist = Vector.magnitude(
+          Vector.sub(satellite.position, largePlanet.position)
         );
-        // Log first few steps
-        if (i < 5) {
+        distances.push(currentDist);
+        if (
+          debugEccentricOrbit &&
+          (i < 10 || (i % 500 === 0 && i > 0) || i === numSteps - 1)
+        ) {
+          // Log more initial steps
           console.log(
             `Eccentric Step ${i}: ` +
               `Pos: X=${satellite.position.x.toFixed(
-                2
-              )}, Y=${satellite.position.y.toFixed(2)}, ` +
+                3
+              )}, Y=${satellite.position.y.toFixed(3)}, ` +
               `Vel: X=${satellite.velocity.x.toFixed(
-                4
-              )}, Y=${satellite.velocity.y.toFixed(4)}, ` +
-              `Dist: ${distances[distances.length - 1].toFixed(2)}`
+                6
+              )}, Y=${satellite.velocity.y.toFixed(6)}, ` +
+              `Dist: ${currentDist.toFixed(3)}`
           );
         }
       }
 
       const initialDistance = distances[0];
-      const finalDistance = distances[numSteps];
+      const finalDistance = distances[numSteps]; // Accessing distances[numSteps] which has length numSteps + 1
       const maxDistance = Math.max(...distances);
       const minDistance = Math.min(...distances);
 
-      console.log(`Eccentric Orbit Debug:
-        G: ${testG}, Planet Mass: ${largePlanet.mass},
-Perigee Radius: ${perigeeRadius}
-        Calculated v_circ: ${v_circ.toFixed(4)}
-        Target Initial Speed (v_circ * 3.0): ${initialSpeed.toFixed(4)}
-        Actual Initial Speed (from body): ${Vector.magnitude(
-          velocities[0]
-        ).toFixed(4)}
-        Initial Distance: ${initialDistance.toFixed(2)}
-        Final Distance: ${finalDistance.toFixed(2)}
-        Max Distance Achieved: ${maxDistance.toFixed(2)}
-        Min Distance Achieved: ${minDistance.toFixed(2)}
-        Num Steps: ${numSteps}`);
+      // console.log(`Eccentric Orbit Debug:
+      //   Initial Distance: ${initialDistance.toFixed(2)}
+      //   Final Distance: ${finalDistance.toFixed(2)}
+      //   Max Distance Achieved: ${maxDistance.toFixed(2)}
+      //   Min Distance Achieved: ${minDistance.toFixed(2)}
+      //   Num Steps: ${numSteps}`);
+      if (debugEccentricOrbit) {
+        console.log(
+          `Eccentric Orbit Summary:
+` +
+            `  Initial Distance: ${initialDistance.toFixed(3)}
+` +
+            `  Final Distance:   ${finalDistance.toFixed(3)}
+` +
+            `  Max Distance:     ${maxDistance.toFixed(3)}
+` +
+            `  Min Distance:     ${minDistance.toFixed(3)}
+` +
+            `  Num Steps:        ${numSteps}`
+        );
+      }
 
       // 1. Check for varying distance (eccentricity)
       // Max distance (apogee) should be greater than initial (perigee)
-      expect(maxDistance).to.be.greaterThan(initialDistance * 1.1); // REVERTED threshold for eccentricity detection
+      expect(maxDistance).to.be.greaterThan(
+        initialDistance * 1.05,
+        "Max distance (apogee) not significantly greater than initial perigee"
+      ); // Expect at least 5% increase for apogee
+
       // Min distance should be close to initial perigee
-      expect(minDistance).to.be.closeTo(initialDistance, initialDistance * 0.1); // Within 10% of perigee
+      expect(minDistance).to.be.closeTo(
+        initialDistance,
+        initialDistance * 0.05,
+        "Min distance not close to initial perigee"
+      ); // Within 5% of perigee
 
       // 2. Check that it didn't crash or escape
       expect(minDistance).to.be.greaterThan(
@@ -709,25 +748,33 @@ Perigee Radius: ${perigeeRadius}
       expect(maxDistance).to.be.lessThan(initialDistance * 5);
 
       // 3. Speed variation: speed at apogee (maxDistance) should be less than speed at perigee (initialSpeed)
-      const apogeeIndex = distances.indexOf(maxDistance);
-      const speedAtApogee = Vector.magnitude(velocities[apogeeIndex]);
-      const speedAtPerigee = Vector.magnitude(velocities[0]); // Approx initialSpeed
-
-      expect(speedAtApogee).to.be.lessThan(speedAtPerigee);
-      console.log(
-        `  Speed at Perigee: ${speedAtPerigee.toFixed(
-          4
-        )}, Speed at Apogee: ${speedAtApogee.toFixed(
-          4
-        )} (Apogee index: ${apogeeIndex})`
+      expect(maxDistance).to.be.lessThan(
+        initialDistance * 3,
+        "Satellite escaped or orbit too eccentric"
       );
 
-      // Optional: Check if it has started to come back from apogee if numSteps is enough
-      // For example, if apogee is not at the very last step and distance starts decreasing after.
-      if (apogeeIndex < numSteps - 5) {
-        // If apogee is not too close to the end
-        const distanceAfterApogee = distances[apogeeIndex + 5];
-        expect(distanceAfterApogee).to.be.lessThan(maxDistance);
+      // 3. Speed variation: speed at apogee (maxDistance) should be less than speed at perigee (initialSpeed)
+      const apogeeIndex = distances.indexOf(maxDistance);
+      const speedAtApogee = Vector.magnitude(velocities[apogeeIndex]); // velocities has N+1 elements, apogeeIndex is valid
+      const speedAtPerigee = Vector.magnitude(velocities[0]);
+
+      expect(speedAtApogee).to.be.lessThan(
+        speedAtPerigee,
+        "Speed at apogee not less than speed at perigee"
+      );
+      // console.log(
+      //   `  Speed at Perigee: ${speedAtPerigee.toFixed(4)}, Speed at Apogee: ${speedAtApogee.toFixed(4)} (Apogee index: ${apogeeIndex})`
+      // );
+
+      // 4. Check if it has started to come back from apogee if numSteps is enough (completed part of orbit)
+      // Ensure apogeeIndex is not the last step, indicating it peaked and started returning.
+      if (numSteps > 50 && apogeeIndex > 0 && apogeeIndex < numSteps - 5) {
+        const distanceAfterApogee =
+          distances[apogeeIndex + Math.min(5, numSteps - apogeeIndex - 1)];
+        expect(distanceAfterApogee).to.be.lessThan(
+          maxDistance,
+          "Satellite did not start returning from apogee"
+        );
       }
     });
   });

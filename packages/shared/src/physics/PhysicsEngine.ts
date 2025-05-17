@@ -35,6 +35,7 @@ export class PhysicsEngine {
   private G: number; // Gravitational constant, now instance-specific
   // Potentially a renderer if we want to debug draw on server or share debug logic
   // private renderer: Matter.Render;
+  private internalLoggingEnabled: boolean = false;
 
   constructor(fixedTimeStepMs: number = 1000 / 60, customG?: number) {
     this.fixedTimeStepMs = fixedTimeStepMs;
@@ -59,7 +60,9 @@ export class PhysicsEngine {
     // if (this.celestialBodies.length === 0) {
     //   this.celestialBodies.push({ id: 'earth', mass: 5.972e10, position: { x: 400, y: 3000 }, gravityRadius: 5000 });
     // }
-    console.log("PhysicsEngine explicit init called");
+    if (this.internalLoggingEnabled)
+      console.log("PhysicsEngine explicit init called");
+    else console.log("PhysicsEngine explicit init called"); // Keep original for now unless specified to remove
   }
 
   /**
@@ -90,19 +93,30 @@ export class PhysicsEngine {
 
           const forceMagnitude =
             (this.G * celestial.mass * body.mass) / distanceSq;
-          const force = Matter.Vector.mult(
-            Matter.Vector.normalise(dVector),
-            forceMagnitude
+          const direction = Matter.Vector.normalise(
+            Matter.Vector.sub(celestial.position, body.position)
           );
-          totalForce = Matter.Vector.add(totalForce, force);
-        }
+          const forceVector = Matter.Vector.mult(direction, forceMagnitude);
 
-        this.applyForceToBody(body, body.position, totalForce); // Use wrapper
+          // Apply the calculated force, scaled to achieve desired deltaV per step
+          const scalingFactor = 1 / (this.fixedTimeStepMs * 1000.0); // ax_true * dt_seconds
+          const scaledForce = Matter.Vector.mult(forceVector, scalingFactor);
+          if (this.internalLoggingEnabled) {
+            console.log(
+              `Applying scaled gravitational force to body ${
+                body.id || body.label
+              }: (${scaledForce.x.toFixed(6)}, ${scaledForce.y.toFixed(
+                6
+              )}) from celestial ${celestial.id}`
+            );
+          }
+          Matter.Body.applyForce(body, body.position, scaledForce);
+        }
       } else {
         // Fallback to simple downward gravity
         const downwardGravityForceMagnitude = body.mass * 0.001 * 9.81; // True force magnitude
         const downwardGravityForce = { x: 0, y: downwardGravityForceMagnitude };
-        this.applyForceToBody(body, body.position, downwardGravityForce); // Use wrapper
+        Matter.Body.applyForce(body, body.position, downwardGravityForce); // Use wrapper
       }
     }
   }
@@ -379,6 +393,10 @@ export class PhysicsEngine {
 
   public setBodyVelocity(body: Matter.Body, velocity: Matter.Vector): void {
     Matter.Body.setVelocity(body, velocity);
+  }
+
+  public setInternalLogging(enable: boolean): void {
+    this.internalLoggingEnabled = enable;
   }
 
   // Add more methods as needed for interacting with the physics world
