@@ -21,14 +21,29 @@ if (typeof window === "undefined") {
 }
 
 /**
+ * Optional parameters for runScenario.
+ */
+export interface RunScenarioOptions {
+  /**
+   * Overrides the scenario's internal logging setting.
+   * If true, enables detailed logging from the PhysicsEngine.
+   * If false, disables it.
+   * If undefined, the scenario's own setting (engineSettings.enableInternalLogging) is used.
+   */
+  debug?: boolean;
+}
+
+/**
  * Runs a defined physics scenario and returns the full serialized state of the physics engine.
  * @param scenario The scenario definition.
  * @param runUpToSteps Optional parameter to run the scenario up to a certain step.
+ * @param options Optional parameters for running the scenario, like debug logging.
  * @returns The full ISerializedPhysicsEngineState from physicsEngine.toJSON().
  */
 export const runScenario = (
   scenario: IScenario,
-  runUpToSteps?: number
+  runUpToSteps?: number,
+  options?: RunScenarioOptions
 ): ISerializedPhysicsEngineState => {
   // Reset Matter.js internal ID counters for deterministic tests
   (Matter.Body as any)._nextId = 0;
@@ -41,7 +56,9 @@ export const runScenario = (
     engineSettings?.fixedTimeStepMs,
     engineSettings?.customG === null ? undefined : engineSettings?.customG
   );
-  if (engineSettings?.enableInternalLogging !== undefined) {
+  if (options?.debug !== undefined) {
+    engine.setInternalLogging(options.debug);
+  } else if (engineSettings?.enableInternalLogging !== undefined) {
     engine.setInternalLogging(engineSettings.enableInternalLogging);
   }
 

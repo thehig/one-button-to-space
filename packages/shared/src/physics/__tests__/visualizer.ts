@@ -3,20 +3,18 @@ import { PhysicsEngine } from "../PhysicsEngine";
 // Import the scenariosToRun array directly
 import { scenariosToRun, ScenarioEntry } from "../scenarios/index";
 // Import runScenario helper
-import { runScenario } from "../scenarios/scenario-runner.helper";
+// import { runScenario } from "../scenarios/scenario-runner.helper"; // No longer directly used in gameLoop
 import type {
   IScenario,
   ScenarioAction,
-  ScenarioBodyInitialState,
-  // ScenarioEngineSettings, // Potentially unused if runScenario handles it all
-  ISerializedPhysicsEngineState, // To type the output of runScenario
+  // ScenarioBodyInitialState, // Not directly used here
+  ISerializedPhysicsEngineState,
 } from "../scenarios/types.ts";
 
 console.log(
   "Visualizer script loaded. Matter:",
   Matter ? "loaded" : "not loaded"
 );
-// Check the array length
 if (scenariosToRun.length === 0) {
   console.warn(
     "scenariosToRun is empty! Check scenarios/index.ts and individual scenario files."
@@ -40,164 +38,215 @@ const debugLoggingCheckbox = document.getElementById(
   "debug-logging-checkbox"
 ) as HTMLInputElement;
 
-// Matter.js specific
-let engine: Matter.Engine;
-let render: Matter.Render;
-let runner: Matter.Runner;
+// Matter.js specific for visualization
+let engine: Matter.Engine; // The visual Matter.js engine
+let render: Matter.Render; // The visual Matter.js renderer
+let runner: Matter.Runner; // The visual Matter.js runner (optional if we drive steps)
 
-// PhysicsEngine specific
-let physicsEngine: PhysicsEngine;
+// PhysicsEngine specific for simulation logic
+let physicsEngine: PhysicsEngine | undefined; // Our persistent physics engine instance
 
 // Visualizer state
 let currentScenario: IScenario | null = null;
-let currentScenarioDisplayName: string | null = null; // This will be the key from scenariosMap
-let currentScenarioEntry: ScenarioEntry | null = null; // To store the full ScenarioEntry
-let actionQueue: ScenarioAction[] = [];
+let currentScenarioEntry: ScenarioEntry | null = null;
+let createdBodiesMap: Map<string, Matter.Body> = new Map(); // Maps scenario body ID to our PhysicsEngine's Matter.Body
 let currentTick = 0;
 let isPlaying = false;
 const timeStep = 1000 / 60; // ms, for 60 FPS
 let gameLoopIntervalId: number | undefined;
 
-// No longer need processScenarioModules, scenariosMap is already processed.
-
 function setupMatter() {
-  if (engine) {
+  if (!engine) {
+    engine = Matter.Engine.create();
+    engine.world.gravity.y = 0;
+    engine.world.gravity.x = 0;
+    engine.world.gravity.scale = 0;
+  }
+
+  if (!render) {
+    render = Matter.Render.create({
+      element: matterContainer,
+      engine: engine,
+      options: {
+        width: 800,
+        height: 600,
+        wireframes: true, // Good for debugging
+        showBounds: true,
+        showAxes: true,
+        background: "#eeeeee",
+      },
+    });
+
+    if (render.canvas && render.options.width && render.options.height) {
+      render.canvas.width = render.options.width;
+      render.canvas.height = render.options.height;
+      console.log(
+        `[Visualizer] Canvas size set to: ${render.canvas.width}x${render.canvas.height}`
+      );
+    }
+    if (matterContainer) {
+      const rect = matterContainer.getBoundingClientRect();
+      console.log(
+        `[Visualizer] matterContainer Rect: w=${rect.width}, h=${rect.height}, x=${rect.left}, y=${rect.top}`
+      );
+    }
+    Matter.Render.run(render);
+    runner = Matter.Runner.create(); // Optional: Matter.js can run its own loop
+    console.log("Matter.js visual engine and renderer initialized.");
+  } else {
     Matter.World.clear(engine.world, false);
-    Matter.Engine.clear(engine);
-  }
-  if (render && render.canvas) {
-    Matter.Render.stop(render);
-    render.canvas.remove();
-    render.textures = {};
+    Matter.Composite.clear(engine.world, false, true);
+    Matter.Engine.clear(engine); // Clear the visual engine
+    engine.world.gravity.y = 0;
+    engine.world.gravity.x = 0;
+    engine.world.gravity.scale = 0;
+    console.log("Matter.js visual world cleared and reset for new scenario.");
   }
 
-  engine = Matter.Engine.create();
-  engine.world.gravity.y = 0;
-  engine.world.gravity.x = 0;
-  engine.world.gravity.scale = 0;
-
-  render = Matter.Render.create({
-    element: matterContainer,
-    engine: engine,
-    options: {
-      width: 800,
-      height: 600,
-      wireframes: true,
-      showBounds: true,
-      showAxes: true,
-      background: "#eeeeee",
-    },
+  // Default wide view, will be overridden by lookAt in renderState
+  render.bounds.min.x = -1000;
+  render.bounds.min.y = -1000;
+  render.bounds.max.x = 1000;
+  render.bounds.max.y = 1000;
+  Matter.Render.lookAt(render, {
+    min: { x: -400, y: -300 },
+    max: { x: 400, y: 300 },
   });
-
-  // Explicitly set canvas size and log container rect
-  if (render.canvas && render.options.width && render.options.height) {
-    render.canvas.width = render.options.width;
-    render.canvas.height = render.options.height;
-    console.log(
-      `[Visualizer] Canvas size set to: ${render.canvas.width}x${render.canvas.height}`
-    );
-  }
-  if (matterContainer) {
-    const rect = matterContainer.getBoundingClientRect();
-    console.log(
-      `[Visualizer] matterContainer Rect: w=${rect.width}, h=${rect.height}, x=${rect.left}, y=${rect.top}`
-    );
-  }
-
-  // Temporarily set very wide, fixed bounds
-  render.bounds.min.x = -2000;
-  render.bounds.min.y = -2000;
-  render.bounds.max.x = 2000;
-  render.bounds.max.y = 2000;
-
-  Matter.Render.run(render);
-  runner = Matter.Runner.create();
-  console.log(
-    "Matter.js engine and renderer (re)initialized WITH SIMPLIFIED/WIDE VIEW."
-  );
 }
 
 function populateScenarioSelector() {
   while (scenarioSelect.options.length > 1) {
     scenarioSelect.remove(1);
   }
-  // Iterate over the scenariosToRun array
-  scenariosToRun.forEach((entry, index) => {
+  scenariosToRun.forEach((entry) => {
     const option = document.createElement("option");
-    option.value = entry.scenario.id; // Use scenario ID as value for robust lookup
-    option.textContent = entry.scenario.name; // Use scenario name for display
+    option.value = entry.scenario.id;
+    option.textContent = entry.scenario.name;
     scenarioSelect.appendChild(option);
   });
   playPauseButton.textContent = "Play";
 }
 
 function clearSimulationState() {
-  actionQueue = [];
   currentTick = 0;
   if (gameLoopIntervalId) {
     clearInterval(gameLoopIntervalId);
     gameLoopIntervalId = undefined;
   }
   isPlaying = false;
-  currentScenario = null; // Clear currentScenario
-  currentScenarioEntry = null; // Clear currentScenarioEntry
+  currentScenario = null;
+  currentScenarioEntry = null;
+  createdBodiesMap.clear();
+  physicsEngine = undefined; // Dispose of the old physics engine instance
   playPauseButton.textContent = "Play";
 }
 
 function loadScenario(selectedId: string) {
-  // selectedId will be scenario.id
   clearSimulationState();
-  setupMatter(); // Keep Matter.Render setup
+  setupMatter(); // Prepare the Matter.js visual environment
 
-  // Find the selected scenario entry from the scenariosToRun array
   currentScenarioEntry =
     scenariosToRun.find((entry) => entry.scenario.id === selectedId) || null;
 
-  if (!currentScenarioEntry) {
-    console.error(
-      `Scenario with ID ${selectedId} not found in scenariosToRun!`
-    );
-    currentScenario = null;
+  if (!currentScenarioEntry || !currentScenarioEntry.scenario) {
+    console.error(`Scenario with ID ${selectedId} not found or invalid!`);
     return;
   }
-  currentScenario = currentScenarioEntry.scenario; // Assign to currentScenario
+  currentScenario = currentScenarioEntry.scenario;
 
   console.log(
-    `Loading scenario: ${currentScenario.name} (ID: ${currentScenario.id})`
+    `[Visualizer] Loading scenario: ${currentScenario.name} (ID: ${currentScenario.id})`
   );
 
-  // No longer need to manually instantiate PhysicsEngine or create bodies here.
-  // runScenario will handle the simulation state generation.
-  // We just need to render the initial state (tick 0).
+  const engineSettings = currentScenario.engineSettings;
+  const effectiveDebugLogging = debugLoggingCheckbox.checked;
 
-  if (debugLoggingCheckbox && currentScenario.engineSettings) {
-    // This is tricky. runScenario uses the scenario's engineSettings directly.
-    // To reflect the checkbox, we'd ideally pass an override to runScenario,
-    // or runScenario's internal PhysicsEngine would need a global way to set logging.
-    // For now, the scenario's own setting will primarily dictate logging within runScenario.
-    // We can log a message here though.
-    console.log(
-      "Debug logging checkbox state:",
-      debugLoggingCheckbox.checked,
-      "Scenario wants logging:",
-      currentScenario.engineSettings.enableInternalLogging
-    );
+  physicsEngine = new PhysicsEngine( // Create our persistent engine
+    engineSettings?.fixedTimeStepMs,
+    engineSettings?.customG === null ? undefined : engineSettings?.customG
+  );
+  physicsEngine.setInternalLogging(effectiveDebugLogging);
+  console.log(
+    `[Visualizer] PhysicsEngine internal logging set to: ${effectiveDebugLogging}`
+  );
+
+  physicsEngine.init(currentScenario.celestialBodies);
+  createdBodiesMap.clear();
+
+  for (const bodyDef of currentScenario.initialBodies) {
+    let body: Matter.Body; // This will be the body within our physicsEngine
+    const optionsForEngine: Matter.IBodyDefinition = {
+      ...(bodyDef.options || {}),
+      label: bodyDef.label || bodyDef.id,
+    };
+
+    switch (bodyDef.type) {
+      case "box":
+        body = physicsEngine.createBox(
+          bodyDef.initialPosition.x,
+          bodyDef.initialPosition.y,
+          bodyDef.width!,
+          bodyDef.height!,
+          optionsForEngine
+        );
+        break;
+      case "circle":
+        body = physicsEngine.createCircle(
+          bodyDef.initialPosition.x,
+          bodyDef.initialPosition.y,
+          bodyDef.radius!,
+          optionsForEngine
+        );
+        break;
+      case "rocket":
+        body = physicsEngine.createRocketBody(
+          bodyDef.initialPosition.x,
+          bodyDef.initialPosition.y,
+          optionsForEngine
+        );
+        break;
+      default:
+        console.error(
+          `[Visualizer] Unsupported body type in scenario: ${bodyDef.type}`
+        );
+        continue;
+    }
+
+    if (bodyDef.initialVelocity) {
+      physicsEngine.setBodyVelocity(body, bodyDef.initialVelocity);
+    }
+    if (bodyDef.initialAngle !== undefined) {
+      Matter.Body.setAngle(body, bodyDef.initialAngle); // Directly use Matter.Body for angle on our engine's body
+    }
+    if (bodyDef.initialAngularVelocity !== undefined) {
+      Matter.Body.setAngularVelocity(body, bodyDef.initialAngularVelocity); // Same for angular velocity
+    }
+    createdBodiesMap.set(bodyDef.id, body);
   }
 
-  // Render initial state (tick 0)
-  if (currentScenario) {
-    const initialState = runScenario(currentScenario, 0);
+  if (physicsEngine) {
+    const initialState = physicsEngine.toJSON();
+    console.log(
+      "[Visualizer] Initial state from persistent physicsEngine (tick 0):",
+      JSON.stringify(initialState).substring(0, 500) + "..." // Log snippet
+    );
     renderState(initialState);
+    console.log("[Visualizer] Scenario loaded with persistent PhysicsEngine.");
+  } else {
+    console.error(
+      "[Visualizer] Failed to initialize persistent PhysicsEngine in loadScenario."
+    );
   }
 }
 
-// New function to render state from runScenario
 function renderState(state: ISerializedPhysicsEngineState) {
   if (!engine || !render) {
-    console.error("Matter engine or renderer not setup for renderState");
+    console.error(
+      "[Visualizer] Matter.js visual engine or renderer not setup for renderState"
+    );
     return;
   }
-  Matter.World.clear(engine.world, false);
+  Matter.World.clear(engine.world, false); // Clear visual world first
 
   const bodiesToRender: Matter.Body[] = [];
   if (state.world && state.world.bodies) {
@@ -207,12 +256,8 @@ function renderState(state: ISerializedPhysicsEngineState) {
         | Record<string, any>
         | undefined;
 
-      // Base options from serialized data
       const options: Matter.IBodyDefinition = {
-        angle: bodyData.angle,
-        // position: bodyData.position, // Will be set by Matter.Bodies factory functions
-        // velocity: bodyData.velocity, // Set after creation if needed
-        // angularVelocity: bodyData.angularVelocity, // Set after creation if needed
+        angle: bodyData.angle ?? 0, // Handle potential null from bad type def
         isStatic: bodyData.isStatic,
         isSensor: bodyData.isSensor,
         label: bodyData.label || `body-${bodyData.id}`,
@@ -221,11 +266,9 @@ function renderState(state: ISerializedPhysicsEngineState) {
           fillStyle: bodyData.render?.fillStyle,
           strokeStyle: bodyData.render?.strokeStyle,
           lineWidth: bodyData.render?.lineWidth,
-          // sprite: bodyData.render?.sprite // Sprite handling can be complex
         },
       };
 
-      // More robust body creation using creationParams from the plugin if available
       if (creationParams?.type) {
         switch (creationParams.type) {
           case "box":
@@ -237,12 +280,26 @@ function renderState(state: ISerializedPhysicsEngineState) {
                 bodyData.position.x,
                 bodyData.position.y,
                 creationParams.width,
-                creationParams.height,
-                options
+                creationParams.height
               );
+              if (visualBody) {
+                Matter.Body.setAngle(visualBody, options.angle ?? 0);
+                visualBody.label = options.label || `body-${bodyData.id}`;
+                if (options.isStatic) Matter.Body.setStatic(visualBody, true);
+                // Explicitly set render properties that might be in options, but carefully
+                if (options.render) {
+                  visualBody.render.visible = options.render.visible ?? true;
+                  if (options.render.fillStyle)
+                    visualBody.render.fillStyle = options.render.fillStyle;
+                  if (options.render.strokeStyle)
+                    visualBody.render.strokeStyle = options.render.strokeStyle;
+                  if (options.render.lineWidth !== undefined)
+                    visualBody.render.lineWidth = options.render.lineWidth;
+                }
+              }
             } else {
               console.warn(
-                `Box body ID ${bodyData.id} missing width/height in creationParams.`
+                `[Visualizer RenderState] Box body ID ${bodyData.id} missing width/height in creationParams.`
               );
             }
             break;
@@ -256,13 +313,11 @@ function renderState(state: ISerializedPhysicsEngineState) {
               );
             } else {
               console.warn(
-                `Circle body ID ${bodyData.id} missing radius in creationParams.`
+                `[Visualizer RenderState] Circle body ID ${bodyData.id} missing radius in creationParams.`
               );
             }
             break;
-          case "rocket": // Rockets are composite, this is a simplified representation of the main part
-            // For rockets, creationParams might include definitions for multiple parts.
-            // This example just creates a main rectangle. A true representation would need to parse parts.
+          case "rocket":
             if (
               typeof creationParams.width === "number" &&
               typeof creationParams.height === "number"
@@ -277,145 +332,308 @@ function renderState(state: ISerializedPhysicsEngineState) {
                 creationParams.height,
                 options
               );
-              console.log("[Visualizer] Simplified rocket body rendered.");
             } else if (
               bodyData.parts &&
               bodyData.parts.length > 0 &&
-              bodyData.vertices
+              (bodyData as any).vertices
             ) {
-              // Fallback if rocket creationParams are not as expected, but has vertices for the main part
               options.label = options.label
                 ? `${options.label} (Rocket-Vertices)`
                 : `rocket-vertices-${bodyData.id}`;
               visualBody = Matter.Body.create({
                 ...options,
                 position: bodyData.position,
-                vertices: bodyData.vertices,
+                vertices: (bodyData as any).vertices,
               });
             } else {
               console.warn(
-                `Rocket body ID ${bodyData.id} has insufficient creationParams or vertex data for simple rendering.`
+                `[Visualizer RenderState] Rocket body ID ${bodyData.id} has insufficient creationParams or vertex data.`
               );
             }
             break;
           default:
             console.warn(
-              `Unknown type '${creationParams.type}' in creationParams for body ID ${bodyData.id}.`
+              `[Visualizer RenderState] Unknown type '${creationParams.type}' for body ID ${bodyData.id}.`
             );
         }
       }
 
-      // Fallback to vertices if no visualBody created yet and vertices exist (e.g. for generic polygons)
-      if (!visualBody && bodyData.vertices && bodyData.vertices.length > 0) {
-        // Ensure vertices are in the correct Matter.js format (array of {x, y})
-        // The snapshot seems to provide them correctly.
+      if (visualBody && debugLoggingCheckbox.checked) {
+        Matter.Body.update(visualBody, 0, 1, 1); // Force an update before testing bounds
+        const immediateBoundsTest = Matter.Bounds.create([visualBody]);
+        console.log(
+          `[Visualizer RenderState Tick ${currentTick}] IMMEDIATE TEST on visualBody ID ${visualBody.id} after creation & update: Matter.Bounds.create results: min=(${immediateBoundsTest.min.x},${immediateBoundsTest.min.y}), max=(${immediateBoundsTest.max.x},${immediateBoundsTest.max.y})`
+        );
+        console.log(
+          `[Visualizer RenderState Tick ${currentTick}] IMMEDIATE TEST on visualBody ID ${visualBody.id} after creation & update: visualBody.bounds directly: min=(${visualBody.bounds.min.x},${visualBody.bounds.min.y}), max=(${visualBody.bounds.max.x},${visualBody.bounds.max.y})`
+        );
+      }
+
+      if (
+        !visualBody &&
+        (bodyData as any).vertices &&
+        (bodyData as any).vertices.length > 0
+      ) {
         visualBody = Matter.Body.create({
           ...options,
           position: bodyData.position,
-          vertices: bodyData.vertices,
+          vertices: (bodyData as any).vertices,
         });
       }
 
-      // Final fallback if still no body
       if (!visualBody) {
         console.warn(
-          `Could not determine geometry for body ID ${bodyData.id}. Rendering as placeholder circle.`
+          `[Visualizer RenderState] Could not determine geometry for body ID ${bodyData.id}. Placeholder circle.`
         );
         visualBody = Matter.Bodies.circle(
           bodyData.position.x,
           bodyData.position.y,
-          5,
+          5, // Small placeholder
           {
             ...options,
-            label: `${options.label} (Placeholder)`,
-            render: { fillStyle: "magenta" },
+            label: `${options.label || "unknown"} (Placeholder)`,
+            render: { ...options.render, fillStyle: "magenta" },
           }
         );
       }
 
       if (visualBody) {
-        // Apply velocity and angularVelocity after creation
         Matter.Body.setVelocity(
+          // Apply current velocity from state
           visualBody,
           bodyData.velocity || { x: 0, y: 0 }
         );
         Matter.Body.setAngularVelocity(
+          // Apply current angular velocity
           visualBody,
           bodyData.angularVelocity || 0
         );
-
-        // Preserve original ID from snapshot if needed for debugging, though Matter assigns its own
-        // (visualBody as any).originalSnapshotId = bodyData.id;
         bodiesToRender.push(visualBody);
+        if (debugLoggingCheckbox.checked && currentTick < 2) {
+          // Log only for first couple of ticks to avoid spam
+          console.log(
+            `[Visualizer RenderState Tick ${currentTick}] Preparing visual body: `,
+            JSON.parse(
+              JSON.stringify({
+                // Deep clone for logging
+                id: visualBody.id,
+                label: visualBody.label,
+                scenarioBodyId: bodyData.id,
+                position: visualBody.position,
+                angle: visualBody.angle,
+                velocity: visualBody.velocity,
+                angularVelocity: visualBody.angularVelocity,
+                isStatic: visualBody.isStatic,
+                renderOptions: visualBody.render,
+                bounds: visualBody.bounds,
+                verticesCount: visualBody.vertices?.length,
+                partsCount: visualBody.parts?.length,
+                creationParamsUsed: creationParams,
+              })
+            )
+          );
+        }
       }
     });
   }
-  Matter.World.add(engine.world, bodiesToRender);
 
-  // Adjust camera to view the bodies
-  if (render && bodiesToRender.length > 0) {
-    const allRenderBodies = Matter.Composite.allBodies(engine.world);
-    if (allRenderBodies.length > 0) {
-      const bodiesBounds = Matter.Bounds.create(allRenderBodies);
-      Matter.Render.lookAt(render, {
-        min: { x: bodiesBounds.min.x, y: bodiesBounds.min.y },
-        max: { x: bodiesBounds.max.x, y: bodiesBounds.max.y },
-      });
-
-      // Add some padding
-      const padding = 0.2;
-      const viewWidth = render.bounds.max.x - render.bounds.min.x;
-      const viewHeight = render.bounds.max.y - render.bounds.min.y;
-      render.bounds.min.x -= viewWidth * padding;
-      render.bounds.max.x += viewWidth * padding;
-      render.bounds.min.y -= viewHeight * padding;
-      render.bounds.max.y += viewHeight * padding;
-    }
-  } else if (render) {
-    // Default view if no bodies
-    Matter.Render.lookAt(render, {
-      min: { x: -render.options.width! / 2, y: -render.options.height! / 2 },
-      max: { x: render.options.width! / 2, y: render.options.height! / 2 },
-    });
+  if (bodiesToRender.length > 0) {
+    Matter.World.add(engine.world, bodiesToRender); // Add to the visual Matter.js engine
   }
+
+  if (render) {
+    if (bodiesToRender.length > 0) {
+      const allVisualWorldBodies = Matter.Composite.allBodies(engine.world);
+      if (allVisualWorldBodies.length > 0) {
+        if (debugLoggingCheckbox.checked) {
+          console.log(
+            `[Visualizer RenderState Tick ${currentTick}] allVisualWorldBodies.length: ${allVisualWorldBodies.length}`
+          );
+          if (allVisualWorldBodies.length > 0 && allVisualWorldBodies[0]) {
+            const firstBody = allVisualWorldBodies[0];
+            console.log(
+              `[Visualizer RenderState Tick ${currentTick}] First body in allVisualWorldBodies: id=${firstBody.id}, label='${firstBody.label}', pos=(${firstBody.position.x},${firstBody.position.y}), bounds=(${firstBody.bounds.min.x},${firstBody.bounds.min.y})-(${firstBody.bounds.max.x},${firstBody.bounds.max.y})`
+            );
+            if (firstBody.vertices && firstBody.vertices.length > 0) {
+              const simplifiedVertices = firstBody.vertices
+                .slice(0, 5)
+                .map((v) => ({ x: v.x, y: v.y }));
+              console.log(
+                `[Visualizer RenderState Tick ${currentTick}] First body vertices (first few simplified):`,
+                JSON.stringify(simplifiedVertices)
+              );
+            } else {
+              console.log(
+                `[Visualizer RenderState Tick ${currentTick}] First body has no vertices or empty vertices array.`
+              );
+            }
+            if (firstBody.parts && firstBody.parts.length > 0) {
+              console.log(
+                `[Visualizer RenderState Tick ${currentTick}] First body parts.length: ${
+                  firstBody.parts.length
+                }, first part id: ${
+                  firstBody.parts[0] ? firstBody.parts[0].id : "N/A"
+                }`
+              );
+            } else {
+              console.log(
+                `[Visualizer RenderState Tick ${currentTick}] First body has no parts or empty parts array.`
+              );
+            }
+          }
+        }
+        if (debugLoggingCheckbox.checked) {
+          console.log(
+            `[Visualizer RenderState Tick ${currentTick}] Before lookAt - Render Bounds (current view): min.x=${render.bounds.min.x}, min.y=${render.bounds.min.y}, max.x=${render.bounds.max.x}, max.y=${render.bounds.max.y}`
+          );
+          console.log(
+            `[Visualizer RenderState Tick ${currentTick}] Calling lookAt with ${allVisualWorldBodies.length} bodies.`
+          );
+        }
+
+        const canvasPadding = {
+          x: (render.options.width || 800) * 0.1, // 10% padding, default 80px
+          y: (render.options.height || 600) * 0.1, // 10% padding, default 60px
+        };
+
+        Matter.Render.lookAt(render, allVisualWorldBodies, canvasPadding);
+
+        if (debugLoggingCheckbox.checked) {
+          console.log(
+            `[Visualizer RenderState Tick ${currentTick}] After lookAt with canvasPadding - Render Bounds (new view): min.x=${render.bounds.min.x}, min.y=${render.bounds.min.y}, max.x=${render.bounds.max.x}, max.y=${render.bounds.max.y}`
+          );
+          const finalViewWidth = render.bounds.max.x - render.bounds.min.x;
+          const finalViewHeight = render.bounds.max.y - render.bounds.min.y;
+          console.log(
+            `[Visualizer RenderState Tick ${currentTick}] Final view dimensions after lookAt: width=${finalViewWidth}, height=${finalViewHeight}`
+          );
+          if (
+            !isFinite(finalViewWidth) ||
+            !isFinite(finalViewHeight) ||
+            finalViewWidth <= 0 ||
+            finalViewHeight <= 0
+          ) {
+            console.warn(
+              `[Visualizer RenderState Tick ${currentTick}] WARNING: lookAt resulted in non-finite or non-positive view dimensions. Width: ${finalViewWidth}, Height: ${finalViewHeight}. Consider default view if issues persist.`
+            );
+            // As a fallback if lookAt still produces bad bounds with actual bodies
+            // Matter.Render.lookAt(render, { min: { x: -400, y: -300 }, max: { x: 400, y: 300 } });
+          }
+        }
+      } else {
+        if (debugLoggingCheckbox.checked) {
+          console.log(
+            `[Visualizer RenderState Tick ${currentTick}] No visual bodies in world after attempting to add. Using default view.`
+          );
+        }
+        Matter.Render.lookAt(render, {
+          min: { x: -400, y: -300 },
+          max: { x: 400, y: 300 },
+        });
+      }
+    } else {
+      if (debugLoggingCheckbox.checked) {
+        console.log(
+          `[Visualizer RenderState Tick ${currentTick}] No bodies to render from state. Using default view.`
+        );
+      }
+      Matter.Render.lookAt(render, {
+        min: { x: -400, y: -300 },
+        max: { x: 400, y: 300 },
+      });
+    }
+  }
+  // Removed the forced bounds override from here
 }
 
 function gameLoop() {
-  if (!isPlaying || !currentScenario) {
+  if (!isPlaying || !currentScenario || !physicsEngine) {
     return;
   }
 
-  currentTick++;
-  // console.log(`Tick: ${currentTick}`);
+  // Process actions for the current tick BEFORE stepping the engine
+  if (currentScenario.actions) {
+    for (const action of currentScenario.actions) {
+      if (action.step === currentTick) {
+        const targetBody = createdBodiesMap.get(action.targetBodyId); // Get body from our physicsEngine's map
+        if (!targetBody) {
+          console.warn(
+            `[Visualizer GameLoop Tick ${currentTick}] Action target body ID ${action.targetBodyId} not found for applying action.`
+          );
+          continue;
+        }
+        switch (action.actionType) {
+          case "applyForce":
+            if (action.force) {
+              physicsEngine.applyForceToBody(
+                targetBody,
+                action.applicationPoint || targetBody.position,
+                action.force
+              );
+              if (debugLoggingCheckbox.checked) {
+                console.log(
+                  `[Visualizer GameLoop Tick ${currentTick}] Applied force to ${action.targetBodyId}:`,
+                  JSON.stringify(action.force)
+                );
+              }
+            } else {
+              console.warn(
+                `[Visualizer GameLoop Tick ${currentTick}] applyForce missing force for ${action.targetBodyId}.`
+              );
+            }
+            break;
+          default:
+            console.warn(
+              `[Visualizer GameLoop Tick ${currentTick}] Unsupported action type: ${action.actionType}.`
+            );
+        }
+      }
+    }
+  }
 
-  const currentState = runScenario(currentScenario, currentTick);
-  renderState(currentState);
+  physicsEngine.fixedStep(timeStep); // Step our persistent engine
+  currentTick++; // Increment tick AFTER stepping and applying actions for the previous tick value
 
+  const currentState = physicsEngine.toJSON(); // Get its current state
+  renderState(currentState); // Render that state (which will be for the new currentTick)
+
+  // Compare new currentTick to simulationSteps. Note: If simulationSteps is 100,
+  // this means 100 steps are taken. The last state rendered will be tick 100.
+  // The condition should be currentTick >= simulationSteps if simulationSteps is the number of states (0 to N-1)
+  // or currentTick > simulationSteps if simulationSteps is number of steps taken (1 to N).
+  // Given typical simulation loop, currentTick will be N after N steps. So currentTick >= N.
   if (currentTick >= currentScenario.simulationSteps) {
     pauseSimulation();
-    currentTick = currentScenario.simulationSteps; // Ensure it doesn't overshoot
-    console.log("Scenario reached its simulationSteps.");
+    console.log(
+      `[Visualizer] Scenario reached its simulationSteps (${currentScenario.simulationSteps}). Final tick displayed: ${currentTick}.`
+    );
   }
 }
 
 function playSimulation() {
   if (!currentScenarioEntry) {
-    // Check currentScenarioEntry instead of displayName
     alert("Please select and load a scenario first.");
     return;
   }
-  // currentScenario is already set if currentScenarioEntry is set
-  // if (!currentScenario) {
-  //   loadScenario(currentScenarioEntry.scenario.id); // load by ID
-  //   if (!currentScenario) return;
-  // }
-
   if (isPlaying) return;
   isPlaying = true;
   playPauseButton.textContent = "Pause";
   if (gameLoopIntervalId) clearInterval(gameLoopIntervalId);
+  // Ensure physicsEngine is ready before starting loop
+  if (!physicsEngine) {
+    console.error(
+      "[Visualizer] Cannot play simulation, PhysicsEngine not initialized."
+    );
+    loadScenario(currentScenarioEntry.scenario.id); // Attempt to reload
+    if (!physicsEngine) {
+      // Still not ready
+      isPlaying = false;
+      playPauseButton.textContent = "Play";
+      return;
+    }
+  }
   gameLoopIntervalId = window.setInterval(gameLoop, timeStep);
-  console.log("Simulation started.");
+  console.log("[Visualizer] Simulation started.");
 }
 
 function pauseSimulation() {
@@ -426,14 +644,14 @@ function pauseSimulation() {
     clearInterval(gameLoopIntervalId);
     gameLoopIntervalId = undefined;
   }
-  console.log("Simulation paused.");
+  console.log("[Visualizer] Simulation paused.");
 }
 
 scenarioSelect.addEventListener("change", (event) => {
-  const displayName = (event.target as HTMLSelectElement).value;
-  if (displayName) {
+  const selectedId = (event.target as HTMLSelectElement).value;
+  if (selectedId) {
     pauseSimulation();
-    loadScenario(displayName);
+    loadScenario(selectedId);
   }
 });
 
@@ -446,39 +664,37 @@ playPauseButton.addEventListener("click", () => {
 });
 
 resetButton.addEventListener("click", () => {
-  if (currentScenarioDisplayName) {
+  const scenarioToLoad =
+    currentScenarioEntry?.scenario.id || scenarioSelect.value;
+  if (scenarioToLoad) {
     pauseSimulation();
-    loadScenario(currentScenarioDisplayName);
-    console.log(`Scenario ${currentScenarioDisplayName} reset.`);
-  } else if (scenarioSelect.value) {
-    pauseSimulation();
-    loadScenario(scenarioSelect.value);
-    console.log(`Scenario ${scenarioSelect.value} loaded and reset.`);
+    loadScenario(scenarioToLoad);
+    console.log(`[Visualizer] Scenario ${scenarioToLoad} reloaded/reset.`);
+  } else {
+    console.warn("[Visualizer] Reset: No scenario selected or loaded.");
   }
 });
 
 debugLoggingCheckbox.addEventListener("change", () => {
-  // The direct call to physicsEngine.setInternalLogging may not be effective
-  // as the simulation is driven by runScenario, which creates its own engine instance.
-  // For now, this checkbox will primarily affect logging within the visualizer.ts scope if any.
   console.log(
-    `Debug logging checkbox changed to: ${debugLoggingCheckbox.checked}. ` +
-      `Note: This primarily affects visualizer-specific logs, not deep engine logs from runScenario unless scenario is reloaded with new settings.`
+    `[Visualizer] Debug logging checkbox changed to: ${debugLoggingCheckbox.checked}.`
   );
-  // To make it affect runScenario, one might reload the scenario or pass params to runScenario.
-  // Example: if (currentScenarioEntry) { loadScenario(currentScenarioEntry.scenario.id); }
+  if (physicsEngine) {
+    // If an engine exists, update its logging
+    physicsEngine.setInternalLogging(debugLoggingCheckbox.checked);
+    console.log(
+      `[Visualizer] Persistent PhysicsEngine internal logging updated to: ${debugLoggingCheckbox.checked}. Reload scenario for changes to initial logs if needed.`
+    );
+  }
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-  // processScenarioModules(); // This is no longer needed, scenariosMap is directly imported
   if (scenariosToRun.length > 0) {
-    // Check array length
     populateScenarioSelector();
   } else {
     console.error(
-      "No scenarios were loaded. Check 'packages/shared/src/physics/scenarios/index.ts' and ensure it populates scenariosToRun correctly."
+      "No scenarios loaded. Check 'packages/shared/src/physics/scenarios/index.ts'."
     );
-    // Optionally, display a message to the user in the UI
     const scenarioSelectLabel = document.querySelector(
       "label[for='scenario-select']"
     );
@@ -486,5 +702,7 @@ document.addEventListener("DOMContentLoaded", () => {
       scenarioSelectLabel.textContent = "Error: No scenarios loaded.";
     }
   }
-  console.log("Visualizer initialized. Select a scenario to begin.");
+  console.log(
+    "[Visualizer] Visualizer initialized. Select a scenario to begin."
+  );
 });
