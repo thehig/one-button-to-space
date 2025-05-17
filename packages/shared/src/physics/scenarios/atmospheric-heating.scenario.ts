@@ -40,6 +40,7 @@ const baseAtmosphericHeatingScenario: Omit<
   IScenario,
   "id" | "description" | "simulationSteps"
 > = {
+  name: "Base Atmospheric Heating Scenario",
   engineSettings: {
     // Default engine settings
   },
@@ -51,6 +52,7 @@ const baseAtmosphericHeatingScenario: Omit<
 export const atmosphericHeatingScenario1Step: IScenario = {
   ...baseAtmosphericHeatingScenario,
   id: "atmospheric-heating-1-step",
+  name: "Atmospheric Heating (1 Step)",
   description: "Tests atmospheric heating for 1 simulation step.",
   simulationSteps: 1,
 };
@@ -58,6 +60,7 @@ export const atmosphericHeatingScenario1Step: IScenario = {
 export const atmosphericHeatingScenario10Steps: IScenario = {
   ...baseAtmosphericHeatingScenario,
   id: "atmospheric-heating-10-steps",
+  name: "Atmospheric Heating (10 Steps)",
   description: "Tests atmospheric heating for 10 simulation steps.",
   simulationSteps: 10,
   // Potentially adjust initial position/velocity for longer runs if needed to stay in atmosphere
@@ -66,6 +69,7 @@ export const atmosphericHeatingScenario10Steps: IScenario = {
 export const atmosphericHeatingScenario50Steps: IScenario = {
   ...baseAtmosphericHeatingScenario,
   id: "atmospheric-heating-50-steps",
+  name: "Atmospheric Heating (50 Steps)",
   description: "Tests atmospheric heating for 50 simulation steps.",
   simulationSteps: 50,
 };
@@ -73,6 +77,7 @@ export const atmosphericHeatingScenario50Steps: IScenario = {
 export const atmosphericHeatingScenario100Steps: IScenario = {
   ...baseAtmosphericHeatingScenario,
   id: "atmospheric-heating-100-steps",
+  name: "Atmospheric Heating (100 Steps)",
   description: "Tests atmospheric heating for 100 simulation steps.",
   simulationSteps: 100,
 };

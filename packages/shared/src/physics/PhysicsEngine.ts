@@ -44,6 +44,8 @@ export class PhysicsEngine {
   // private renderer: Matter.Render;
   private internalLoggingEnabled: boolean = false;
   private ownsEngine: boolean = true; // New flag
+  private bodyIdCounter: number = 0; // Added declaration
+  private localBodyCache: Map<string, Matter.Body> = new Map(); // Added declaration
 
   constructor(fixedTimeStepMs: number = 1000 / 60, customG?: number) {
     this.fixedTimeStepMs = fixedTimeStepMs;
@@ -317,90 +319,188 @@ export class PhysicsEngine {
     y: number,
     width: number,
     height: number,
-    options?: any
+    options?: Matter.IBodyDefinition
   ): Matter.Body {
-    const defaultBoxOptions = {
-      isStatic: false, // Default to dynamic unless specified
+    this.bodyIdCounter++; // For generating fallback labels
+    const finalLabel = options?.label || `box-${this.bodyIdCounter}`;
+
+    const defaultBoxOptions: Matter.IBodyDefinition = {
+      isStatic: false,
       collisionFilter: createCollisionFilter(
         CollisionCategories.DEFAULT,
         CollisionMasks.DEFAULT
       ),
+      label: finalLabel, // Ensure label is part of default consideration
     };
-    const mergedOptions = { ...defaultBoxOptions, ...options };
-    if (options && options.isStatic && !options.collisionFilter) {
-      // If it's static and no filter is provided, assume it's static environment
-      mergedOptions.collisionFilter = createCollisionFilter(
+
+    let combinedOptions = {
+      ...defaultBoxOptions,
+      ...options,
+      label: finalLabel,
+    }; // options will override defaults, then ensure finalLabel
+
+    if (combinedOptions.isStatic && options && !options.collisionFilter) {
+      // If it's static and no filter was *explicitly provided in the incoming options*,
+      // then apply the static environment collision filter.
+      combinedOptions.collisionFilter = createCollisionFilter(
         CollisionCategories.STATIC_ENVIRONMENT,
         CollisionMasks.STATIC_ENVIRONMENT
       );
     }
 
-    const body = Matter.Bodies.rectangle(x, y, width, height, mergedOptions);
-    this.addBody(body);
-    return body;
+    const box = Matter.Bodies.rectangle(x, y, width, height, combinedOptions);
+    Matter.Composite.add(this.world, box); // Directly add to world
+    this.localBodyCache.set(finalLabel, box); // Cache it with the definitive label
+    return box;
   }
 
   public createCircle(
     x: number,
     y: number,
     radius: number,
-    options?: any
+    options?: Matter.IBodyDefinition
   ): Matter.Body {
-    const defaultCircleOptions = {
+    this.bodyIdCounter++;
+    const finalLabel = options?.label || `circle-${this.bodyIdCounter}`;
+
+    const defaultCircleOptions: Matter.IBodyDefinition = {
       isStatic: false,
       collisionFilter: createCollisionFilter(
         CollisionCategories.DEFAULT,
         CollisionMasks.DEFAULT
       ),
+      label: finalLabel,
     };
-    const mergedOptions = { ...defaultCircleOptions, ...options };
-    if (options && options.isStatic && !options.collisionFilter) {
-      mergedOptions.collisionFilter = createCollisionFilter(
+
+    let combinedOptions = {
+      ...defaultCircleOptions,
+      ...options,
+      label: finalLabel,
+    };
+
+    if (combinedOptions.isStatic && options && !options.collisionFilter) {
+      combinedOptions.collisionFilter = createCollisionFilter(
         CollisionCategories.STATIC_ENVIRONMENT,
         CollisionMasks.STATIC_ENVIRONMENT
       );
     }
-    const body = Matter.Bodies.circle(x, y, radius, mergedOptions);
-    this.addBody(body);
-    return body;
+
+    const circle = Matter.Bodies.circle(x, y, radius, combinedOptions);
+    Matter.Composite.add(this.world, circle);
+    this.localBodyCache.set(finalLabel, circle);
+    return circle;
   }
 
-  public createRocketBody(x: number, y: number): Matter.Body {
-    const width = 20;
-    const height = 50;
-    const options: Matter.IBodyDefinition = {
-      label: "rocket",
-      density: 0.001,
-      frictionAir: 0.01,
-      plugin: {
-        dragCoefficientArea: 0.5,
-      } as ICustomBodyPlugin,
+  public createRocketBody(
+    x: number,
+    y: number,
+    options?: Matter.IBodyDefinition
+  ): Matter.Body {
+    this.bodyIdCounter++;
+    const finalLabel = options?.label || `rocket-${this.bodyIdCounter}`;
+
+    // Define the convex parts for the rocket, relative to (0,0) which will be the rocket's tip
+    const triangle1Vertices: Matter.Vector[] = [
+      { x: 0, y: 0 },
+      { x: 10, y: 25 },
+      { x: 0, y: 20 },
+    ];
+    const triangle2Vertices: Matter.Vector[] = [
+      { x: 0, y: 0 },
+      { x: 0, y: 20 },
+      { x: -10, y: 25 },
+    ];
+
+    // Base options for the compound body (these apply to the overall rocket)
+    const defaultRocketBaseOptions: Matter.IBodyDefinition = {
+      label: finalLabel,
+      isStatic: false,
       collisionFilter: createCollisionFilter(
         CollisionCategories.ROCKET,
         CollisionMasks.ROCKET
       ),
+      density: 0.05, // Example density for the whole rocket
+      frictionAir: 0.05, // Example air friction for the whole rocket
+      plugin: { dragCoefficientArea: 0.5, effectiveNoseRadius: 0.1 }, // Custom plugin data
     };
-    const rocketBody = Matter.Bodies.rectangle(x, y, width, height, options);
-    this.addBody(rocketBody);
-    return rocketBody;
+
+    // Merge user-provided options with defaults for the compound body
+    const finalCompoundOptions = {
+      ...defaultRocketBaseOptions,
+      ...options, // User options can override density, frictionAir, plugin, label etc.
+      label: finalLabel, // Ensure the label is correctly set
+    };
+
+    // Critical: Remove 'vertices' from finalCompoundOptions if it exists from input 'options',
+    // as we are using 'parts' to define the shape.
+    if ("vertices" in finalCompoundOptions) {
+      delete (finalCompoundOptions as any).vertices;
+    }
+
+    // Options for the individual parts. They should typically be sensors if the parent is a sensor.
+    // Other properties like collisionFilter are usually handled by the compound body.
+    const partCreationOptions: Matter.IBodyDefinition = {
+      isSensor: finalCompoundOptions.isSensor,
+    };
+
+    const part1 = Matter.Bodies.fromVertices(
+      0,
+      0,
+      [triangle1Vertices],
+      partCreationOptions
+    );
+    const part2 = Matter.Bodies.fromVertices(
+      0,
+      0,
+      [triangle2Vertices],
+      partCreationOptions
+    );
+
+    if (!part1 || !part2) {
+      console.error(
+        `[PhysicsEngine.createRocketBody] FAILED to create one or more parts for rocket: ${finalLabel}. Part1: ${!!part1}, Part2: ${!!part2}`
+      );
+      throw new Error(`Failed to create parts for rocket body: ${finalLabel}`);
+    }
+
+    // Create the compound body from these parts
+    const rocket = Matter.Body.create({
+      parts: [part1, part2],
+      ...finalCompoundOptions, // Apply all other options (label, density, friction, plugin, etc.)
+    });
+
+    // Set the initial position of the compound body in the world
+    Matter.Body.setPosition(rocket, { x, y });
+
+    // Apply initial angle and angular velocity if provided in options
+    if (options?.angle) {
+      Matter.Body.setAngle(rocket, options.angle);
+    }
+    if (options?.angularVelocity) {
+      Matter.Body.setAngularVelocity(rocket, options.angularVelocity);
+    }
+
+    // Remove extensive logging, keep one success message
+    console.log(
+      `[PhysicsEngine.createRocketBody] Successfully created COMPOUND rocket body: ${finalLabel}, Matter ID: ${rocket.id}, Parts: ${rocket.parts.length}`
+    );
+
+    Matter.Composite.add(this.world, rocket);
+    this.localBodyCache.set(finalLabel, rocket);
+    return rocket;
   }
 
   // --- Utility functions for applying forces/impulses ---
   public applyForceToBody(
     body: Matter.Body,
     position: Matter.Vector,
-    trueForce: Matter.Vector // Assuming this is the desired physical force
+    trueForce: Matter.Vector
   ): void {
-    // Scale trueForce by (1 / fixedTimeStepMs) based on Matter.js Engine.update behavior
-    // This was based on a previous key discovery for the project's physics.
     let scaledForce = Matter.Vector.mult(trueForce, 1 / this.fixedTimeStepMs);
 
-    // TEMP: Cap scaledForce magnitude to avoid Matter.js instability with large forces
-    // (Restoring this as it was part of the previously stable system)
     const maxScaledForceMagnitude = 50;
     const currentScaledForceMagnitude = Matter.Vector.magnitude(scaledForce);
     if (currentScaledForceMagnitude > maxScaledForceMagnitude) {
-      // console.warn(`PhysicsEngine: Capping scaledForce magnitude from ${currentScaledForceMagnitude.toFixed(2)} to ${maxScaledForceMagnitude} for body ${body.label || body.id}`);
       scaledForce = Matter.Vector.mult(
         Matter.Vector.normalise(scaledForce),
         maxScaledForceMagnitude
@@ -410,10 +510,6 @@ export class PhysicsEngine {
     Matter.Body.applyForce(body, position, scaledForce);
   }
 
-  // Matter.js does not have a direct 'applyImpulse'.
-  // An impulse is a force applied over a very short time, or direct velocity change.
-  // Option 1: Apply a large force for one step (less physically accurate for true impulse)
-  // Option 2: Directly manipulate velocity (use with caution, can break constraints)
   public applyImpulseAsVelocityChange(
     body: Matter.Body,
     velocityChange: Matter.Vector
@@ -438,14 +534,7 @@ export class PhysicsEngine {
     return foundBody || null;
   }
 
-  /**
-   * Advances the physics simulation.
-   * This version is intended for use cases like the visualizer where the external loop provides delta time.
-   * It applies custom forces and then updates the Matter engine.
-   * @param deltaTimeSeconds The time elapsed since the last update, in seconds.
-   */
   public update(deltaTimeSeconds: number): void {
-    // If internalLoggingEnabled is true, log more frequently within update
     if (this.internalLoggingEnabled) {
       console.log(
         `[PhysicsEngine.update] Called. deltaTime: ${deltaTimeSeconds}, LoggingEnabled: ${this.internalLoggingEnabled}`
@@ -456,11 +545,9 @@ export class PhysicsEngine {
       );
     }
 
-    // Apply custom forces like gravity and drag
     this.applyGravitationalForces();
     this.applyAtmosphericDragForces();
 
-    // Apply atmospheric heating effects
     const allBodies = Matter.Composite.allBodies(this.world);
     for (const body of allBodies) {
       const primaryAtmosphericBody = this.celestialBodies.find(
@@ -475,8 +562,6 @@ export class PhysicsEngine {
       }
     }
 
-    // Update the Matter.js engine
-    // Matter.Engine.update expects delta in milliseconds
     Matter.Engine.update(this.engine, deltaTimeSeconds * 1000);
   }
 
@@ -494,7 +579,7 @@ export class PhysicsEngine {
           parts:
             body.parts && body.parts.length > 1
               ? body.parts.map((p) => p.id).filter((id) => id !== body.id)
-              : [], // Store IDs of parts, excluding self
+              : [],
           position: { x: body.position.x, y: body.position.y },
           angle: body.angle,
           velocity: { x: body.velocity.x, y: body.velocity.y },
@@ -545,7 +630,7 @@ export class PhysicsEngine {
       this.celestialBodies.map((cb) => ({
         id: cb.id,
         mass: cb.mass,
-        position: { x: cb.position.x, y: cb.position.y }, // Already {x, y} in ICelestialBody
+        position: { x: cb.position.x, y: cb.position.y },
         gravityRadius: cb.gravityRadius,
         radius: cb.radius,
         hasAtmosphere: cb.hasAtmosphere,
@@ -567,7 +652,4 @@ export class PhysicsEngine {
       },
     };
   }
-
-  // Add more methods as needed for interacting with the physics world
-  // e.g., creating bodies, applying forces, handling collisions
 }

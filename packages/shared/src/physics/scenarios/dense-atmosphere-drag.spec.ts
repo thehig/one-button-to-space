@@ -3,7 +3,11 @@ import "mocha";
 import * as fs from "fs";
 import * as path from "path";
 import { Vector } from "matter-js";
-import { IScenario } from "./types";
+import {
+  IScenario,
+  ISerializedPhysicsEngineState,
+  ISerializedMatterBody,
+} from "./types";
 
 import {
   denseAtmosphereDragScenario1Step,
@@ -11,18 +15,16 @@ import {
   denseAtmosphereDragScenario50Steps,
   denseAtmosphereDragScenario100Steps,
 } from "./dense-atmosphere-drag.scenario";
-import { runScenario, ScenarioResult } from "./test-runner.helper";
+import { runScenario } from "./test-runner.helper";
 
 const snapshotDir = path.join(__dirname, "__snapshots__");
 
-// Consider moving to test-runner.helper.ts
 const runTestAndSnapshot = (
   scenario: IScenario,
-  targetBodyId: string,
   snapshotFileName: string
-) => {
+): ISerializedPhysicsEngineState => {
   const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario, targetBodyId);
+  const currentResults = runScenario(scenario);
 
   if (process.env.UPDATE_SNAPSHOTS === "true") {
     if (!fs.existsSync(snapshotDir)) {
@@ -39,7 +41,7 @@ const runTestAndSnapshot = (
     }
     const expectedResults = JSON.parse(
       fs.readFileSync(snapshotFile, "utf-8")
-    ) as ScenarioResult;
+    ) as ISerializedPhysicsEngineState;
     expect(currentResults).to.deep.equal(expectedResults);
     return currentResults;
   }
@@ -48,8 +50,13 @@ const runTestAndSnapshot = (
 describe("PhysicsEngine Environmental Effects: Dense Atmospheric Drag", () => {
   it("should simulate atmospheric drag in a VERY dense atmosphere (1 step - explicit assertions)", () => {
     const scenario = denseAtmosphereDragScenario1Step;
+    const targetBodyLabel = scenario.initialBodies[0].label;
+    if (!targetBodyLabel) {
+      throw new Error("Target body label is undefined in the scenario.");
+    }
+
     const scenarioBody = scenario.initialBodies.find(
-      (b) => b.id === "denseDragTestBody"
+      (b) => b.label === targetBodyLabel
     );
     if (!scenarioBody || !scenarioBody.initialVelocity) {
       throw new Error(
@@ -58,20 +65,27 @@ describe("PhysicsEngine Environmental Effects: Dense Atmospheric Drag", () => {
     }
     const initialSpeed = Vector.magnitude(scenarioBody.initialVelocity);
 
-    const finalBodyState = runScenario(scenario, "denseDragTestBody");
-    const finalSpeed = Vector.magnitude(finalBodyState.velocity);
+    const fullFinalState = runScenario(scenario);
+    const finalBody = fullFinalState.world.bodies.find(
+      (b) => b.label === targetBodyLabel
+    );
+
+    if (!finalBody) {
+      throw new Error(
+        `Body with label ${targetBodyLabel} not found in final state.`
+      );
+    }
+
+    const finalSpeed = Vector.magnitude(finalBody.velocity as Vector);
 
     expect(finalSpeed).to.be.lessThan(initialSpeed);
-    // Check that it hasn't reversed direction (or stopped completely and then reversed due to some other effect)
-    expect(finalBodyState.velocity.x).to.be.greaterThan(-initialSpeed);
-    // Specific check for dense atmosphere: significant speed reduction in one step
+    expect(finalBody.velocity.x).to.be.greaterThan(-initialSpeed);
     expect(finalSpeed).to.be.lessThan(initialSpeed * 0.9);
   });
 
   it("should match snapshot after 10 steps of dense atmospheric drag", () => {
     runTestAndSnapshot(
       denseAtmosphereDragScenario10Steps,
-      "denseDragTestBody",
       "dense-atmospheric-drag.10steps.snap.json"
     );
   });
@@ -79,7 +93,6 @@ describe("PhysicsEngine Environmental Effects: Dense Atmospheric Drag", () => {
   it("should match snapshot after 50 steps of dense atmospheric drag", () => {
     runTestAndSnapshot(
       denseAtmosphereDragScenario50Steps,
-      "denseDragTestBody",
       "dense-atmospheric-drag.50steps.snap.json"
     );
   });
@@ -87,7 +100,6 @@ describe("PhysicsEngine Environmental Effects: Dense Atmospheric Drag", () => {
   it("should match snapshot after 100 steps of dense atmospheric drag", () => {
     runTestAndSnapshot(
       denseAtmosphereDragScenario100Steps,
-      "denseDragTestBody",
       "dense-atmospheric-drag.100steps.snap.json"
     );
   });

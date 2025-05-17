@@ -28,6 +28,7 @@ const baseEccentricOrbitScenario: Omit<
   IScenario,
   "id" | "description" | "simulationSteps"
 > = {
+  name: "Base Eccentric Orbit Scenario",
   engineSettings: {
     customG: 0.001,
     enableInternalLogging: false, // Keep internal logging off by default for base
@@ -40,6 +41,7 @@ const baseEccentricOrbitScenario: Omit<
 export const eccentricOrbitScenario1Step: IScenario = {
   ...baseEccentricOrbitScenario,
   id: "eccentric-orbit-1-step",
+  name: "Eccentric Orbit (1 Step)",
   description: "Tests an eccentric orbit for 1 simulation step.",
   simulationSteps: 1,
 };
@@ -47,6 +49,7 @@ export const eccentricOrbitScenario1Step: IScenario = {
 export const eccentricOrbitScenario10Steps: IScenario = {
   ...baseEccentricOrbitScenario,
   id: "eccentric-orbit-10-steps",
+  name: "Eccentric Orbit (10 Steps)",
   description: "Tests an eccentric orbit for 10 simulation steps.",
   simulationSteps: 10,
 };
@@ -54,6 +57,7 @@ export const eccentricOrbitScenario10Steps: IScenario = {
 export const eccentricOrbitScenario50Steps: IScenario = {
   ...baseEccentricOrbitScenario,
   id: "eccentric-orbit-50-steps",
+  name: "Eccentric Orbit (50 Steps)",
   description: "Tests an eccentric orbit for 50 simulation steps.",
   simulationSteps: 50,
 };
@@ -61,6 +65,7 @@ export const eccentricOrbitScenario50Steps: IScenario = {
 export const eccentricOrbitScenario250Steps: IScenario = {
   ...baseEccentricOrbitScenario,
   id: "eccentric-orbit-250-steps",
+  name: "Eccentric Orbit (250 Steps)",
   description: "Tests an eccentric orbit for 250 simulation steps.",
   simulationSteps: 250, // Reduced from original 5000 for snapshot brevity
 };

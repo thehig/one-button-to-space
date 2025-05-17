@@ -1,12 +1,69 @@
 {
-  "position": {
-    "x": 0,
-    "y": -95514.138967765
-  },
-  "velocity": {
-    "x": 0,
-    "y": -443.4598757465428
-  },
-  "angle": 0,
-  "angularVelocity": 0
+  "timestamp": 1747505020796,
+  "fixedTimeStepMs": 16.666666666666668,
+  "accumulatedTime": 0,
+  "G": 0.001,
+  "internalLoggingEnabled": false,
+  "ownsEngine": true,
+  "celestialBodies": [],
+  "world": {
+    "bodies": [
+      {
+        "id": 3,
+        "label": "testRocketThrust",
+        "type": "body",
+        "parts": [
+          1,
+          2
+        ],
+        "position": {
+          "x": 0,
+          "y": -161259.281088602
+        },
+        "angle": 0,
+        "velocity": {
+          "x": 0,
+          "y": 2.2428643124585506
+        },
+        "angularVelocity": 0,
+        "mass": 0.2,
+        "inverseMass": 5,
+        "inertia": 27.77777777777777,
+        "inverseInertia": 0.03600000000000001,
+        "density": 0.001,
+        "restitution": 0,
+        "friction": 0.1,
+        "frictionStatic": 0.5,
+        "frictionAir": 0.05,
+        "slop": 0.05,
+        "isStatic": false,
+        "isSensor": false,
+        "isSleeping": false,
+        "collisionFilter": {
+          "category": 2,
+          "mask": 28,
+          "group": 0
+        },
+        "render": {
+          "visible": true,
+          "opacity": 1,
+          "fillStyle": "#f5d259",
+          "strokeStyle": "#ccc",
+          "lineWidth": 0,
+          "sprite": {
+            "texture": null,
+            "xScale": 1,
+            "yScale": 1,
+            "xOffset": 0.5,
+            "yOffset": 0.6
+          }
+        },
+        "plugin": {
+          "dragCoefficientArea": 0.5,
+          "effectiveNoseRadius": 0.1,
+          "currentHeatFlux": 0
+        }
+      }
+    ]
+  }
 }

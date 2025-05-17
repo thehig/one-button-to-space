@@ -3,6 +3,7 @@ import { ICelestialBody } from "../PhysicsEngine"; // ICelestialBody is not used
 
 export const determinismBaseScenario: IScenario = {
   id: "determinism-base",
+  name: "Determinism Base Scenario",
   description:
     "Base scenario for determinism and snapshot tests. Creates a box, applies a force, and runs for 10 steps.",
   engineSettings: {
@@ -18,7 +19,11 @@ export const determinismBaseScenario: IScenario = {
       initialPosition: { x: 0, y: 0 },
       width: 10,
       height: 10,
-      // No specific options needed beyond defaults for this body
+      options: {
+        render: {
+          fillStyle: "#ABCDEF",
+        },
+      },
     },
   ],
   actions: [

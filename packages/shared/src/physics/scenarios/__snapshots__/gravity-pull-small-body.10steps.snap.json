@@ -1,12 +1,77 @@
 {
-  "position": {
-    "x": 199.98671634711548,
-    "y": 0
-  },
-  "velocity": {
-    "x": -0.00237939086963479,
-    "y": 0
-  },
-  "angle": 0,
-  "angularVelocity": 0
+  "timestamp": 1747505020774,
+  "fixedTimeStepMs": 16.666666666666668,
+  "accumulatedTime": 0,
+  "G": 0.001,
+  "internalLoggingEnabled": false,
+  "ownsEngine": true,
+  "celestialBodies": [
+    {
+      "id": "small-planet-gravity-pull",
+      "mass": 597200,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "gravityRadius": 1000,
+      "radius": 100
+    }
+  ],
+  "world": {
+    "bodies": [
+      {
+        "id": 1,
+        "label": "satellite-close",
+        "type": "body",
+        "parts": [],
+        "position": {
+          "x": 199.98671634711548,
+          "y": 0
+        },
+        "angle": 0,
+        "velocity": {
+          "x": -0.00237939086963479,
+          "y": 0
+        },
+        "angularVelocity": 0,
+        "mass": 0.11756208000000001,
+        "inverseMass": 8.50614415804824,
+        "inertia": 0.88066136973824,
+        "inverseInertia": 1.1355102362412366,
+        "density": 0.01,
+        "restitution": 0,
+        "friction": 0.1,
+        "frictionStatic": 0.5,
+        "frictionAir": 0.01,
+        "slop": 0.05,
+        "isStatic": false,
+        "isSensor": false,
+        "isSleeping": false,
+        "collisionFilter": {
+          "category": 1,
+          "mask": 65535,
+          "group": 0
+        },
+        "render": {
+          "visible": true,
+          "opacity": 1,
+          "fillStyle": "#ececd1",
+          "strokeStyle": "#ccc",
+          "lineWidth": 0,
+          "sprite": {
+            "texture": null,
+            "xScale": 1,
+            "yScale": 1,
+            "xOffset": 0.5,
+            "yOffset": 0.5
+          }
+        },
+        "plugin": {
+          "dragCoefficientArea": null,
+          "effectiveNoseRadius": null,
+          "currentHeatFlux": 0
+        }
+      }
+    ]
+  }
 }

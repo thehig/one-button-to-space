@@ -3,7 +3,11 @@ import "mocha";
 import Matter, { Vector } from "matter-js";
 import * as fs from "fs";
 import * as path from "path";
-import { IScenario } from "./types";
+import {
+  IScenario,
+  ISerializedPhysicsEngineState,
+  ISerializedMatterBody,
+} from "./types";
 import { PhysicsEngine } from "../PhysicsEngine";
 import {
   orbitSmallBodyScenario1Step,
@@ -11,17 +15,16 @@ import {
   orbitSmallBodyScenario50Steps,
   orbitSmallBodyScenario250Steps,
 } from "./orbit-small-body.scenario";
-import { runScenario, ScenarioResult } from "./test-runner.helper";
+import { runScenario } from "./test-runner.helper";
 
 const snapshotDir = path.join(__dirname, "__snapshots__");
 
 const runTestAndSnapshot = (
   scenario: IScenario,
-  targetBodyId: string,
   snapshotFileName: string
-) => {
+): ISerializedPhysicsEngineState => {
   const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario, targetBodyId);
+  const currentResults = runScenario(scenario);
 
   if (process.env.UPDATE_SNAPSHOTS === "true") {
     if (!fs.existsSync(snapshotDir)) {
@@ -38,7 +41,7 @@ const runTestAndSnapshot = (
     }
     const expectedResults = JSON.parse(
       fs.readFileSync(snapshotFile, "utf-8")
-    ) as ScenarioResult;
+    ) as ISerializedPhysicsEngineState;
     expect(currentResults).to.deep.equal(expectedResults);
     return currentResults;
   }
@@ -49,42 +52,28 @@ describe("PhysicsEngine Celestial Mechanics: Orbit (Small Body)", () => {
     const scenario = orbitSmallBodyScenario1Step;
     const celestialBodyDef = scenario.celestialBodies![0];
     const satelliteDef = scenario.initialBodies[0];
+    const targetSatelliteLabel = satelliteDef.label || satelliteDef.id;
 
-    const engine = new PhysicsEngine(
-      scenario.engineSettings?.fixedTimeStepMs,
-      scenario.engineSettings?.customG
+    const fullFinalState = runScenario(scenario);
+    const finalSatellite = fullFinalState.world.bodies.find(
+      (b) => b.label === targetSatelliteLabel
     );
-    if (scenario.engineSettings?.enableInternalLogging) {
-      engine.setInternalLogging(true);
-    }
-    engine.init(scenario.celestialBodies);
 
-    const satellite = engine.createCircle(
-      satelliteDef.initialPosition.x,
-      satelliteDef.initialPosition.y,
-      satelliteDef.radius!,
-      { label: satelliteDef.label, ...satelliteDef.options }
-    );
-    engine.setBodyVelocity(satellite, satelliteDef.initialVelocity!);
-    if (satelliteDef.initialAngle) {
-      Matter.Body.setAngle(satellite, satelliteDef.initialAngle);
-    }
-    if (satelliteDef.initialAngularVelocity) {
-      Matter.Body.setAngularVelocity(
-        satellite,
-        satelliteDef.initialAngularVelocity
+    if (!finalSatellite) {
+      throw new Error(
+        `Satellite body with label ${targetSatelliteLabel} not found in final state.`
       );
     }
 
-    engine.fixedStep(scenario.engineSettings?.fixedTimeStepMs || 1000 / 60);
-
-    expect(satellite.position.x).to.be.lessThan(satelliteDef.initialPosition.x);
-    expect(satellite.position.y).to.be.greaterThan(
+    expect(finalSatellite.position.x).to.be.lessThan(
+      satelliteDef.initialPosition.x
+    );
+    expect(finalSatellite.position.y).to.be.greaterThan(
       satelliteDef.initialPosition.y
     );
 
     const finalDistance = Vector.magnitude(
-      Vector.sub(satellite.position, celestialBodyDef.position)
+      Vector.sub(finalSatellite.position as Vector, celestialBodyDef.position)
     );
     const initialDistance = Vector.magnitude(
       Vector.sub(satelliteDef.initialPosition, celestialBodyDef.position)
@@ -95,7 +84,6 @@ describe("PhysicsEngine Celestial Mechanics: Orbit (Small Body)", () => {
   it("should match snapshot after 10 steps of orbit (small body)", () => {
     runTestAndSnapshot(
       orbitSmallBodyScenario10Steps,
-      orbitSmallBodyScenario10Steps.initialBodies[0].id!,
       "orbit-small-body.10steps.snap.json"
     );
   });
@@ -103,7 +91,6 @@ describe("PhysicsEngine Celestial Mechanics: Orbit (Small Body)", () => {
   it("should match snapshot after 50 steps of orbit (small body)", () => {
     runTestAndSnapshot(
       orbitSmallBodyScenario50Steps,
-      orbitSmallBodyScenario50Steps.initialBodies[0].id!,
       "orbit-small-body.50steps.snap.json"
     );
   });
@@ -111,7 +98,6 @@ describe("PhysicsEngine Celestial Mechanics: Orbit (Small Body)", () => {
   it("should match snapshot after 250 steps of orbit (small body)", () => {
     runTestAndSnapshot(
       orbitSmallBodyScenario250Steps,
-      orbitSmallBodyScenario250Steps.initialBodies[0].id!,
       "orbit-small-body.250steps.snap.json"
     );
   });

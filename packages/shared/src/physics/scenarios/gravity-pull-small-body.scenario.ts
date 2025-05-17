@@ -27,6 +27,7 @@ const baseGravityPullSmallBodyScenario: Omit<
   IScenario,
   "id" | "description" | "simulationSteps"
 > = {
+  name: "Base Gravity Pull Small Body Scenario",
   engineSettings: {
     // Default G, default timestep
   },
@@ -38,6 +39,7 @@ const baseGravityPullSmallBodyScenario: Omit<
 export const gravityPullSmallBodyScenario1Step: IScenario = {
   ...baseGravityPullSmallBodyScenario,
   id: "gravity-pull-small-body-1-step",
+  name: "Gravity Pull Small Body (1 Step)",
   description:
     "Tests gravitational pull from a small body for 1 simulation step.",
   simulationSteps: 1,
@@ -46,6 +48,7 @@ export const gravityPullSmallBodyScenario1Step: IScenario = {
 export const gravityPullSmallBodyScenario10Steps: IScenario = {
   ...baseGravityPullSmallBodyScenario,
   id: "gravity-pull-small-body-10-steps",
+  name: "Gravity Pull Small Body (10 Steps)",
   description:
     "Tests gravitational pull from a small body for 10 simulation steps.",
   simulationSteps: 10,
@@ -54,6 +57,7 @@ export const gravityPullSmallBodyScenario10Steps: IScenario = {
 export const gravityPullSmallBodyScenario50Steps: IScenario = {
   ...baseGravityPullSmallBodyScenario,
   id: "gravity-pull-small-body-50-steps",
+  name: "Gravity Pull Small Body (50 Steps)",
   description:
     "Tests gravitational pull from a small body for 50 simulation steps.",
   simulationSteps: 50,
@@ -62,6 +66,7 @@ export const gravityPullSmallBodyScenario50Steps: IScenario = {
 export const gravityPullSmallBodyScenario100Steps: IScenario = {
   ...baseGravityPullSmallBodyScenario,
   id: "gravity-pull-small-body-100-steps",
+  name: "Gravity Pull Small Body (100 Steps)",
   description:
     "Tests gravitational pull from a small body for 100 simulation steps.",
   simulationSteps: 100,

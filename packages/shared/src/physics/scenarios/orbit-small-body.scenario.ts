@@ -28,6 +28,7 @@ const baseOrbitSmallBodyScenario: Omit<
   IScenario,
   "id" | "description" | "simulationSteps"
 > = {
+  name: "Base Orbit Small Body Scenario",
   engineSettings: {
     customG: 0.001, // Consistent G
   },
@@ -39,6 +40,7 @@ const baseOrbitSmallBodyScenario: Omit<
 export const orbitSmallBodyScenario1Step: IScenario = {
   ...baseOrbitSmallBodyScenario,
   id: "orbit-small-body-1-step",
+  name: "Orbit Small Body (1 Step)",
   description: "Tests orbit around a small body for 1 simulation step.",
   simulationSteps: 1,
   engineSettings: {
@@ -50,6 +52,7 @@ export const orbitSmallBodyScenario1Step: IScenario = {
 export const orbitSmallBodyScenario10Steps: IScenario = {
   ...baseOrbitSmallBodyScenario,
   id: "orbit-small-body-10-steps",
+  name: "Orbit Small Body (10 Steps)",
   description: "Tests orbit around a small body for 10 simulation steps.",
   simulationSteps: 10,
 };
@@ -57,6 +60,7 @@ export const orbitSmallBodyScenario10Steps: IScenario = {
 export const orbitSmallBodyScenario50Steps: IScenario = {
   ...baseOrbitSmallBodyScenario,
   id: "orbit-small-body-50-steps",
+  name: "Orbit Small Body (50 Steps)",
   description: "Tests orbit around a small body for 50 simulation steps.",
   simulationSteps: 50,
 };
@@ -64,6 +68,7 @@ export const orbitSmallBodyScenario50Steps: IScenario = {
 export const orbitSmallBodyScenario250Steps: IScenario = {
   ...baseOrbitSmallBodyScenario,
   id: "orbit-small-body-250-steps",
+  name: "Orbit Small Body (250 Steps)",
   description: "Tests orbit around a small body for 250 simulation steps.",
   simulationSteps: 250,
 };

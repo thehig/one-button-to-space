@@ -3,7 +3,7 @@ import "mocha";
 import * as fs from "fs";
 import * as path from "path";
 import { Vector } from "matter-js";
-import { IScenario } from "./types";
+import { IScenario, ISerializedPhysicsEngineState } from "./types";
 
 import {
   atmosphericDragScenario1Step,
@@ -11,18 +11,17 @@ import {
   atmosphericDragScenario50Steps,
   atmosphericDragScenario100Steps,
 } from "./atmospheric-drag.scenario";
-import { runScenario, ScenarioResult } from "./test-runner.helper";
+import { runScenario } from "./test-runner.helper";
 
 const snapshotDir = path.join(__dirname, "__snapshots__");
 
 // Consider moving to test-runner.helper.ts
 const runTestAndSnapshot = (
   scenario: IScenario,
-  targetBodyId: string,
   snapshotFileName: string
-) => {
+): ISerializedPhysicsEngineState => {
   const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario, targetBodyId);
+  const currentResults = runScenario(scenario);
 
   if (process.env.UPDATE_SNAPSHOTS === "true") {
     if (!fs.existsSync(snapshotDir)) {
@@ -39,7 +38,7 @@ const runTestAndSnapshot = (
     }
     const expectedResults = JSON.parse(
       fs.readFileSync(snapshotFile, "utf-8")
-    ) as ScenarioResult;
+    ) as ISerializedPhysicsEngineState;
     expect(currentResults).to.deep.equal(expectedResults);
     return currentResults;
   }
@@ -48,8 +47,13 @@ const runTestAndSnapshot = (
 describe("PhysicsEngine Environmental Effects: Atmospheric Drag", () => {
   it("should simulate atmospheric drag (1 step - explicit assertions)", () => {
     const scenario = atmosphericDragScenario1Step;
+    const targetBodyLabel = scenario.initialBodies[0].label;
+    if (!targetBodyLabel) {
+      throw new Error("Target body label is undefined in the scenario.");
+    }
+
     const scenarioBody = scenario.initialBodies.find(
-      (b) => b.id === "dragTestBody"
+      (b) => b.label === targetBodyLabel
     );
     if (!scenarioBody || !scenarioBody.initialVelocity) {
       throw new Error(
@@ -58,19 +62,26 @@ describe("PhysicsEngine Environmental Effects: Atmospheric Drag", () => {
     }
     const initialSpeed = Vector.magnitude(scenarioBody.initialVelocity);
 
-    const finalBodyState = runScenario(scenario, "dragTestBody");
-    const finalSpeed = Vector.magnitude(finalBodyState.velocity);
+    const fullFinalState = runScenario(scenario);
+    const finalBody = fullFinalState.world.bodies.find(
+      (b) => b.label === targetBodyLabel
+    );
+
+    if (!finalBody) {
+      throw new Error(
+        `Body with label ${targetBodyLabel} not found in final state.`
+      );
+    }
+
+    const finalSpeed = Vector.magnitude(finalBody.velocity as Matter.Vector);
 
     expect(finalSpeed).to.be.lessThan(initialSpeed);
-    // For a single step with significant drag, it might not stop completely but should have non-zero speed if still moving.
-    // If it could stop or reverse in 1 step, this might need adjustment.
     expect(finalSpeed).to.be.greaterThan(0);
   });
 
   it("should match snapshot after 10 steps of atmospheric drag", () => {
     runTestAndSnapshot(
       atmosphericDragScenario10Steps,
-      "dragTestBody",
       "atmospheric-drag.10steps.snap.json"
     );
   });
@@ -78,7 +89,6 @@ describe("PhysicsEngine Environmental Effects: Atmospheric Drag", () => {
   it("should match snapshot after 50 steps of atmospheric drag", () => {
     runTestAndSnapshot(
       atmosphericDragScenario50Steps,
-      "dragTestBody",
       "atmospheric-drag.50steps.snap.json"
     );
   });
@@ -86,7 +96,6 @@ describe("PhysicsEngine Environmental Effects: Atmospheric Drag", () => {
   it("should match snapshot after 100 steps of atmospheric drag", () => {
     runTestAndSnapshot(
       atmosphericDragScenario100Steps,
-      "dragTestBody",
       "atmospheric-drag.100steps.snap.json"
     );
   });

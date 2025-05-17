@@ -1,12 +1,81 @@
 {
-  "position": {
-    "x": 6416010.968591654,
-    "y": 0
-  },
-  "velocity": {
-    "x": -949.6057433513924,
-    "y": 0
-  },
-  "angle": 0,
-  "angularVelocity": 0
+  "timestamp": 1747505020761,
+  "fixedTimeStepMs": 16.666666666666668,
+  "accumulatedTime": 0,
+  "G": 0.001,
+  "internalLoggingEnabled": false,
+  "ownsEngine": true,
+  "celestialBodies": [
+    {
+      "id": "dense-planet-drag-test",
+      "mass": 0,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "gravityRadius": 63710000,
+      "radius": 6371000,
+      "hasAtmosphere": true,
+      "atmosphereLimitAltitude": 100000,
+      "surfaceAirDensity": 122.5,
+      "scaleHeight": 8500
+    }
+  ],
+  "world": {
+    "bodies": [
+      {
+        "id": 1,
+        "label": "testDenseDragBody",
+        "type": "body",
+        "parts": [],
+        "position": {
+          "x": 6416010.968591654,
+          "y": 0
+        },
+        "angle": 0,
+        "velocity": {
+          "x": -949.6057433513924,
+          "y": 0
+        },
+        "angularVelocity": 0,
+        "mass": 8,
+        "inverseMass": 0.125,
+        "inertia": 5.333333333333333,
+        "inverseInertia": 0.1875,
+        "density": 8,
+        "restitution": 0,
+        "friction": 0.1,
+        "frictionStatic": 0.5,
+        "frictionAir": 0.01,
+        "slop": 0.05,
+        "isStatic": false,
+        "isSensor": false,
+        "isSleeping": false,
+        "collisionFilter": {
+          "category": 1,
+          "mask": 65535,
+          "group": 0
+        },
+        "render": {
+          "visible": true,
+          "opacity": 1,
+          "fillStyle": "#f19648",
+          "strokeStyle": "#ccc",
+          "lineWidth": 0,
+          "sprite": {
+            "texture": null,
+            "xScale": 1,
+            "yScale": 1,
+            "xOffset": 0.5,
+            "yOffset": 0.5
+          }
+        },
+        "plugin": {
+          "dragCoefficientArea": 0.5,
+          "effectiveNoseRadius": 0.1,
+          "currentHeatFlux": 215068.12336537076
+        }
+      }
+    ]
+  }
 }

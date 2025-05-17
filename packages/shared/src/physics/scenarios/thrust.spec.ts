@@ -3,7 +3,11 @@ import "mocha";
 import * as fs from "fs";
 import * as path from "path";
 import { Vector } from "matter-js";
-import { IScenario } from "./types";
+import {
+  IScenario,
+  ISerializedPhysicsEngineState,
+  ISerializedMatterBody,
+} from "./types";
 
 import {
   thrustScenario1Step,
@@ -11,17 +15,16 @@ import {
   thrustScenario50Steps,
   thrustScenario100Steps,
 } from "./thrust.scenario";
-import { runScenario, ScenarioResult } from "./test-runner.helper"; // Assuming ScenarioResult is exported
+import { runScenario } from "./test-runner.helper";
 
 const snapshotDir = path.join(__dirname, "__snapshots__");
 
 const runTestAndSnapshot = (
   scenario: IScenario,
-  targetBodyId: string,
   snapshotFileName: string
-) => {
+): ISerializedPhysicsEngineState => {
   const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario, targetBodyId);
+  const currentResults = runScenario(scenario);
 
   if (process.env.UPDATE_SNAPSHOTS === "true") {
     if (!fs.existsSync(snapshotDir)) {
@@ -29,7 +32,7 @@ const runTestAndSnapshot = (
     }
     fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
     console.log(`  Snapshot updated: ${snapshotFileName}`);
-    return currentResults; // Return for any immediate assertions if needed
+    return currentResults;
   } else {
     if (!fs.existsSync(snapshotFile)) {
       throw new Error(
@@ -38,7 +41,7 @@ const runTestAndSnapshot = (
     }
     const expectedResults = JSON.parse(
       fs.readFileSync(snapshotFile, "utf-8")
-    ) as ScenarioResult;
+    ) as ISerializedPhysicsEngineState;
     expect(currentResults).to.deep.equal(expectedResults);
     return currentResults;
   }
@@ -47,44 +50,45 @@ const runTestAndSnapshot = (
 describe("PhysicsEngine Basic Actions: Thrust", () => {
   it("should correctly apply thrust to a body (1 step - explicit assertions)", () => {
     const scenario = thrustScenario1Step;
-    const initialRocketState = scenario.initialBodies.find(
-      (b) => b.id === "thrustRocket"
+    const targetBodyLabel = scenario.initialBodies[0].label;
+    if (!targetBodyLabel) {
+      throw new Error("Target body label is undefined in the scenario.");
+    }
+
+    const initialRocketStateDef = scenario.initialBodies.find(
+      (b) => b.label === targetBodyLabel
     )!;
-    const initialVelocityY = initialRocketState.initialVelocity?.y || 0;
-    const initialPositionY = initialRocketState.initialPosition.y;
+    const initialVelocityY = initialRocketStateDef.initialVelocity?.y || 0;
+    const initialPositionY = initialRocketStateDef.initialPosition.y;
+    const initialVelocityX = initialRocketStateDef.initialVelocity?.x || 0;
+    const initialPositionX = initialRocketStateDef.initialPosition.x;
 
-    const finalRocketState = runScenario(scenario, "thrustRocket");
+    const fullFinalState = runScenario(scenario);
+    const finalRocket = fullFinalState.world.bodies.find(
+      (b) => b.label === targetBodyLabel
+    );
 
-    expect(finalRocketState.velocity.y).to.be.lessThan(initialVelocityY);
-    expect(finalRocketState.position.y).to.be.lessThan(initialPositionY);
+    if (!finalRocket) {
+      throw new Error(
+        `Body with label ${targetBodyLabel} not found in final state.`
+      );
+    }
 
-    const initialVelocityX = initialRocketState.initialVelocity?.x || 0;
-    const initialPositionX = initialRocketState.initialPosition.x;
-    expect(finalRocketState.velocity.x).to.be.closeTo(initialVelocityX, 1e-9);
-    expect(finalRocketState.position.x).to.be.closeTo(initialPositionX, 1e-9);
+    expect(finalRocket.velocity.y).to.be.lessThan(initialVelocityY);
+    expect(finalRocket.position.y).to.be.lessThan(initialPositionY);
+    expect(finalRocket.velocity.x).to.be.closeTo(initialVelocityX, 1e-9);
+    expect(finalRocket.position.x).to.be.closeTo(initialPositionX, 1e-9);
   });
 
   it("should match snapshot after 10 steps of thrust", () => {
-    runTestAndSnapshot(
-      thrustScenario10Steps,
-      "thrustRocket",
-      "thrust.10steps.snap.json"
-    );
+    runTestAndSnapshot(thrustScenario10Steps, "thrust.10steps.snap.json");
   });
 
   it("should match snapshot after 50 steps of thrust", () => {
-    runTestAndSnapshot(
-      thrustScenario50Steps,
-      "thrustRocket",
-      "thrust.50steps.snap.json"
-    );
+    runTestAndSnapshot(thrustScenario50Steps, "thrust.50steps.snap.json");
   });
 
   it("should match snapshot after 100 steps of thrust", () => {
-    runTestAndSnapshot(
-      thrustScenario100Steps,
-      "thrustRocket",
-      "thrust.100steps.snap.json"
-    );
+    runTestAndSnapshot(thrustScenario100Steps, "thrust.100steps.snap.json");
   });
 });

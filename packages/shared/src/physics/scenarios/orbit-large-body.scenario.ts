@@ -28,6 +28,7 @@ const baseOrbitLargeBodyScenario: Omit<
   IScenario,
   "id" | "description" | "simulationSteps"
 > = {
+  name: "Base Orbit Large Body Scenario",
   engineSettings: {
     customG: 0.001, // Consistent G for orbit tests
     // fixedTimeStepMs: 1000 / 60, // Default timestep
@@ -40,6 +41,7 @@ const baseOrbitLargeBodyScenario: Omit<
 export const orbitLargeBodyScenario1Step: IScenario = {
   ...baseOrbitLargeBodyScenario,
   id: "orbit-large-body-1-step",
+  name: "Orbit Large Body (1 Step)",
   description: "Tests orbit around a large body for 1 simulation step.",
   simulationSteps: 1,
   engineSettings: {
@@ -51,6 +53,7 @@ export const orbitLargeBodyScenario1Step: IScenario = {
 export const orbitLargeBodyScenario10Steps: IScenario = {
   ...baseOrbitLargeBodyScenario,
   id: "orbit-large-body-10-steps",
+  name: "Orbit Large Body (10 Steps)",
   description: "Tests orbit around a large body for 10 simulation steps.",
   simulationSteps: 10,
 };
@@ -58,6 +61,7 @@ export const orbitLargeBodyScenario10Steps: IScenario = {
 export const orbitLargeBodyScenario50Steps: IScenario = {
   ...baseOrbitLargeBodyScenario,
   id: "orbit-large-body-50-steps",
+  name: "Orbit Large Body (50 Steps)",
   description: "Tests orbit around a large body for 50 simulation steps.",
   simulationSteps: 50,
 };
@@ -67,6 +71,7 @@ export const orbitLargeBodyScenario250Steps: IScenario = {
   // Changed from 100 to 250 for better orbit visibility
   ...baseOrbitLargeBodyScenario,
   id: "orbit-large-body-250-steps",
+  name: "Orbit Large Body (250 Steps)",
   description: "Tests orbit around a large body for 250 simulation steps.",
   simulationSteps: 250, // Increased steps for orbit
 };

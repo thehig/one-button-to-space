@@ -26,6 +26,7 @@ const baseGravityPullVeryLargeBodyScenario: Omit<
   IScenario,
   "id" | "description" | "simulationSteps"
 > = {
+  name: "Base Gravity Pull Very Large Body Scenario",
   engineSettings: {
     // Default G, default timestep
   },
@@ -37,6 +38,7 @@ const baseGravityPullVeryLargeBodyScenario: Omit<
 export const gravityPullVeryLargeBodyScenario1Step: IScenario = {
   ...baseGravityPullVeryLargeBodyScenario,
   id: "gravity-pull-very-large-body-1-step",
+  name: "Gravity Pull Very Large Body (1 Step)",
   description:
     "Tests gravitational pull from a very large body for 1 simulation step.",
   simulationSteps: 1,
@@ -45,6 +47,7 @@ export const gravityPullVeryLargeBodyScenario1Step: IScenario = {
 export const gravityPullVeryLargeBodyScenario10Steps: IScenario = {
   ...baseGravityPullVeryLargeBodyScenario,
   id: "gravity-pull-very-large-body-10-steps",
+  name: "Gravity Pull Very Large Body (10 Steps)",
   description:
     "Tests gravitational pull from a very large body for 10 simulation steps.",
   simulationSteps: 10,
@@ -53,6 +56,7 @@ export const gravityPullVeryLargeBodyScenario10Steps: IScenario = {
 export const gravityPullVeryLargeBodyScenario50Steps: IScenario = {
   ...baseGravityPullVeryLargeBodyScenario,
   id: "gravity-pull-very-large-body-50-steps",
+  name: "Gravity Pull Very Large Body (50 Steps)",
   description:
     "Tests gravitational pull from a very large body for 50 simulation steps.",
   simulationSteps: 50,
@@ -61,6 +65,7 @@ export const gravityPullVeryLargeBodyScenario50Steps: IScenario = {
 export const gravityPullVeryLargeBodyScenario100Steps: IScenario = {
   ...baseGravityPullVeryLargeBodyScenario,
   id: "gravity-pull-very-large-body-100-steps",
+  name: "Gravity Pull Very Large Body (100 Steps)",
   description:
     "Tests gravitational pull from a very large body for 100 simulation steps.",
   simulationSteps: 100,

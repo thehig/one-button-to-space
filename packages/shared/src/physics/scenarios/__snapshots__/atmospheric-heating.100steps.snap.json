@@ -1,12 +1,81 @@
 {
-  "position": {
-    "x": -12679897844.517176,
-    "y": 0
-  },
-  "velocity": {
-    "x": -76349832.65404892,
-    "y": 0
-  },
-  "angle": 0,
-  "angularVelocity": 0
+  "timestamp": 1747505020758,
+  "fixedTimeStepMs": 16.666666666666668,
+  "accumulatedTime": 0,
+  "G": 0.001,
+  "internalLoggingEnabled": false,
+  "ownsEngine": true,
+  "celestialBodies": [
+    {
+      "id": "earth-like-heating-test",
+      "mass": 5.972e+24,
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "gravityRadius": 63710000,
+      "radius": 6371000,
+      "hasAtmosphere": true,
+      "atmosphereLimitAltitude": 100000,
+      "surfaceAirDensity": 1.225,
+      "scaleHeight": 8500
+    }
+  ],
+  "world": {
+    "bodies": [
+      {
+        "id": 1,
+        "label": "testEntryBodyHeating",
+        "type": "body",
+        "parts": [],
+        "position": {
+          "x": -12679897844.517176,
+          "y": 0
+        },
+        "angle": 0,
+        "velocity": {
+          "x": -76349832.65404892,
+          "y": 0
+        },
+        "angularVelocity": 0,
+        "mass": 0.001,
+        "inverseMass": 1000,
+        "inertia": 0.0006666666666666666,
+        "inverseInertia": 1500,
+        "density": 0.001,
+        "restitution": 0,
+        "friction": 0.1,
+        "frictionStatic": 0.5,
+        "frictionAir": 0.01,
+        "slop": 0.05,
+        "isStatic": false,
+        "isSensor": false,
+        "isSleeping": false,
+        "collisionFilter": {
+          "category": 1,
+          "mask": 65535,
+          "group": 0
+        },
+        "render": {
+          "visible": true,
+          "opacity": 1,
+          "fillStyle": "#ececd1",
+          "strokeStyle": "#ccc",
+          "lineWidth": 0,
+          "sprite": {
+            "texture": null,
+            "xScale": 1,
+            "yScale": 1,
+            "xOffset": 0.5,
+            "yOffset": 0.5
+          }
+        },
+        "plugin": {
+          "dragCoefficientArea": 0.1,
+          "effectiveNoseRadius": 0.5,
+          "currentHeatFlux": 0
+        }
+      }
+    ]
+  }
 }

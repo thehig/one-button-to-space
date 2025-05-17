@@ -14,6 +14,7 @@ const baseRotationScenario: Omit<
   IScenario,
   "id" | "description" | "simulationSteps"
 > = {
+  name: "Base Rotation Scenario",
   engineSettings: {},
   celestialBodies: [],
   initialBodies: [
@@ -32,6 +33,7 @@ const baseRotationScenario: Omit<
 export const rotationScenario1Step: IScenario = {
   ...baseRotationScenario,
   id: "rotation-test-1-step",
+  name: "Rotation Test (1 Step)",
   description: "Tests applying an off-center force for 1 simulation step.",
   simulationSteps: 1,
 };
@@ -39,6 +41,7 @@ export const rotationScenario1Step: IScenario = {
 export const rotationScenario10Steps: IScenario = {
   ...baseRotationScenario,
   id: "rotation-test-10-steps",
+  name: "Rotation Test (10 Steps)",
   description: "Tests applying an off-center force for 10 simulation steps.",
   simulationSteps: 10,
 };
@@ -46,6 +49,7 @@ export const rotationScenario10Steps: IScenario = {
 export const rotationScenario50Steps: IScenario = {
   ...baseRotationScenario,
   id: "rotation-test-50-steps",
+  name: "Rotation Test (50 Steps)",
   description: "Tests applying an off-center force for 50 simulation steps.",
   simulationSteps: 50,
 };
@@ -53,6 +57,7 @@ export const rotationScenario50Steps: IScenario = {
 export const rotationScenario100Steps: IScenario = {
   ...baseRotationScenario,
   id: "rotation-test-100-steps",
+  name: "Rotation Test (100 Steps)",
   description: "Tests applying an off-center force for 100 simulation steps.",
   simulationSteps: 100,
 };

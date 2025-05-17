@@ -3,7 +3,7 @@ import "mocha";
 import Matter, { Vector } from "matter-js";
 import * as fs from "fs";
 import * as path from "path";
-import { IScenario } from "./types";
+import { IScenario, ISerializedPhysicsEngineState } from "./types";
 import { PhysicsEngine } from "../PhysicsEngine";
 import {
   eccentricOrbitScenario1Step,
@@ -11,17 +11,16 @@ import {
   eccentricOrbitScenario50Steps,
   eccentricOrbitScenario250Steps, // This will be used for the detailed explicit test
 } from "./eccentric-orbit.scenario";
-import { runScenario, ScenarioResult } from "./test-runner.helper";
+import { runScenario } from "./test-runner.helper";
 
 const snapshotDir = path.join(__dirname, "__snapshots__");
 
 const runTestAndSnapshot = (
   scenario: IScenario,
-  targetBodyId: string,
   snapshotFileName: string
-) => {
+): ISerializedPhysicsEngineState => {
   const snapshotFile = path.join(snapshotDir, snapshotFileName);
-  const currentResults = runScenario(scenario, targetBodyId);
+  const currentResults = runScenario(scenario);
 
   if (process.env.UPDATE_SNAPSHOTS === "true") {
     if (!fs.existsSync(snapshotDir)) {
@@ -38,7 +37,7 @@ const runTestAndSnapshot = (
     }
     const expectedResults = JSON.parse(
       fs.readFileSync(snapshotFile, "utf-8")
-    ) as ScenarioResult;
+    ) as ISerializedPhysicsEngineState;
     expect(currentResults).to.deep.equal(expectedResults);
     return currentResults;
   }
@@ -64,7 +63,7 @@ describe("PhysicsEngine Celestial Mechanics: Eccentric Orbit", () => {
       satelliteDef.initialPosition.x,
       satelliteDef.initialPosition.y,
       satelliteDef.radius!,
-      { label: satelliteDef.label, ...satelliteDef.options }
+      { label: satelliteDef.label || satelliteDef.id, ...satelliteDef.options }
     );
     engine.setBodyVelocity(satellite, satelliteDef.initialVelocity!);
     if (satelliteDef.initialAngle) {
@@ -82,24 +81,20 @@ describe("PhysicsEngine Celestial Mechanics: Eccentric Orbit", () => {
     );
     let minDistance = initialDistance;
     let maxDistance = initialDistance;
-    // const positions: Vector[] = []; // Not strictly needed for assertions here
 
     if (debug)
       console.log("Starting eccentric orbit explicit test (250 steps)...");
 
     const fixedTimeStep = scenario.engineSettings?.fixedTimeStepMs || 1000 / 60;
     for (let i = 0; i < scenario.simulationSteps; i++) {
-      // Loop up to scenario.simulationSteps
       engine.fixedStep(fixedTimeStep);
       const currentPos = Vector.clone(satellite.position);
-      // positions.push(currentPos);
       const currentDistance = Vector.magnitude(
         Vector.sub(currentPos, celestialBodyDef.position)
       );
       minDistance = Math.min(minDistance, currentDistance);
       maxDistance = Math.max(maxDistance, currentDistance);
       if (debug && i % 50 === 0) {
-        // Log less frequently for 250 steps
         console.log(
           `Step ${i}: Pos (${currentPos.x.toFixed(2)}, ${currentPos.y.toFixed(
             2
@@ -139,7 +134,6 @@ describe("PhysicsEngine Celestial Mechanics: Eccentric Orbit", () => {
   it("should match snapshot after 1 step of eccentric orbit", () => {
     runTestAndSnapshot(
       eccentricOrbitScenario1Step,
-      eccentricOrbitScenario1Step.initialBodies[0].id!,
       "eccentric-orbit.1step.snap.json"
     );
   });
@@ -147,7 +141,6 @@ describe("PhysicsEngine Celestial Mechanics: Eccentric Orbit", () => {
   it("should match snapshot after 10 steps of eccentric orbit", () => {
     runTestAndSnapshot(
       eccentricOrbitScenario10Steps,
-      eccentricOrbitScenario10Steps.initialBodies[0].id!,
       "eccentric-orbit.10steps.snap.json"
     );
   });
@@ -155,17 +148,13 @@ describe("PhysicsEngine Celestial Mechanics: Eccentric Orbit", () => {
   it("should match snapshot after 50 steps of eccentric orbit", () => {
     runTestAndSnapshot(
       eccentricOrbitScenario50Steps,
-      eccentricOrbitScenario50Steps.initialBodies[0].id!,
       "eccentric-orbit.50steps.snap.json"
     );
   });
 
-  // The 250-step explicit test above covers detailed assertions for a longer run.
-  // We can still have a 250-step snapshot for regression tracking if desired.
   it("should match snapshot after 250 steps of eccentric orbit", () => {
     runTestAndSnapshot(
       eccentricOrbitScenario250Steps,
-      eccentricOrbitScenario250Steps.initialBodies[0].id!,
       "eccentric-orbit.250steps.snap.json"
     );
   });

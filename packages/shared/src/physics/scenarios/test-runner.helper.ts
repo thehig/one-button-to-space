@@ -1,25 +1,39 @@
 import Matter from "matter-js";
-import { IScenario, ScenarioBodyInitialState, ScenarioAction } from "./types";
+import { IScenario, ISerializedPhysicsEngineState } from "./types";
 import { PhysicsEngine } from "../PhysicsEngine";
 
-// Define the structure for the result of runScenario, specific to determinism tests
-export interface ScenarioResult {
-  position: Matter.Vector;
-  velocity: Matter.Vector;
-  angle: number;
-  angularVelocity: number;
+// Initialize poly-decomp for Matter.js
+if (typeof window === "undefined") {
+  // Running in Node.js environment (tests)
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const polyDecomp = require("poly-decomp");
+  Matter.Common.setDecomp(polyDecomp);
+} else {
+  // Running in a browser environment (visualizer)
+  // Assume poly-decomp is loaded globally via a script tag or similar
+  if ((window as any).decomp) {
+    Matter.Common.setDecomp((window as any).decomp);
+  } else {
+    console.warn(
+      "poly-decomp not found globally for Matter.js in browser environment."
+    );
+  }
 }
 
 /**
- * Runs a defined physics scenario and returns the state of a target body.
+ * Runs a defined physics scenario and returns the full serialized state of the physics engine.
  * @param scenario The scenario definition.
- * @param targetBodyIdToTrack The ID of the body whose final state is to be returned.
- * @returns The final state (position, velocity, angle, angularVelocity) of the target body.
+ * @returns The full ISerializedPhysicsEngineState from physicsEngine.toJSON().
  */
 export const runScenario = (
-  scenario: IScenario,
-  targetBodyIdToTrack: string
-): ScenarioResult => {
+  scenario: IScenario
+): ISerializedPhysicsEngineState => {
+  // Reset Matter.js internal ID counters for deterministic tests
+  (Matter.Body as any)._nextId = 0;
+  (Matter.Composite as any)._nextId = 0;
+  (Matter.Constraint as any)._nextId = 0;
+  (Matter.Common as any)._nextId = 0;
+
   const engineSettings = scenario.engineSettings;
   const engine = new PhysicsEngine(
     engineSettings?.fixedTimeStepMs,
@@ -35,7 +49,13 @@ export const runScenario = (
 
   for (const bodyDef of scenario.initialBodies) {
     let body: Matter.Body;
-    const optionsWithLabel = { ...bodyDef.options, label: bodyDef.label };
+
+    // Prepare the options object that will be passed to the engine's creation methods.
+    // The label from the scenario (or fallback to id) is included here.
+    const optionsForEngine: Matter.IBodyDefinition = {
+      ...(bodyDef.options || {}),
+      label: bodyDef.label || bodyDef.id,
+    };
 
     switch (bodyDef.type) {
       case "box":
@@ -44,7 +64,7 @@ export const runScenario = (
           bodyDef.initialPosition.y,
           bodyDef.width!,
           bodyDef.height!,
-          optionsWithLabel
+          optionsForEngine
         );
         break;
       case "circle":
@@ -52,24 +72,21 @@ export const runScenario = (
           bodyDef.initialPosition.x,
           bodyDef.initialPosition.y,
           bodyDef.radius!,
-          optionsWithLabel
+          optionsForEngine
         );
         break;
       case "rocket":
         body = engine.createRocketBody(
           bodyDef.initialPosition.x,
-          bodyDef.initialPosition.y
+          bodyDef.initialPosition.y,
+          optionsForEngine
         );
-        // Apply common options if needed after creation for rockets
-        if (optionsWithLabel.label) body.label = optionsWithLabel.label;
-        if (bodyDef.options?.density)
-          Matter.Body.setDensity(body, bodyDef.options.density);
-        // Note: createRocketBody has its own defaults for frictionAir etc.
         break;
       default:
         throw new Error(`Unsupported body type in scenario: ${bodyDef.type}`);
     }
 
+    // Initial velocity, angle, and angular velocity are set directly on the body after creation.
     if (bodyDef.initialVelocity) {
       engine.setBodyVelocity(body, bodyDef.initialVelocity);
     }
@@ -79,6 +96,7 @@ export const runScenario = (
     if (bodyDef.initialAngularVelocity !== undefined) {
       Matter.Body.setAngularVelocity(body, bodyDef.initialAngularVelocity);
     }
+    // Store the created body by its scenario-defined ID for action targeting.
     createdBodies.set(bodyDef.id, body);
   }
 
@@ -103,12 +121,21 @@ export const runScenario = (
                   action.applicationPoint,
                   action.force
                 );
-              } else {
-                console.warn(
-                  "applyForce action missing force or applicationPoint"
+              } else if (action.force) {
+                engine.applyForceToBody(
+                  targetBody,
+                  targetBody.position, // Apply at center if no point specified
+                  action.force
                 );
+              } else {
+                console.warn("applyForce action missing force");
               }
               break;
+            // case "setVelocity": // Example for future action
+            //   if (action.velocity) {
+            //     engine.setBodyVelocity(targetBody, action.velocity);
+            //   }
+            //   break;
             default:
               console.warn(`Unsupported action type: ${action.actionType}`);
           }
@@ -118,17 +145,5 @@ export const runScenario = (
     engine.fixedStep(fixedTimeStep);
   }
 
-  const finalBodyState = createdBodies.get(targetBodyIdToTrack);
-  if (!finalBodyState) {
-    throw new Error(
-      `Target body ID ${targetBodyIdToTrack} for result tracking not found.`
-    );
-  }
-
-  return {
-    position: { x: finalBodyState.position.x, y: finalBodyState.position.y },
-    velocity: { x: finalBodyState.velocity.x, y: finalBodyState.velocity.y },
-    angle: finalBodyState.angle,
-    angularVelocity: finalBodyState.angularVelocity,
-  };
+  return engine.toJSON();
 };
