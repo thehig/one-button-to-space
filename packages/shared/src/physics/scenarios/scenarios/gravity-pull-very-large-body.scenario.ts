@@ -1,5 +1,9 @@
-import { IScenario, ScenarioBodyInitialState, ScenarioBodyType } from "./types";
-import { ICelestialBody } from "../PhysicsEngine";
+import {
+  IScenario,
+  ScenarioBodyInitialState,
+  ScenarioBodyType,
+} from "../types";
+import { ICelestialBody } from "../../PhysicsEngine";
 
 const baseCelestialBodyVeryLarge: ICelestialBody[] = [
   {

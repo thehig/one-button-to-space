@@ -60,7 +60,7 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#f5d259",
+            "fillStyle": "#f55a3c",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {
@@ -228,7 +228,7 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#f55a3c",
+            "fillStyle": "#ececd1",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {
@@ -312,7 +312,7 @@
           "render": {
             "visible": true,
             "opacity": 1,
-            "fillStyle": "#063e7b",
+            "fillStyle": "#f19648",
             "strokeStyle": "#ccc",
             "lineWidth": 0,
             "sprite": {

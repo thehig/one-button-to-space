@@ -3,8 +3,8 @@ import {
   ICustomBodyPlugin,
   ScenarioBodyInitialState,
   ScenarioBodyType,
-} from "./types";
-import { ICelestialBody } from "../PhysicsEngine";
+} from "../types";
+import { ICelestialBody } from "../../PhysicsEngine";
 
 const baseCelestialBody: ICelestialBody[] = [
   {

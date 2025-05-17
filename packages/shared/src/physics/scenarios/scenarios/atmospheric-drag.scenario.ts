@@ -4,8 +4,8 @@ import {
   // ScenarioAction, // Unused in this consolidated version
   ScenarioBodyInitialState,
   ScenarioBodyType,
-} from "./types";
-import { ICelestialBody } from "../PhysicsEngine"; // Reverted to ICelestialBody
+} from "../types";
+import { ICelestialBody } from "../../PhysicsEngine"; // Reverted to ICelestialBody
 
 const baseCelestialBody: ICelestialBody[] = [
   {

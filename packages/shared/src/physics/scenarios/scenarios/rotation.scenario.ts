@@ -3,7 +3,7 @@ import {
   ScenarioAction,
   ScenarioBodyInitialState,
   ScenarioBodyType,
-} from "./types";
+} from "../types";
 
 const baseInitialBox: ScenarioBodyInitialState = {
   id: "rotationTestBox",

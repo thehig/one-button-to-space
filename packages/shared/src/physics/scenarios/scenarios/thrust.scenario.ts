@@ -4,7 +4,7 @@ import {
   ScenarioAction,
   ScenarioBodyInitialState,
   ScenarioBodyType,
-} from "./types";
+} from "../types";
 // ICelestialBody not needed for thrust in vacuum
 
 const baseInitialRocket: ScenarioBodyInitialState = {

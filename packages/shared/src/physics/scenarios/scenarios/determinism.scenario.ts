@@ -1,5 +1,5 @@
-import { IScenario } from "./types";
-import { ICelestialBody } from "../PhysicsEngine"; // ICelestialBody is not used by this scenario, but good to keep pattern if others need it
+import { IScenario } from "../types";
+import { ICelestialBody } from "../../PhysicsEngine"; // ICelestialBody is not used by this scenario, but good to keep pattern if others need it
 
 export const determinismBaseScenario: IScenario = {
   id: "determinism-base",
