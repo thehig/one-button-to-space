@@ -36,20 +36,47 @@ export class PhysicsEngine {
   // Potentially a renderer if we want to debug draw on server or share debug logic
   // private renderer: Matter.Render;
   private internalLoggingEnabled: boolean = false;
+  private ownsEngine: boolean = true; // New flag
 
   constructor(fixedTimeStepMs: number = 1000 / 60, customG?: number) {
     this.fixedTimeStepMs = fixedTimeStepMs;
     this.G = customG !== undefined ? customG : 0.001; // Default G if not provided
 
-    // Initialize the Matter.js engine
+    // Default: create and own the engine
     this.engine = Matter.Engine.create();
     this.world = this.engine.world;
+    this.ownsEngine = true;
 
     // Disable global engine gravity; we will apply it manually or variably
     this.engine.gravity.scale = 0;
-    // this.engine.gravity.y = 1; // Old simple gravity
+    // this.engine.gravity.y = 0; // Ensuring x and y are also 0 initially
+    // this.engine.gravity.x = 0; // This is often default but good to be explicit
 
-    if (this.internalLoggingEnabled) console.log("PhysicsEngine initialized");
+    if (this.internalLoggingEnabled)
+      console.log("PhysicsEngine initialized (owns engine by default)");
+  }
+
+  // New method to use an external engine
+  public setExternalMatterEngine(externalEngine: Matter.Engine): void {
+    if (this.engine && this.ownsEngine) {
+      // If we previously owned an engine, it will be orphaned.
+      // This is acceptable for the visualizer's use case where a new PhysicsEngine
+      // is created and immediately given an external engine.
+    }
+    this.engine = externalEngine;
+    this.world = this.engine.world; // Update world reference
+    this.ownsEngine = false;
+
+    // Ensure the external engine also has our desired global gravity settings
+    // This is important if PhysicsEngine normally sets these for its owned engine.
+    // Matter.Engine.create() defaults to { x: 0, y: 1, scale: 0.001 }
+    // We want scale = 0 for our custom gravity/forces approach.
+    this.engine.gravity.scale = 0;
+    this.engine.gravity.x = 0; // Explicitly set for clarity
+    this.engine.gravity.y = 0; // Explicitly set for clarity
+
+    if (this.internalLoggingEnabled)
+      console.log("PhysicsEngine now using an external Matter.js engine.");
   }
 
   public init(celestialBodies?: ICelestialBody[]): void {
@@ -396,6 +423,43 @@ export class PhysicsEngine {
 
   public setInternalLogging(enable: boolean): void {
     this.internalLoggingEnabled = enable;
+  }
+
+  public getBodyById(label: string): Matter.Body | null {
+    const bodies = Matter.Composite.allBodies(this.world);
+    const foundBody = bodies.find((body) => body.label === label);
+    return foundBody || null;
+  }
+
+  /**
+   * Advances the physics simulation.
+   * This version is intended for use cases like the visualizer where the external loop provides delta time.
+   * It applies custom forces and then updates the Matter engine.
+   * @param deltaTimeSeconds The time elapsed since the last update, in seconds.
+   */
+  public update(deltaTimeSeconds: number): void {
+    // Apply custom forces like gravity and drag
+    this.applyGravitationalForces();
+    this.applyAtmosphericDragForces();
+
+    // Apply atmospheric heating effects
+    const allBodies = Matter.Composite.allBodies(this.world);
+    for (const body of allBodies) {
+      const primaryAtmosphericBody = this.celestialBodies.find(
+        (cb) => cb.hasAtmosphere
+      );
+      if (primaryAtmosphericBody) {
+        this.applyAtmosphericHeatingEffects(body, primaryAtmosphericBody);
+      } else {
+        if (body.plugin) {
+          (body.plugin as ICustomBodyPlugin).currentHeatFlux = 0;
+        }
+      }
+    }
+
+    // Update the Matter.js engine
+    // Matter.Engine.update expects delta in milliseconds
+    Matter.Engine.update(this.engine, deltaTimeSeconds * 1000);
   }
 
   // Add more methods as needed for interacting with the physics world

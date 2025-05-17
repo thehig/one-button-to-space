@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Physics Scenario Visualizer</title>
+    <link rel="stylesheet" href="./visualizer.css" />
+  </head>
+  <body>
+    <h1>Physics Scenario Visualizer</h1>
+    <div class="controls">
+      <label for="scenario-select">Select Scenario:</label>
+      <select id="scenario-select">
+        <option value="">--Select a Scenario--</option>
+      </select>
+      <button id="play-pause-button">Play</button>
+      <button id="reset-button">Reset</button>
+    </div>
+    <div id="matter-container"></div>
+    <script type="module" src="./visualizer.ts"></script>
+  </body>
+</html>
