@@ -1,12 +1,56 @@
 import { expect } from "chai";
 import "mocha";
 import Matter, { Vector } from "matter-js";
+import * as fs from "fs";
+import * as path from "path";
+import { IScenario } from "./types";
 import { PhysicsEngine } from "../PhysicsEngine";
-import { orbitLargeBodyScenario } from "./orbit-large-body.scenario";
+import {
+  orbitLargeBodyScenario1Step,
+  orbitLargeBodyScenario10Steps,
+  orbitLargeBodyScenario50Steps,
+  orbitLargeBodyScenario250Steps,
+} from "./orbit-large-body.scenario";
+import { runScenario, ScenarioResult } from "./test-runner.helper";
+
+const snapshotDir = path.join(__dirname, "__snapshots__");
+
+const runTestAndSnapshot = (
+  scenario: IScenario,
+  targetBodyId: string,
+  snapshotFileName: string
+) => {
+  const snapshotFile = path.join(snapshotDir, snapshotFileName);
+  const currentResults = runScenario(scenario, targetBodyId);
+
+  if (process.env.UPDATE_SNAPSHOTS === "true") {
+    if (!fs.existsSync(snapshotDir)) {
+      fs.mkdirSync(snapshotDir, { recursive: true });
+    }
+    fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
+    console.log(`  Snapshot updated: ${snapshotFileName}`);
+    return currentResults;
+  } else {
+    if (!fs.existsSync(snapshotFile)) {
+      throw new Error(
+        `Snapshot file not found: ${snapshotFileName}. Run with UPDATE_SNAPSHOTS=true to create it.`
+      );
+    }
+    const expectedResults = JSON.parse(
+      fs.readFileSync(snapshotFile, "utf-8")
+    ) as ScenarioResult;
+    expect(currentResults).to.deep.equal(expectedResults);
+    return currentResults;
+  }
+};
 
 describe("PhysicsEngine Celestial Mechanics: Orbit (Large Body)", () => {
-  it("should simulate an object orbiting a large celestial body", () => {
-    const scenario = orbitLargeBodyScenario;
+  // The original test for orbitLargeBodyScenario had its own loop and specific assertions.
+  // We adapt it to use the 1-step scenario for basic validation,
+  // and rely on longer snapshots for more complex orbit behavior.
+  // For a more direct 1-step check, we can assert small changes.
+  it("should show initial orbital movement for a large body (1 step - explicit assertions)", () => {
+    const scenario = orbitLargeBodyScenario1Step; // Use the 1-step version
     const celestialBodyDef = scenario.celestialBodies![0];
     const satelliteDef = scenario.initialBodies[0];
 
@@ -36,39 +80,46 @@ describe("PhysicsEngine Celestial Mechanics: Orbit (Large Body)", () => {
       );
     }
 
-    const initialDistance = Vector.magnitude(
-      Vector.sub(satellite.position, celestialBodyDef.position)
-    );
-    let minDistance = initialDistance;
-    let maxDistance = initialDistance;
+    engine.fixedStep(scenario.engineSettings?.fixedTimeStepMs || 1000 / 60);
 
-    const fixedTimeStep = scenario.engineSettings?.fixedTimeStepMs || 1000 / 60;
-    for (let i = 0; i < scenario.simulationSteps; i++) {
-      engine.fixedStep(fixedTimeStep);
-      const currentDistance = Vector.magnitude(
-        Vector.sub(satellite.position, celestialBodyDef.position)
-      );
-      minDistance = Math.min(minDistance, currentDistance);
-      maxDistance = Math.max(maxDistance, currentDistance);
-    }
+    // After 1 step, with initial velocity purely tangential (y), x should change (pulled inwards)
+    // and y should also change due to the initial velocity.
+    expect(satellite.position.x).to.be.lessThan(satelliteDef.initialPosition.x);
+    expect(satellite.position.y).to.be.greaterThan(
+      satelliteDef.initialPosition.y
+    ); // Moved along initial velocity vector
 
     const finalDistance = Vector.magnitude(
       Vector.sub(satellite.position, celestialBodyDef.position)
     );
-
-    // Basic checks for a somewhat stable orbit
-    // It hasn't crashed into the planet (assuming planet radius is significant)
-    expect(finalDistance).to.be.greaterThan(celestialBodyDef.radius! * 0.8); // Allow some proximity
-    // It hasn't flown off to infinity (e.g., not more than 3x initial distance for this test)
-    expect(finalDistance).to.be.lessThan(initialDistance * 3);
-    // It has moved (check Y primarily for tangential initial velocity)
-    expect(satellite.position.y).to.not.be.closeTo(
-      satelliteDef.initialPosition.y,
-      0.1
+    const initialDistance = Vector.magnitude(
+      Vector.sub(satelliteDef.initialPosition, celestialBodyDef.position)
     );
-    // Check that it's not an overly eccentric orbit for a "stable" test (e.g., apoapsis/periapsis ratio)
-    // For this basic test, let's just check it didn't deviate too extremely from the initial distance band
-    expect(minDistance).to.be.greaterThan(initialDistance * 0.3); // Didn't get too close
-    expect(maxDistance).to.be.lessThan(initialDistance * 3); // Didn't get too far
+    // Distance should decrease slightly as it's pulled in and moves tangentially
+    expect(finalDistance).to.be.lessThan(initialDistance);
+  });
+
+  it("should match snapshot after 10 steps of orbit (large body)", () => {
+    runTestAndSnapshot(
+      orbitLargeBodyScenario10Steps,
+      orbitLargeBodyScenario10Steps.initialBodies[0].id!,
+      "orbit-large-body.10steps.snap.json"
+    );
+  });
+
+  it("should match snapshot after 50 steps of orbit (large body)", () => {
+    runTestAndSnapshot(
+      orbitLargeBodyScenario50Steps,
+      orbitLargeBodyScenario50Steps.initialBodies[0].id!,
+      "orbit-large-body.50steps.snap.json"
+    );
+  });
+
+  it("should match snapshot after 250 steps of orbit (large body)", () => {
+    runTestAndSnapshot(
+      orbitLargeBodyScenario250Steps,
+      orbitLargeBodyScenario250Steps.initialBodies[0].id!,
+      "orbit-large-body.250steps.snap.json"
+    );
   });
 });

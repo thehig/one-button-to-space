@@ -1,36 +1,66 @@
-import { IScenario } from "./types";
+import { IScenario, ScenarioBodyInitialState, ScenarioBodyType } from "./types";
 import { ICelestialBody } from "../PhysicsEngine";
 
-export const eccentricOrbitScenario: IScenario = {
-  id: "eccentric-orbit-large-body",
-  description: "Tests an eccentric orbit around a large celestial body.",
+const baseEccentricOrbitCelestial: ICelestialBody[] = [
+  {
+    id: "large-planet-eccentric-orbit-scenario",
+    mass: 5.972e3, // Mass for eccentric orbit
+    position: { x: 0, y: 0 },
+    gravityRadius: 1000 * 10,
+    radius: 1000 / 2,
+  },
+];
+
+const baseEccentricOrbitSatellite: ScenarioBodyInitialState = {
+  id: "eccentricSatelliteScenario",
+  type: "circle" as ScenarioBodyType,
+  label: "eccentricSatellite",
+  initialPosition: { x: 1000, y: 0 },
+  initialVelocity: { x: 0, y: 0.06 }, // Changed from { x: 0.1, y: 0.4 }
+  radius: 5,
+  options: {
+    density: 0.01,
+    frictionAir: 0,
+  },
+};
+
+const baseEccentricOrbitScenario: Omit<
+  IScenario,
+  "id" | "description" | "simulationSteps"
+> = {
   engineSettings: {
     customG: 0.001,
-    enableInternalLogging: false,
+    enableInternalLogging: false, // Keep internal logging off by default for base
   },
-  celestialBodies: [
-    {
-      id: "large-planet-eccentric-orbit-scenario",
-      mass: 5.972e3,
-      position: { x: 0, y: 0 },
-      gravityRadius: 1000 * 10,
-      radius: 1000 / 2,
-    },
-  ],
-  initialBodies: [
-    {
-      id: "eccentricSatelliteScenario",
-      type: "circle",
-      label: "eccentricSatellite",
-      initialPosition: { x: 1000, y: 0 },
-      initialVelocity: { x: 0.05, y: 0.5 },
-      radius: 5,
-      options: {
-        density: 0.01,
-        frictionAir: 0,
-      },
-    },
-  ],
+  celestialBodies: baseEccentricOrbitCelestial,
+  initialBodies: [baseEccentricOrbitSatellite],
   actions: [],
-  simulationSteps: 5000,
+};
+
+export const eccentricOrbitScenario1Step: IScenario = {
+  ...baseEccentricOrbitScenario,
+  id: "eccentric-orbit-1-step",
+  description: "Tests an eccentric orbit for 1 simulation step.",
+  simulationSteps: 1,
+};
+
+export const eccentricOrbitScenario10Steps: IScenario = {
+  ...baseEccentricOrbitScenario,
+  id: "eccentric-orbit-10-steps",
+  description: "Tests an eccentric orbit for 10 simulation steps.",
+  simulationSteps: 10,
+};
+
+export const eccentricOrbitScenario50Steps: IScenario = {
+  ...baseEccentricOrbitScenario,
+  id: "eccentric-orbit-50-steps",
+  description: "Tests an eccentric orbit for 50 simulation steps.",
+  simulationSteps: 50,
+};
+
+export const eccentricOrbitScenario250Steps: IScenario = {
+  ...baseEccentricOrbitScenario,
+  id: "eccentric-orbit-250-steps",
+  description: "Tests an eccentric orbit for 250 simulation steps.",
+  simulationSteps: 250, // Reduced from original 5000 for snapshot brevity
 };

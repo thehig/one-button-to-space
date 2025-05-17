@@ -1,13 +1,52 @@
 import { expect } from "chai";
 import "mocha";
 import { Vector } from "matter-js";
+import * as fs from "fs";
+import * as path from "path";
+import { IScenario } from "./types";
 
-import { gravityPullSmallBodyScenario } from "./gravity-pull-small-body.scenario";
-import { runScenario } from "./test-runner.helper";
+import {
+  gravityPullSmallBodyScenario1Step,
+  gravityPullSmallBodyScenario10Steps,
+  gravityPullSmallBodyScenario50Steps,
+  gravityPullSmallBodyScenario100Steps,
+} from "./gravity-pull-small-body.scenario";
+import { runScenario, ScenarioResult } from "./test-runner.helper";
+
+const snapshotDir = path.join(__dirname, "__snapshots__");
+
+const runTestAndSnapshot = (
+  scenario: IScenario,
+  targetBodyId: string,
+  snapshotFileName: string
+) => {
+  const snapshotFile = path.join(snapshotDir, snapshotFileName);
+  const currentResults = runScenario(scenario, targetBodyId);
+
+  if (process.env.UPDATE_SNAPSHOTS === "true") {
+    if (!fs.existsSync(snapshotDir)) {
+      fs.mkdirSync(snapshotDir, { recursive: true });
+    }
+    fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
+    console.log(`  Snapshot updated: ${snapshotFileName}`);
+    return currentResults;
+  } else {
+    if (!fs.existsSync(snapshotFile)) {
+      throw new Error(
+        `Snapshot file not found: ${snapshotFileName}. Run with UPDATE_SNAPSHOTS=true to create it.`
+      );
+    }
+    const expectedResults = JSON.parse(
+      fs.readFileSync(snapshotFile, "utf-8")
+    ) as ScenarioResult;
+    expect(currentResults).to.deep.equal(expectedResults);
+    return currentResults;
+  }
+};
 
 describe("PhysicsEngine Celestial Mechanics: Gravity Pull (Small)", () => {
-  it("should simulate gravitational pull from a small celestial body", () => {
-    const scenario = gravityPullSmallBodyScenario;
+  it("should simulate gravitational pull from a small celestial body (1 step - explicit assertions)", () => {
+    const scenario = gravityPullSmallBodyScenario1Step;
     const satelliteDef = scenario.initialBodies[0];
     const celestialBodyDef = scenario.celestialBodies![0];
 
@@ -15,7 +54,7 @@ describe("PhysicsEngine Celestial Mechanics: Gravity Pull (Small)", () => {
       Vector.sub(satelliteDef.initialPosition, celestialBodyDef.position)
     );
 
-    const finalSatelliteState = runScenario(scenario, satelliteDef.id);
+    const finalSatelliteState = runScenario(scenario, satelliteDef.id!); // Added non-null assertion
 
     const finalDistance = Vector.magnitude(
       Vector.sub(finalSatelliteState.position, celestialBodyDef.position)
@@ -23,5 +62,37 @@ describe("PhysicsEngine Celestial Mechanics: Gravity Pull (Small)", () => {
 
     expect(finalDistance).to.be.lessThan(initialDistance);
     expect(finalDistance).to.be.greaterThan(0);
+    // Example explicit assertions (adjust if needed for this scenario's specifics)
+    expect(finalSatelliteState.position.x).to.be.lessThan(
+      satelliteDef.initialPosition.x
+    );
+    expect(finalSatelliteState.position.y).to.be.closeTo(
+      satelliteDef.initialPosition.y,
+      0.01
+    );
+  });
+
+  it("should match snapshot after 10 steps of gravity pull (small body)", () => {
+    runTestAndSnapshot(
+      gravityPullSmallBodyScenario10Steps,
+      gravityPullSmallBodyScenario10Steps.initialBodies[0].id!,
+      "gravity-pull-small-body.10steps.snap.json"
+    );
+  });
+
+  it("should match snapshot after 50 steps of gravity pull (small body)", () => {
+    runTestAndSnapshot(
+      gravityPullSmallBodyScenario50Steps,
+      gravityPullSmallBodyScenario50Steps.initialBodies[0].id!,
+      "gravity-pull-small-body.50steps.snap.json"
+    );
+  });
+
+  it("should match snapshot after 100 steps of gravity pull (small body)", () => {
+    runTestAndSnapshot(
+      gravityPullSmallBodyScenario100Steps,
+      gravityPullSmallBodyScenario100Steps.initialBodies[0].id!,
+      "gravity-pull-small-body.100steps.snap.json"
+    );
   });
 });

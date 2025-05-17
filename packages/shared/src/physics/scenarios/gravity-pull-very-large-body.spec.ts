@@ -1,13 +1,52 @@
 import { expect } from "chai";
 import "mocha";
 import { Vector } from "matter-js";
+import * as fs from "fs";
+import * as path from "path";
+import { IScenario } from "./types";
 
-import { gravityPullVeryLargeBodyScenario } from "./gravity-pull-very-large-body.scenario";
-import { runScenario } from "./test-runner.helper";
+import {
+  gravityPullVeryLargeBodyScenario1Step,
+  gravityPullVeryLargeBodyScenario10Steps,
+  gravityPullVeryLargeBodyScenario50Steps,
+  gravityPullVeryLargeBodyScenario100Steps,
+} from "./gravity-pull-very-large-body.scenario";
+import { runScenario, ScenarioResult } from "./test-runner.helper";
+
+const snapshotDir = path.join(__dirname, "__snapshots__");
+
+const runTestAndSnapshot = (
+  scenario: IScenario,
+  targetBodyId: string,
+  snapshotFileName: string
+) => {
+  const snapshotFile = path.join(snapshotDir, snapshotFileName);
+  const currentResults = runScenario(scenario, targetBodyId);
+
+  if (process.env.UPDATE_SNAPSHOTS === "true") {
+    if (!fs.existsSync(snapshotDir)) {
+      fs.mkdirSync(snapshotDir, { recursive: true });
+    }
+    fs.writeFileSync(snapshotFile, JSON.stringify(currentResults, null, 2));
+    console.log(`  Snapshot updated: ${snapshotFileName}`);
+    return currentResults;
+  } else {
+    if (!fs.existsSync(snapshotFile)) {
+      throw new Error(
+        `Snapshot file not found: ${snapshotFileName}. Run with UPDATE_SNAPSHOTS=true to create it.`
+      );
+    }
+    const expectedResults = JSON.parse(
+      fs.readFileSync(snapshotFile, "utf-8")
+    ) as ScenarioResult;
+    expect(currentResults).to.deep.equal(expectedResults);
+    return currentResults;
+  }
+};
 
 describe("PhysicsEngine Celestial Mechanics: Gravity Pull (Very Large)", () => {
-  it("should simulate gravitational pull from a VERY large celestial body", () => {
-    const scenario = gravityPullVeryLargeBodyScenario;
+  it("should simulate gravitational pull from a VERY large celestial body (1 step - explicit assertions)", () => {
+    const scenario = gravityPullVeryLargeBodyScenario1Step;
     const satelliteDef = scenario.initialBodies[0];
     const celestialBodyDef = scenario.celestialBodies![0];
 
@@ -15,15 +54,45 @@ describe("PhysicsEngine Celestial Mechanics: Gravity Pull (Very Large)", () => {
       Vector.sub(satelliteDef.initialPosition, celestialBodyDef.position)
     );
 
-    const finalSatelliteState = runScenario(scenario, satelliteDef.id);
+    const finalSatelliteState = runScenario(scenario, satelliteDef.id!); // Added non-null assertion
 
     const finalDistance = Vector.magnitude(
       Vector.sub(finalSatelliteState.position, celestialBodyDef.position)
     );
 
-    // Expect the satellite to have moved towards the celestial body
     expect(finalDistance).to.be.lessThan(initialDistance);
-    // Expect the satellite not to have passed through or landed exactly on the center (unless intended)
     expect(finalDistance).to.be.greaterThan(0);
+    // Example explicit assertions (adjust if needed)
+    expect(finalSatelliteState.position.x).to.be.lessThan(
+      satelliteDef.initialPosition.x
+    );
+    expect(finalSatelliteState.position.y).to.be.closeTo(
+      satelliteDef.initialPosition.y,
+      0.01
+    );
+  });
+
+  it("should match snapshot after 10 steps of gravity pull (very large body)", () => {
+    runTestAndSnapshot(
+      gravityPullVeryLargeBodyScenario10Steps,
+      gravityPullVeryLargeBodyScenario10Steps.initialBodies[0].id!,
+      "gravity-pull-very-large-body.10steps.snap.json"
+    );
+  });
+
+  it("should match snapshot after 50 steps of gravity pull (very large body)", () => {
+    runTestAndSnapshot(
+      gravityPullVeryLargeBodyScenario50Steps,
+      gravityPullVeryLargeBodyScenario50Steps.initialBodies[0].id!,
+      "gravity-pull-very-large-body.50steps.snap.json"
+    );
+  });
+
+  it("should match snapshot after 100 steps of gravity pull (very large body)", () => {
+    runTestAndSnapshot(
+      gravityPullVeryLargeBodyScenario100Steps,
+      gravityPullVeryLargeBodyScenario100Steps.initialBodies[0].id!,
+      "gravity-pull-very-large-body.100steps.snap.json"
+    );
   });
 });
