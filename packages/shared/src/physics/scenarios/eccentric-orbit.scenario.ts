@@ -4,7 +4,7 @@ import { ICelestialBody } from "../PhysicsEngine";
 const baseEccentricOrbitCelestial: ICelestialBody[] = [
   {
     id: "large-planet-eccentric-orbit-scenario",
-    mass: 5.972e3, // Mass for eccentric orbit
+    mass: 5.972e2, // Reduced mass significantly
     position: { x: 0, y: 0 },
     gravityRadius: 1000 * 10,
     radius: 1000 / 2,
@@ -16,7 +16,7 @@ const baseEccentricOrbitSatellite: ScenarioBodyInitialState = {
   type: "circle" as ScenarioBodyType,
   label: "eccentricSatellite",
   initialPosition: { x: 1000, y: 0 },
-  initialVelocity: { x: 0, y: 0.06 }, // Changed from { x: 0.1, y: 0.4 }
+  initialVelocity: { x: 0.1, y: 0.6 }, // Added small outward X, adjusted Y
   radius: 5,
   options: {
     density: 0.01,

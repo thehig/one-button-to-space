@@ -44,15 +44,13 @@
         "render": {
           "visible": true,
           "opacity": 1,
-          "fillStyle": "#063e7b",
-          "strokeStyle": "#ccc",
-          "lineWidth": 0,
+          "fillStyle": "#B0B0B0",
+          "strokeStyle": "#505050",
+          "lineWidth": 1,
           "sprite": {
             "texture": null,
             "xScale": 1,
-            "yScale": 1,
-            "xOffset": 0.5,
-            "yOffset": 0.5
+            "yScale": 1
           }
         },
         "plugin": {

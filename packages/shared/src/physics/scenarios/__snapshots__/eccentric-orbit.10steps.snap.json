@@ -8,7 +8,7 @@
   "celestialBodies": [
     {
       "id": "large-planet-eccentric-orbit-scenario",
-      "mass": 5972,
+      "mass": 597.2,
       "position": {
         "x": 0,
         "y": 0
@@ -25,13 +25,13 @@
         "type": "body",
         "parts": [],
         "position": {
-          "x": 999.9999945256695,
-          "y": 0.59999999901462
+          "x": 1000.9999994528991,
+          "y": 5.999999999016113
         },
         "angle": 0,
         "velocity": {
-          "x": -9.953328117262572e-7,
-          "y": 0.05999999973126002
+          "x": 0.09999990055757735,
+          "y": 0.5999999997317769
         },
         "angularVelocity": 0,
         "mass": 0.7346939,
@@ -55,15 +55,13 @@
         "render": {
           "visible": true,
           "opacity": 1,
-          "fillStyle": "#f55a3c",
-          "strokeStyle": "#ccc",
-          "lineWidth": 0,
+          "fillStyle": "#B0B0B0",
+          "strokeStyle": "#505050",
+          "lineWidth": 1,
           "sprite": {
             "texture": null,
             "xScale": 1,
-            "yScale": 1,
-            "xOffset": 0.5,
-            "yOffset": 0.5
+            "yScale": 1
           }
         },
         "plugin": {

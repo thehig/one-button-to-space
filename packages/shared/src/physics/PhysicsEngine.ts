@@ -338,42 +338,39 @@ export class PhysicsEngine {
     this.bodyIdCounter++; // For generating fallback labels
     const finalLabel = options?.label || `box-${this.bodyIdCounter}`;
 
-    const defaultBoxOptions: Matter.IBodyDefinition = {
-      isStatic: false,
+    const userRenderOptions = options?.render || {};
+    const mergedRenderOptions: Matter.IBodyRenderOptions = {
+      visible: userRenderOptions.visible ?? true,
+      opacity: userRenderOptions.opacity ?? 1,
+      strokeStyle: userRenderOptions.strokeStyle ?? DefaultRender.strokeStyle,
+      lineWidth: userRenderOptions.lineWidth ?? DefaultRender.lineWidth,
+      fillStyle: userRenderOptions.fillStyle ?? DefaultRender.fillStyle,
+    };
+
+    if (userRenderOptions.sprite) {
+      mergedRenderOptions.sprite = {
+        texture: userRenderOptions.sprite.texture,
+        xScale: userRenderOptions.sprite.xScale ?? 1,
+        yScale: userRenderOptions.sprite.yScale ?? 1,
+      };
+    }
+
+    const bodyOptions: Matter.IBodyDefinition = {
       collisionFilter: createCollisionFilter(
         CollisionCategories.DEFAULT,
         CollisionMasks.DEFAULT
       ),
-      label: finalLabel, // Ensure label is part of default consideration
+      ...options,
+      render: mergedRenderOptions,
       plugin: {
-        // Initialize plugin if not present from options
-        ...options?.plugin,
+        ...(options?.plugin || {}),
         creationParams: { type: "box", width, height },
-      },
+      } as ICustomBodyPlugin,
     };
+    // Ensure label is part of the final options for Matter.js
+    if (finalLabel) bodyOptions.label = finalLabel;
 
-    let combinedOptions = {
-      ...defaultBoxOptions,
-      ...options, // User options override defaults
-      label: finalLabel, // Ensure finalLabel is set
-      plugin: {
-        // Ensure plugin and creationParams are correctly merged
-        ...options?.plugin,
-        ...defaultBoxOptions.plugin, // Default plugin (with creationParams) comes after user's plugin
-        creationParams: { type: "box", width, height }, // Explicitly set/override creationParams
-      },
-    };
-
-    if (combinedOptions.isStatic && options && !options.collisionFilter) {
-      // If it's static and no filter was *explicitly provided in the incoming options*,
-      // then apply the static environment collision filter.
-      combinedOptions.collisionFilter = createCollisionFilter(
-        CollisionCategories.STATIC_ENVIRONMENT,
-        CollisionMasks.STATIC_ENVIRONMENT
-      );
-    }
-
-    const box = Matter.Bodies.rectangle(x, y, width, height, combinedOptions);
+    const box = Matter.Bodies.rectangle(x, y, width, height, bodyOptions);
     Matter.Composite.add(this.world, box); // Directly add to world
     this.localBodyCache.set(finalLabel, box); // Cache it with the definitive label
     return box;
@@ -388,40 +385,39 @@ export class PhysicsEngine {
     this.bodyIdCounter++;
     const finalLabel = options?.label || `circle-${this.bodyIdCounter}`;
 
-    const defaultCircleOptions: Matter.IBodyDefinition = {
-      isStatic: false,
+    const userRenderOptions = options?.render || {};
+    const mergedRenderOptions: Matter.IBodyRenderOptions = {
+      visible: userRenderOptions.visible ?? true,
+      opacity: userRenderOptions.opacity ?? 1,
+      strokeStyle: userRenderOptions.strokeStyle ?? DefaultRender.strokeStyle,
+      lineWidth: userRenderOptions.lineWidth ?? DefaultRender.lineWidth,
+      fillStyle: userRenderOptions.fillStyle ?? DefaultRender.fillStyle,
+    };
+
+    if (userRenderOptions.sprite) {
+      mergedRenderOptions.sprite = {
+        texture: userRenderOptions.sprite.texture,
+        xScale: userRenderOptions.sprite.xScale ?? 1,
+        yScale: userRenderOptions.sprite.yScale ?? 1,
+      };
+    }
+
+    const bodyOptions: Matter.IBodyDefinition = {
       collisionFilter: createCollisionFilter(
         CollisionCategories.DEFAULT,
         CollisionMasks.DEFAULT
       ),
-      label: finalLabel,
+      ...options,
+      render: mergedRenderOptions,
       plugin: {
-        // Initialize plugin
-        ...options?.plugin,
+        ...(options?.plugin || {}),
         creationParams: { type: "circle", radius },
-      },
+      } as ICustomBodyPlugin,
     };
+    // Ensure label is part of the final options for Matter.js
+    if (finalLabel) bodyOptions.label = finalLabel;
 
-    let combinedOptions = {
-      ...defaultCircleOptions,
-      ...options, // User options override defaults
-      label: finalLabel, // Ensure finalLabel is set
-      plugin: {
-        // Ensure plugin and creationParams are correctly merged
-        ...options?.plugin,
-        ...defaultCircleOptions.plugin,
-        creationParams: { type: "circle", radius }, // Explicitly set/override
-      },
-    };
-
-    if (combinedOptions.isStatic && options && !options.collisionFilter) {
-      combinedOptions.collisionFilter = createCollisionFilter(
-        CollisionCategories.STATIC_ENVIRONMENT,
-        CollisionMasks.STATIC_ENVIRONMENT
-      );
-    }
-
-    const circle = Matter.Bodies.circle(x, y, radius, combinedOptions);
+    const circle = Matter.Bodies.circle(x, y, radius, bodyOptions);
     Matter.Composite.add(this.world, circle);
     this.localBodyCache.set(finalLabel, circle);
     return circle;
@@ -757,8 +753,6 @@ export class PhysicsEngine {
               texture: renderData.sprite?.texture ?? null,
               xScale: renderData.sprite?.xScale ?? 1,
               yScale: renderData.sprite?.yScale ?? 1,
-              xOffset: (renderData.sprite as any)?.xOffset ?? null,
-              yOffset: (renderData.sprite as any)?.yOffset ?? null,
             },
           } as ISerializedBodyRenderOptions,
           plugin: {
@@ -872,8 +866,8 @@ export class PhysicsEngine {
         let renderOptions: Matter.IBodyRenderOptions = {};
         if (sBody.render) {
           renderOptions = {
-            visible: sBody.render.visible,
-            opacity: sBody.render.opacity,
+            visible: sBody.render.visible ?? true,
+            opacity: sBody.render.opacity ?? 1,
             strokeStyle: sBody.render.strokeStyle,
             fillStyle: sBody.render.fillStyle,
             lineWidth: sBody.render.lineWidth,
