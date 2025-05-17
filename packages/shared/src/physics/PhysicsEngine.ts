@@ -459,9 +459,11 @@ export class PhysicsEngine {
     );
 
     if (!part1 || !part2) {
-      console.error(
-        `[PhysicsEngine.createRocketBody] FAILED to create one or more parts for rocket: ${finalLabel}. Part1: ${!!part1}, Part2: ${!!part2}`
-      );
+      if (this.internalLoggingEnabled) {
+        console.error(
+          `[PhysicsEngine.createRocketBody] FAILED to create one or more parts for rocket: ${finalLabel}. Part1: ${!!part1}, Part2: ${!!part2}`
+        );
+      }
       throw new Error(`Failed to create parts for rocket body: ${finalLabel}`);
     }
 
@@ -481,11 +483,6 @@ export class PhysicsEngine {
     if (options?.angularVelocity) {
       Matter.Body.setAngularVelocity(rocket, options.angularVelocity);
     }
-
-    // Remove extensive logging, keep one success message
-    console.log(
-      `[PhysicsEngine.createRocketBody] Successfully created COMPOUND rocket body: ${finalLabel}, Matter ID: ${rocket.id}, Parts: ${rocket.parts.length}`
-    );
 
     Matter.Composite.add(this.world, rocket);
     this.localBodyCache.set(finalLabel, rocket);
