@@ -30,8 +30,20 @@ export interface ICustomBodyPlugin {
   dragCoefficientArea?: number;
   effectiveNoseRadius?: number; // For heating calculations (meters)
   currentHeatFlux?: number; // Calculated heat flux (W/m^2)
+  creationParams?: // Added for body reconstruction
+  | { type: "box"; width: number; height: number }
+    | { type: "circle"; radius: number }
+    | { type: "rocket" } // The compound rocket body itself
+    | { type: "polygon"; vertices: Matter.Vector[] }; // Generic polygons, e.g., rocket parts
   // other custom flags or data can be added here
 }
+
+const DefaultRender = {
+  fillStyle: "#B0B0B0", // Default grey
+  strokeStyle: "#505050",
+  lineWidth: 1,
+  // No sprite by default, but if we added one here, ensure texture is valid string
+};
 
 export class PhysicsEngine {
   private engine: Matter.Engine;
@@ -333,13 +345,24 @@ export class PhysicsEngine {
         CollisionMasks.DEFAULT
       ),
       label: finalLabel, // Ensure label is part of default consideration
+      plugin: {
+        // Initialize plugin if not present from options
+        ...options?.plugin,
+        creationParams: { type: "box", width, height },
+      },
     };
 
     let combinedOptions = {
       ...defaultBoxOptions,
-      ...options,
-      label: finalLabel,
-    }; // options will override defaults, then ensure finalLabel
+      ...options, // User options override defaults
+      label: finalLabel, // Ensure finalLabel is set
+      plugin: {
+        // Ensure plugin and creationParams are correctly merged
+        ...options?.plugin,
+        ...defaultBoxOptions.plugin, // Default plugin (with creationParams) comes after user's plugin
+        creationParams: { type: "box", width, height }, // Explicitly set/override creationParams
+      },
+    };
 
     if (combinedOptions.isStatic && options && !options.collisionFilter) {
       // If it's static and no filter was *explicitly provided in the incoming options*,
@@ -372,12 +395,23 @@ export class PhysicsEngine {
         CollisionMasks.DEFAULT
       ),
       label: finalLabel,
+      plugin: {
+        // Initialize plugin
+        ...options?.plugin,
+        creationParams: { type: "circle", radius },
+      },
     };
 
     let combinedOptions = {
       ...defaultCircleOptions,
-      ...options,
-      label: finalLabel,
+      ...options, // User options override defaults
+      label: finalLabel, // Ensure finalLabel is set
+      plugin: {
+        // Ensure plugin and creationParams are correctly merged
+        ...options?.plugin,
+        ...defaultCircleOptions.plugin,
+        creationParams: { type: "circle", radius }, // Explicitly set/override
+      },
     };
 
     if (combinedOptions.isStatic && options && !options.collisionFilter) {
@@ -398,95 +432,204 @@ export class PhysicsEngine {
     y: number,
     options?: Matter.IBodyDefinition
   ): Matter.Body {
-    this.bodyIdCounter++;
-    const finalLabel = options?.label || `rocket-${this.bodyIdCounter}`;
+    const labelPrefix = options?.label || "rocket";
+    const commonOptions = { ...options }; // Clone to avoid modifying input
 
-    // Define the convex parts for the rocket, relative to (0,0) which will be the rocket's tip
-    const triangle1Vertices: Matter.Vector[] = [
-      { x: 0, y: 0 },
-      { x: 10, y: 25 },
-      { x: 0, y: 20 },
-    ];
-    const triangle2Vertices: Matter.Vector[] = [
-      { x: 0, y: 0 },
-      { x: 0, y: 20 },
-      { x: -10, y: 25 },
-    ];
-
-    // Base options for the compound body (these apply to the overall rocket)
-    const defaultRocketBaseOptions: Matter.IBodyDefinition = {
-      label: finalLabel,
-      isStatic: false,
-      collisionFilter: createCollisionFilter(
-        CollisionCategories.ROCKET,
-        CollisionMasks.ROCKET
-      ),
-      density: 0.05, // Example density for the whole rocket
-      frictionAir: 0.05, // Example air friction for the whole rocket
-      plugin: { dragCoefficientArea: 0.5, effectiveNoseRadius: 0.1 }, // Custom plugin data
-    };
-
-    // Merge user-provided options with defaults for the compound body
-    const finalCompoundOptions = {
-      ...defaultRocketBaseOptions,
-      ...options, // User options can override density, frictionAir, plugin, label etc.
-      label: finalLabel, // Ensure the label is correctly set
-    };
-
-    // Critical: Remove 'vertices' from finalCompoundOptions if it exists from input 'options',
-    // as we are using 'parts' to define the shape.
-    if ("vertices" in finalCompoundOptions) {
-      delete (finalCompoundOptions as any).vertices;
-    }
-
-    // Options for the individual parts. They should typically be sensors if the parent is a sensor.
-    // Other properties like collisionFilter are usually handled by the compound body.
-    const partCreationOptions: Matter.IBodyDefinition = {
-      isSensor: finalCompoundOptions.isSensor,
-    };
-
-    const part1 = Matter.Bodies.fromVertices(
-      0,
-      0,
-      [triangle1Vertices],
-      partCreationOptions
+    // Define collision filters
+    const commonRocketCollisionFilter = createCollisionFilter(
+      CollisionCategories.ROCKET,
+      CollisionMasks.ROCKET
     );
-    const part2 = Matter.Bodies.fromVertices(
-      0,
-      0,
-      [triangle2Vertices],
-      partCreationOptions
+    const partCollisionFilter = commonRocketCollisionFilter;
+    const mainCollisionFilter =
+      options?.collisionFilter || commonRocketCollisionFilter;
+
+    // Remove properties that are for the compound body from commonOptions for parts
+    delete commonOptions.parts;
+    delete commonOptions.label; // Parts will get their own labels
+    delete commonOptions.collisionFilter;
+    delete commonOptions.plugin;
+
+    // Helper to create render options for parts
+    // Ensures a valid render object is always returned.
+    const getPartRenderOpts = (partDefaults: {
+      fillStyle: string;
+      strokeStyle?: string;
+      lineWidth?: number;
+    }): Matter.IBodyRenderOptions => {
+      const inputRender = options?.render;
+      let finalRender: Matter.IBodyRenderOptions = {
+        fillStyle: partDefaults.fillStyle,
+        strokeStyle: partDefaults.strokeStyle ?? DefaultRender.strokeStyle,
+        lineWidth: partDefaults.lineWidth ?? DefaultRender.lineWidth,
+        visible: true, // Default visible to true for parts
+        opacity: 1, // Default opacity to 1
+      };
+
+      if (typeof inputRender === "object" && inputRender !== null) {
+        // If inputRender is an object, merge it, letting its properties override
+        finalRender = {
+          ...finalRender, // Start with our defaults (like partDefaults.fillStyle)
+          ...inputRender, // Overlay with user's full render object
+          // Ensure fillStyle from partDefaults is used if inputRender doesn't have one or is generic
+          fillStyle: inputRender.fillStyle ?? partDefaults.fillStyle,
+          strokeStyle: inputRender.strokeStyle ?? finalRender.strokeStyle, // Use already set default if not in inputRender
+          lineWidth: inputRender.lineWidth ?? finalRender.lineWidth,
+          visible: inputRender.visible ?? finalRender.visible,
+          opacity: inputRender.opacity ?? finalRender.opacity,
+        };
+        // Sprite handling for parts, if inputRender has sprite info
+        if (
+          inputRender.sprite &&
+          typeof inputRender.sprite.texture === "string"
+        ) {
+          finalRender.sprite = {
+            texture: inputRender.sprite.texture,
+            xScale: inputRender.sprite.xScale ?? 1,
+            yScale: inputRender.sprite.yScale ?? 1,
+          };
+        }
+      } else if (inputRender === true) {
+        // If inputRender is true, it means use defaults (which finalRender is already set to)
+        // Potentially, one might want to use DefaultRender more broadly here if inputRender === true
+      }
+      // If inputRender is undefined or false, finalRender remains as initialized with partDefaults
+      return finalRender;
+    };
+
+    // Define parts with their own specific render properties
+    const fuselageVertices: Matter.Vector[] = [
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 20, y: 60 },
+      { x: 0, y: 60 },
+    ];
+    const fuselage = Matter.Bodies.fromVertices(
+      x,
+      y - 20, // Assuming y is center, adjust parts relative to this new interpretation
+      [fuselageVertices],
+      {
+        ...commonOptions, // Spread common physical properties (mass, friction etc. if any)
+        label: `${labelPrefix}_fuselage`,
+        collisionFilter: partCollisionFilter,
+        plugin: {
+          creationParams: { type: "polygon", vertices: fuselageVertices },
+        } as ICustomBodyPlugin,
+        render: getPartRenderOpts({ fillStyle: "#C0C0C0" }), // Silver
+      }
     );
 
-    if (!part1 || !part2) {
+    const noseConeVertices: Matter.Vector[] = [
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 10, y: -20 },
+    ];
+    const noseCone = Matter.Bodies.fromVertices(
+      x,
+      y - 60, // Positioned above the fuselage top
+      [noseConeVertices],
+      {
+        ...commonOptions,
+        label: `${labelPrefix}_noseCone`,
+        collisionFilter: partCollisionFilter,
+        plugin: {
+          creationParams: { type: "polygon", vertices: noseConeVertices },
+        } as ICustomBodyPlugin,
+        render: getPartRenderOpts({ fillStyle: "#D3D3D3" }), // Light grey
+      }
+    );
+
+    // For engineBlock, using a rectangle directly is simpler
+    // For creationParams, we can approximate its vertices if needed or simplify
+    const engineBlockWidth = 22;
+    const engineBlockHeight = 20;
+    // Vertices for engine block if needed by creationParams (relative to its center)
+    const engineBlockVertices: Matter.Vector[] = [
+      { x: -engineBlockWidth / 2, y: -engineBlockHeight / 2 },
+      { x: engineBlockWidth / 2, y: -engineBlockHeight / 2 },
+      { x: engineBlockWidth / 2, y: engineBlockHeight / 2 },
+      { x: -engineBlockWidth / 2, y: engineBlockHeight / 2 },
+    ];
+
+    const engineBlock = Matter.Bodies.rectangle(
+      x,
+      y + 40,
+      engineBlockWidth,
+      engineBlockHeight,
+      {
+        ...commonOptions,
+        label: `${labelPrefix}_engineBlock`,
+        collisionFilter: partCollisionFilter,
+        plugin: {
+          creationParams: { type: "polygon", vertices: engineBlockVertices },
+        } as ICustomBodyPlugin,
+        render: getPartRenderOpts({ fillStyle: "#A9A9A9" }), // Dark grey
+      }
+    );
+
+    const parts = [fuselage, noseCone, engineBlock].filter(
+      (p) => p !== undefined
+    ) as Matter.Body[];
+    if (parts.length === 0) {
       if (this.internalLoggingEnabled) {
         console.error(
-          `[PhysicsEngine.createRocketBody] FAILED to create one or more parts for rocket: ${finalLabel}. Part1: ${!!part1}, Part2: ${!!part2}`
+          `Rocket body ${labelPrefix} created with no parts successfully defined.`
         );
       }
-      throw new Error(`Failed to create parts for rocket body: ${finalLabel}`);
+      // Fallback: create a simple box if all parts failed, to avoid returning undefined
+      // though the factories for parts should throw if fromVertices fails due to poly-decomp
+      const fallbackBox = this.createBox(x, y, 20, 80, {
+        label: `${labelPrefix}_fallback`,
+        collisionFilter: mainCollisionFilter,
+        plugin: { creationParams: { type: "rocket" } }, // Still mark as rocket type
+        render: options?.render ?? { fillStyle: DefaultRender.fillStyle },
+      });
+      this.localBodyCache.set(fallbackBox.label, fallbackBox);
+      return fallbackBox;
     }
 
-    // Create the compound body from these parts
-    const rocket = Matter.Body.create({
-      parts: [part1, part2],
-      ...finalCompoundOptions, // Apply all other options (label, density, friction, plugin, etc.)
+    const rocketBody = Matter.Body.create({
+      parts: parts,
+      label: labelPrefix,
+      collisionFilter: mainCollisionFilter,
+      plugin: { creationParams: { type: "rocket" } } as ICustomBodyPlugin,
+      // Render options for the compound body itself (often not directly visible, parts are)
+      render: options?.render ?? { visible: false }, // Compound body often not rendered directly, or use DefaultRender
+      // Apply other properties from original options that are for the compound body
+      isStatic: options?.isStatic,
+      isSensor: options?.isSensor,
+      // Mass, density, inertia etc. for the compound body will be calculated by Matter.js from parts
+      // unless explicitly provided in options and overriding calculated values.
+      // We should be careful not to pass part-level density/mass in `options` here if we want auto-calc.
+      // If `options` contains `mass` or `density`, it will apply to the compound body.
+      ...(options?.density && { density: options.density }),
+      ...(options?.mass && { mass: options.mass }),
+      ...(options?.friction && { friction: options.friction }),
+      ...(options?.frictionAir && { frictionAir: options.frictionAir }),
+      ...(options?.frictionStatic && {
+        frictionStatic: options.frictionStatic,
+      }),
+      ...(options?.restitution && { restitution: options.restitution }),
+      ...(options?.slop && { slop: options.slop }),
+      ...(options?.angle && { angle: options.angle }),
+      ...(options?.angularVelocity && {
+        angularVelocity: options.angularVelocity,
+      }),
     });
 
-    // Set the initial position of the compound body in the world
-    Matter.Body.setPosition(rocket, { x, y });
-
-    // Apply initial angle and angular velocity if provided in options
-    if (options?.angle) {
-      Matter.Body.setAngle(rocket, options.angle);
-    }
-    if (options?.angularVelocity) {
-      Matter.Body.setAngularVelocity(rocket, options.angularVelocity);
+    // Store in local cache by label. This is now the main rocket body.
+    this.localBodyCache.set(rocketBody.label, rocketBody);
+    if (
+      !this.world.bodies.includes(rocketBody) &&
+      !this.world.composites.some((c) => c.bodies.includes(rocketBody))
+    ) {
+      Matter.Composite.add(this.world, rocketBody);
     }
 
-    Matter.Composite.add(this.world, rocket);
-    this.localBodyCache.set(finalLabel, rocket);
-    return rocket;
+    if (this.internalLoggingEnabled) {
+      // console.log(`Rocket body ${rocketBody.label} created with parts: ${rocketBody.parts.map(p => p.label).join(", ")}`);
+    }
+    return rocketBody;
   }
 
   // --- Utility functions for applying forces/impulses ---
@@ -594,9 +737,10 @@ export class PhysicsEngine {
           frictionStatic: body.frictionStatic,
           frictionAir: body.frictionAir,
           slop: body.slop,
-          isStatic: body.isStatic,
-          isSensor: body.isSensor,
-          isSleeping: body.isSleeping,
+          isStatic: typeof body.isStatic === "boolean" ? body.isStatic : false,
+          isSensor: typeof body.isSensor === "boolean" ? body.isSensor : false,
+          isSleeping:
+            typeof body.isSleeping === "boolean" ? body.isSleeping : false,
           collisionFilter: {
             category:
               body.collisionFilter.category || CollisionCategories.DEFAULT,
@@ -665,5 +809,302 @@ export class PhysicsEngine {
         bodies: serializedBodies,
       },
     };
+  }
+
+  public fromJSON(state: ISerializedPhysicsEngineState): void {
+    if (this.internalLoggingEnabled) {
+      console.log(
+        "PhysicsEngine.fromJSON called. Resetting and loading state."
+      );
+    }
+    // Reset existing engine state
+    Matter.World.clear(this.world, false); // Clear composites, bodies, constraints
+    Matter.Engine.clear(this.engine); // Clear engine events, etc.
+    this.celestialBodies = [];
+    this.localBodyCache.clear();
+    this.bodyIdCounter = 0; // Reset counter if it's used for IDs managed by PhysicsEngine
+    this.currentTick =
+      state.simulationTick !== undefined ? state.simulationTick : 0;
+
+    // Restore engine properties
+    this.fixedTimeStepMs = state.fixedTimeStepMs || this.fixedTimeStepMs; // Corrected: No 'engine' sub-object
+    this.G = state.G || this.G; // Corrected: No 'engine' sub-object
+    // Gravity is managed by PhysicsEngine, defaults are set in constructor/setExternalMatterEngine
+
+    // Restore celestial bodies
+    if (state.celestialBodies) {
+      this.celestialBodies = state.celestialBodies.map((scb) => ({
+        // Map ICelestialBodyData to ICelestialBody
+        id: scb.id,
+        mass: scb.mass,
+        position: { x: scb.position.x, y: scb.position.y }, // Already plain object
+        gravityRadius: scb.gravityRadius,
+        radius: scb.radius,
+        hasAtmosphere: scb.hasAtmosphere,
+        atmosphereLimitAltitude: scb.atmosphereLimitAltitude,
+        surfaceAirDensity: scb.surfaceAirDensity,
+        scaleHeight: scb.scaleHeight,
+      }));
+    }
+
+    const createdBodies: Map<number, Matter.Body> = new Map();
+    const serializedBodiesMap: Map<number, ISerializedMatterBody> = new Map();
+    if (state.world?.bodies) {
+      state.world.bodies.forEach((sBody) =>
+        serializedBodiesMap.set(sBody.id, sBody)
+      );
+    }
+
+    if (state.world?.bodies) {
+      for (const sBody of state.world.bodies) {
+        if (!sBody.plugin?.creationParams) {
+          if (this.internalLoggingEnabled) {
+            console.warn(
+              `Skipping body ID ${sBody.id} (label: ${sBody.label}) in fromJSON: missing creationParams.`
+            );
+          }
+          continue;
+        }
+
+        let newBody: Matter.Body | undefined;
+        const creationParams = sBody.plugin.creationParams;
+
+        let renderOptions: Matter.IBodyRenderOptions = {};
+        if (sBody.render) {
+          renderOptions = {
+            visible: sBody.render.visible,
+            opacity: sBody.render.opacity,
+            strokeStyle: sBody.render.strokeStyle,
+            fillStyle: sBody.render.fillStyle,
+            lineWidth: sBody.render.lineWidth,
+          };
+
+          let spriteOpts: Matter.IBodyRenderOptionsSprite | undefined =
+            undefined;
+          if (
+            sBody.render.sprite &&
+            typeof sBody.render.sprite.texture === "string"
+          ) {
+            spriteOpts = {
+              texture: sBody.render.sprite.texture,
+              xScale: sBody.render.sprite.xScale ?? 1, // Corrected: Default to 1
+              yScale: sBody.render.sprite.yScale ?? 1, // Corrected: Default to 1
+            };
+          }
+          renderOptions.sprite = spriteOpts;
+        }
+
+        const bodyOptions: Matter.IBodyDefinition = {
+          angle: sBody.angle === null ? undefined : sBody.angle, // Corrected: null to undefined
+          angularVelocity:
+            sBody.angularVelocity === null ? undefined : sBody.angularVelocity, // Corrected: null to undefined
+          // area: sBody.area, // Removed: Not in ISerializedMatterBody, derived by Matter
+          // axes: sBody.axes?.map((a: ISerializedVector) => ({ ...a })), // Removed: Not in ISerializedMatterBody
+          // bounds: sBody.bounds && { // Removed: Not in ISerializedMatterBody, derived by Matter
+          //   min: { ...(sBody.bounds.min || { x: 0, y: 0 }) },
+          //   max: { ...(sBody.bounds.max || { x: 0, y: 0 }) },
+          // },
+          collisionFilter: sBody.collisionFilter && {
+            // Assuming sBody.collisionFilter structure matches
+            category: sBody.collisionFilter.category,
+            group: sBody.collisionFilter.group,
+            mask: sBody.collisionFilter.mask,
+          },
+          density: sBody.density,
+          // force: { ...(sBody.force || { x: 0, y: 0 }) }, // Removed: Not in ISerializedMatterBody, transient
+          friction: sBody.friction,
+          frictionAir: sBody.frictionAir,
+          frictionStatic: sBody.frictionStatic,
+          id: sBody.id, // Matter.js will manage this if not unique, but good to provide
+          inertia: sBody.inertia,
+          inverseInertia: sBody.inverseInertia,
+          inverseMass: sBody.inverseMass,
+          isSensor: sBody.isSensor,
+          isSleeping: sBody.isSleeping,
+          isStatic: sBody.isStatic,
+          label: sBody.label || `body_${sBody.id}`,
+          mass: sBody.mass,
+          // motion: sBody.motion, // Removed: Not in ISerializedMatterBody, transient
+          // parent: sBody.parent ? createdBodies.get(sBody.parent.id) : undefined, // Removed: Not in ISerializedMatterBody, handled by parts
+          plugin: {
+            dragCoefficientArea: sBody.plugin.dragCoefficientArea,
+            effectiveNoseRadius: sBody.plugin.effectiveNoseRadius,
+            currentHeatFlux: sBody.plugin.currentHeatFlux,
+            creationParams: sBody.plugin.creationParams,
+          } as ICustomBodyPlugin,
+          position: { ...(sBody.position || { x: 0, y: 0 }) },
+          render: renderOptions,
+          restitution: sBody.restitution,
+          // sleepCounter: sBody.sleepCounter, // Removed: Not in ISerializedMatterBody, transient
+          // sleepThreshold: sBody.sleepThreshold, // Removed: Not in ISerializedMatterBody or engine global
+          slop: sBody.slop,
+          // timeScale: sBody.timeScale, // Removed: Not in ISerializedMatterBody
+          // torque: sBody.torque, // Removed: Not in ISerializedMatterBody, transient
+          type: sBody.type === "body" ? undefined : sBody.type, // Matter.Body.create expects 'body' to be undefined for type
+          velocity: { ...(sBody.velocity || { x: 0, y: 0 }) },
+          // vertices: sBody.vertices?.map((v: ISerializedVector) => ({ ...v })), // Removed: Use creationParams for polygons
+        };
+
+        if (
+          bodyOptions.type === "composite" &&
+          creationParams.type !== "rocket"
+        ) {
+          // If it's a generic composite not handled by a factory, we might need to skip direct creation here
+          // and handle it in a separate pass or ensure its parts are processed first.
+          // For now, we primarily expect rockets as compound bodies handled by factories,
+          // or simple bodies.
+          // This path is for bodies that have sBody.type === 'composite' but no specific factory.
+          // We will attempt to create it using Matter.Body.create later, assuming parts are set correctly.
+        }
+
+        if (creationParams.type === "rocket") {
+          // Rocket factory handles its own parts based on its internal definition,
+          // not from sBody.parts directly here.
+          newBody = this.createRocketBody(
+            bodyOptions.position?.x || 0,
+            bodyOptions.position?.y || 0,
+            bodyOptions
+          );
+        } else if (creationParams.type === "box") {
+          newBody = this.createBox(
+            bodyOptions.position?.x || 0,
+            bodyOptions.position?.y || 0,
+            creationParams.width,
+            creationParams.height,
+            bodyOptions
+          );
+        } else if (creationParams.type === "circle") {
+          newBody = this.createCircle(
+            bodyOptions.position?.x || 0,
+            bodyOptions.position?.y || 0,
+            creationParams.radius,
+            bodyOptions
+          );
+        } else if (creationParams.type === "polygon") {
+          if (creationParams.vertices) {
+            // vertices are from creationParams
+            newBody = Matter.Bodies.fromVertices(
+              bodyOptions.position?.x || 0,
+              bodyOptions.position?.y || 0,
+              [creationParams.vertices], // fromVertices expects Vector[][]
+              bodyOptions
+            );
+          }
+        } else if (
+          sBody.parts &&
+          sBody.parts.length > 0 &&
+          sBody.type === "composite" &&
+          !newBody
+        ) {
+          // Fallback for generic composite bodies (not rockets handled by factory)
+          // sBody.parts contains IDs of part bodies. These parts should have already been created
+          // in this loop and exist in `createdBodies`.
+          const actualPartBodies: Matter.Body[] = [];
+          for (const partId of sBody.parts) {
+            // partId is a number
+            const partMatterBody = createdBodies.get(partId);
+            if (partMatterBody) {
+              actualPartBodies.push(partMatterBody);
+            } else {
+              if (this.internalLoggingEnabled) {
+                console.warn(
+                  `Could not find already created Matter.Body for part ID ${partId} when reconstructing composite ${sBody.label}`
+                );
+              }
+            }
+          }
+          if (actualPartBodies.length > 0) {
+            // Ensure bodyOptions for the composite parent don't themselves define parts that conflict.
+            // Matter.Body.create will set the .parent property on the parts.
+            const compositeOptions = { ...bodyOptions };
+            delete compositeOptions.parts; // Remove if present from sBody, use actualPartBodies
+
+            newBody = Matter.Body.create({
+              ...compositeOptions,
+              parts: actualPartBodies,
+            });
+            // After Matter.Body.create with parts, the parts are cloned, and their .parent is set.
+            // We might need to update `createdBodies` to store these new part instances if we need to reference them later.
+            // For now, assume the parent `newBody` is the main reference.
+          } else {
+            if (this.internalLoggingEnabled) {
+              console.warn(
+                `Composite body ${sBody.label} (ID: ${sBody.id}) had part IDs listed but no corresponding Matter.Body parts were found/recreated.`
+              );
+            }
+          }
+        }
+
+        if (newBody) {
+          // Apply post-creation properties that might not be fully set by options or factories
+          if (sBody.velocity)
+            Matter.Body.setVelocity(newBody, { ...sBody.velocity });
+          if (sBody.angularVelocity !== null)
+            Matter.Body.setAngularVelocity(newBody, sBody.angularVelocity); // Corrected: Check for null
+          if (sBody.position)
+            Matter.Body.setPosition(newBody, { ...sBody.position });
+          if (sBody.angle !== null) Matter.Body.setAngle(newBody, sBody.angle); // Corrected: Check for null
+          if (sBody.isSleeping !== undefined)
+            Matter.Sleeping.set(newBody, sBody.isSleeping); // Corrected: Matter.Sleeping.set
+
+          // Mass and inertia are usually set by density/geometry via factory, or by direct options.
+          // Explicitly setting them post-creation if they were in sBody:
+          if (sBody.mass !== undefined)
+            Matter.Body.setMass(newBody, sBody.mass);
+          if (sBody.inertia !== undefined)
+            Matter.Body.setInertia(newBody, sBody.inertia);
+
+          // Add to world and cache
+          // Note: factory methods (createBox, etc.) ALREADY add to world and localBodyCache.
+          // If newBody was created by a factory, this.addBody might be redundant or harmless.
+          // If created by Matter.Bodies.fromVertices or Matter.Body.create, it needs to be added.
+          if (
+            !this.localBodyCache.has(newBody.label) &&
+            !this.world.bodies.includes(newBody)
+          ) {
+            this.addBody(newBody); // Adds to world and localBodyCache
+          } else if (
+            this.localBodyCache.has(newBody.label) &&
+            !this.world.bodies.includes(newBody)
+          ) {
+            // It's in cache but not world (can happen if factory adds to cache but not world, though unlikely for ours)
+            Matter.Composite.add(this.world, newBody);
+          } else if (
+            !this.localBodyCache.has(newBody.label) &&
+            this.world.bodies.includes(newBody)
+          ) {
+            // In world but not cache (e.g. if a factory added to world but not cache)
+            this.localBodyCache.set(newBody.label, newBody);
+          }
+          // Ensure the final body instance (which might be a clone if parts were involved) is in createdBodies
+          createdBodies.set(sBody.id, newBody);
+
+          if (this.internalLoggingEnabled) {
+            console.log(
+              `Recreated/Processed body ID ${newBody.id} (original sBody.id ${
+                sBody.id
+              }, label: ${newBody.label}) using type: ${
+                creationParams?.type || sBody.type
+              }`
+            );
+          }
+        } else {
+          if (this.internalLoggingEnabled) {
+            console.warn(
+              `Failed to recreate body ID ${sBody.id} (label: ${sBody.label}). No suitable creation logic found or parts were empty.`
+            );
+          }
+        }
+      }
+    }
+
+    if (this.internalLoggingEnabled) {
+      console.log("PhysicsEngine.fromJSON state loading completed.");
+      console.log(
+        `Engine has ${
+          Matter.Composite.allBodies(this.world).length
+        } bodies after fromJSON.`
+      );
+    }
   }
 }

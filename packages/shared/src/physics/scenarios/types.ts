@@ -93,9 +93,14 @@ export interface ISerializedBodyRenderOptions {
 }
 
 export interface ISerializedCustomBodyPlugin {
-  dragCoefficientArea?: number;
-  effectiveNoseRadius?: number;
-  currentHeatFlux?: number;
+  dragCoefficientArea?: number | null;
+  effectiveNoseRadius?: number | null;
+  currentHeatFlux?: number | null;
+  creationParams?: // Added for body reconstruction
+  | { type: "box"; width: number; height: number }
+    | { type: "circle"; radius: number }
+    | { type: "rocket" }
+    | { type: "polygon"; vertices: { x: number; y: number }[] }; // Use plain objects for vertices
 }
 
 export interface ISerializedMatterBody {
