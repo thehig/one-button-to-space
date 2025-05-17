@@ -23,6 +23,7 @@ export const eccentricOrbitScenario: IScenario = {
       type: "circle",
       label: "eccentricSatellite",
       initialPosition: { x: 1000, y: 0 },
+      initialVelocity: { x: 0.05, y: 0.5 },
       radius: 5,
       options: {
         density: 0.01,

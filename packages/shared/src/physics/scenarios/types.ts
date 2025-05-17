@@ -48,3 +48,6 @@ export interface IScenario {
   // or handled by the test runner consuming the scenario.
   // For now, assertions will remain in the .spec.ts files.
 }
+
+// Add re-exports
+export type { ICelestialBody, ICustomBodyPlugin };

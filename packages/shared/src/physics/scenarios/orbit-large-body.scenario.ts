@@ -22,6 +22,7 @@ export const orbitLargeBodyScenario: IScenario = {
       type: "circle",
       label: "orbitingSatellite",
       initialPosition: { x: 10000, y: 0 },
+      initialVelocity: { x: 0, y: 0.24 },
       radius: 5,
       options: {
         density: 0.01,

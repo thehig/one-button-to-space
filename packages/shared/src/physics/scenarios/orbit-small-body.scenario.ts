@@ -22,6 +22,7 @@ export const orbitSmallBodyScenario: IScenario = {
       type: "circle",
       label: "smallOrbitingSatellite",
       initialPosition: { x: 400, y: 0 },
+      initialVelocity: { x: 0, y: 1.2 },
       radius: 2,
       options: {
         density: 0.01,
