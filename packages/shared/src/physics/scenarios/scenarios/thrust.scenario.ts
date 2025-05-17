@@ -43,5 +43,5 @@ export const thrustScenario: IScenario = {
   initialBodies: [baseInitialRocket],
   actions: baseThrustAction, // Apply the thrust action
   simulationSteps: 100,
-  snapshotSteps: [1, 10, 50, 100],
+  snapshotSteps: [1, 10, 50, 100, 200, 300, 400, 500, 1000],
 };

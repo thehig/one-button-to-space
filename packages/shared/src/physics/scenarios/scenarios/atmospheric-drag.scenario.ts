@@ -48,7 +48,7 @@ export const atmosphericDragScenario: IScenario = {
   initialBodies: [baseInitialBody],
   actions: [],
   simulationSteps: 100, // Max steps for this scenario configuration
-  snapshotSteps: [1, 10, 50, 100], // Steps at which to take snapshots
+  snapshotSteps: [1, 10, 50, 100, 200, 300, 400, 500, 1000], // Steps at which to take snapshots
 };
 
 // Remove old individual exports

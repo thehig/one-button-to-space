@@ -40,5 +40,5 @@ export const rotationScenario: IScenario = {
   initialBodies: [baseInitialBox],
   actions: baseRotationAction,
   simulationSteps: 100,
-  snapshotSteps: [1, 10, 50, 100],
+  snapshotSteps: [1, 10, 50, 100, 200, 300, 400, 500, 1000],
 };

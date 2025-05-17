@@ -37,5 +37,5 @@ export const gravityPullVeryLargeBodyScenario: IScenario = {
   initialBodies: [baseInitialSatelliteVeryLargeGravity],
   actions: [],
   simulationSteps: 100,
-  snapshotSteps: [1, 10, 50, 100],
+  snapshotSteps: [1, 10, 50, 100, 200, 300, 400, 500, 1000],
 };
