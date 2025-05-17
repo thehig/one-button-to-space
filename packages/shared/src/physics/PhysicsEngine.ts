@@ -32,12 +32,14 @@ export class PhysicsEngine {
   private fixedTimeStepMs: number = 1000 / 60; // e.g., 60 FPS
   private accumulatedTime: number = 0;
   private celestialBodies: ICelestialBody[] = []; // For variable gravity
-  private G: number = 0.001; // Gravitational constant, adjust as needed
+  private G: number; // Gravitational constant, now instance-specific
   // Potentially a renderer if we want to debug draw on server or share debug logic
   // private renderer: Matter.Render;
 
-  constructor(fixedTimeStepMs: number = 1000 / 60) {
+  constructor(fixedTimeStepMs: number = 1000 / 60, customG?: number) {
     this.fixedTimeStepMs = fixedTimeStepMs;
+    this.G = customG !== undefined ? customG : 0.001; // Default G if not provided
+
     // Initialize the Matter.js engine
     this.engine = Matter.Engine.create();
     this.world = this.engine.world;
@@ -94,6 +96,7 @@ export class PhysicsEngine {
           );
           totalForce = Matter.Vector.add(totalForce, force);
         }
+
         this.applyForceToBody(body, body.position, totalForce); // Use wrapper
       } else {
         // Fallback to simple downward gravity
@@ -342,9 +345,11 @@ export class PhysicsEngine {
     trueForce: Matter.Vector // Assuming this is the desired physical force
   ): void {
     // Scale trueForce by (1 / fixedTimeStepMs) based on Matter.js Engine.update behavior
+    // This was based on a previous key discovery for the project's physics.
     let scaledForce = Matter.Vector.mult(trueForce, 1 / this.fixedTimeStepMs);
 
     // TEMP: Cap scaledForce magnitude to avoid Matter.js instability with large forces
+    // (Restoring this as it was part of the previously stable system)
     const maxScaledForceMagnitude = 50;
     const currentScaledForceMagnitude = Matter.Vector.magnitude(scaledForce);
     if (currentScaledForceMagnitude > maxScaledForceMagnitude) {
