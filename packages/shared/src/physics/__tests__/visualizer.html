@@ -16,15 +16,22 @@
       <button id="play-pause-button">Play</button>
       <button id="reset-button">Reset</button>
       <span style="margin-left: 15px">
-        <input type="checkbox" id="debug-logging-checkbox" />
+        <input type="checkbox" id="debug-logging-checkbox" checked />
         <label for="debug-logging-checkbox">Enable Debug Logging</label>
       </span>
     </div>
-    <div id="matter-container"></div>
 
-    <div id="state-playground-container">
-      <h2>State Playground (toJSON)</h2>
-      <textarea id="state-json-display" readonly rows="20" cols="60"></textarea>
+    <div id="main-content-area">
+      <div id="state-playground-container">
+        <h2>State Playground (toJSON)</h2>
+        <textarea
+          id="state-json-display"
+          readonly
+          rows="20"
+          cols="60"
+        ></textarea>
+      </div>
+      <div id="matter-container"></div>
     </div>
 
     <script src="../../../node_modules/poly-decomp/build/decomp.js"></script>

@@ -1,26 +1,78 @@
 body {
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   font-family: sans-serif;
+  margin: 20px;
   background-color: #f0f0f0;
 }
 
+h1 {
+  text-align: center;
+  color: #333;
+}
+
 .controls {
-  padding: 15px;
-  background-color: #fff;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
   display: flex;
-  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.controls label,
+.controls select,
+.controls button {
+  margin: 0 10px;
+}
+
+#main-content-area {
+  display: flex;
+  flex-direction: row;
+  height: 610px; /* Adjust as needed, should be slightly more than canvas height to avoid scrollbars */
+}
+
+#state-playground-container {
+  flex: 0 0 40%; /* State playground takes 40% of the width */
+  padding-right: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* Allow scrolling for playground content if it overflows */
+}
+
+#state-playground-container h2 {
+  margin-top: 0;
+  text-align: center;
+}
+
+#state-json-display {
+  width: 100%;
+  flex-grow: 1; /* Textarea fills available vertical space */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+  font-family: monospace;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+
+#matter-container {
+  flex: 1 1 60%; /* Matter container takes the remaining 60% */
+  border: 1px solid #ccc;
+  position: relative; /* For potential absolute positioning of elements inside if needed */
+  box-sizing: border-box;
+  display: flex; /* To help center canvas if it's smaller */
+  justify-content: center;
   align-items: center;
 }
 
+/* Ensure canvas inside matter-container does not overflow its parent by default */
 #matter-container canvas {
-  border: 1px solid #ccc;
-  background-color: #fff;
+  max-width: 100%;
+  max-height: 100%;
+  display: block; /* Remove extra space below canvas */
 }
 
 select,
