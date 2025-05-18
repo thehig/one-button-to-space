@@ -30,15 +30,17 @@ h1 {
   display: flex;
   flex-direction: row;
   height: 610px; /* Adjust as needed, should be slightly more than canvas height to avoid scrollbars */
+  gap: 20px; /* Add some space between the columns */
 }
 
 #state-playground-container {
-  flex: 0 0 40%; /* State playground takes 40% of the width */
-  padding-right: 20px;
+  flex: 0 0 30%; /* Engine State takes 30% */
+  padding-right: 0; /* Removed padding-right as gap is used now */
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   overflow-y: auto; /* Allow scrolling for playground content if it overflows */
+  overflow-x: auto;
 }
 
 #state-playground-container h2 {
@@ -58,8 +60,36 @@ h1 {
   overflow-x: auto;
 }
 
+#render-control-playground-container {
+  flex: 0 0 30%; /* Render/Control takes 30% */
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 10px;
+  background-color: #f9f9f9; /* Light background for this panel */
+}
+
+#render-control-playground-container h2,
+#render-control-playground-container h3 {
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+#render-control-playground-container .info-section p,
+#render-control-playground-container .control-section div {
+  margin-bottom: 8px;
+}
+
+#render-control-playground-container .control-section button {
+  margin-top: 5px;
+}
+
 #matter-container {
-  flex: 1 1 60%; /* Matter container takes the remaining 60% */
+  flex: 1 1 40%; /* Matter container takes the remaining 40% */
   border: 1px solid #ccc;
   position: relative; /* For potential absolute positioning of elements inside if needed */
   box-sizing: border-box;

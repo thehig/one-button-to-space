@@ -41,6 +41,38 @@ const stateJsonDisplay = document.getElementById(
   "state-json-display"
 ) as HTMLTextAreaElement;
 
+// DOM Elements for Render/Control Playground
+const renderCanvasDimsDisplay = document.getElementById(
+  "render-canvas-dims"
+) as HTMLSpanElement;
+const renderViewBoundsDisplay = document.getElementById(
+  "render-view-bounds"
+) as HTMLSpanElement;
+const renderZoomLevelDisplay = document.getElementById(
+  "render-zoom-level"
+) as HTMLSpanElement;
+const renderCurrentTickDisplay = document.getElementById(
+  "render-current-tick"
+) as HTMLSpanElement;
+const scenarioTotalStepsDisplay = document.getElementById(
+  "scenario-total-steps"
+) as HTMLSpanElement;
+const stepOnceButton = document.getElementById(
+  "step-once-button"
+) as HTMLButtonElement;
+const stepNTicksInput = document.getElementById(
+  "step-n-ticks-input"
+) as HTMLInputElement;
+const stepNButton = document.getElementById(
+  "step-n-button"
+) as HTMLButtonElement;
+const stepMSecondsInput = document.getElementById(
+  "step-m-seconds-input"
+) as HTMLInputElement;
+const stepMButton = document.getElementById(
+  "step-m-button"
+) as HTMLButtonElement;
+
 // Matter.js specific for visualization
 let engine: Matter.Engine; // The visual Matter.js engine
 let render: Matter.Render; // The visual Matter.js renderer
@@ -244,6 +276,7 @@ function loadScenario(selectedId: string) {
     );
     renderState(initialState);
     updateStatePlayground(initialState); // Update the state playground UI
+    updateRenderControlPlayground(); // Update render/control UI
     console.log("[Visualizer] Scenario loaded with persistent PhysicsEngine.");
   } else {
     console.error(
@@ -559,16 +592,20 @@ function renderState(state: ISerializedPhysicsEngineState) {
   // Removed the forced bounds override from here
 }
 
-function gameLoop() {
-  if (!isPlaying || !currentScenario || !physicsEngine) {
-    return;
+function _performSingleSimulationStep() {
+  if (!currentScenario || !physicsEngine) {
+    // This check is important here as well, in case called directly when state is not ready
+    console.warn(
+      "[Visualizer _performSingleSimulationStep] Scenario or PhysicsEngine not ready."
+    );
+    return false; // Indicate failure or inability to step
   }
 
   // Process actions for the current tick BEFORE stepping the engine
   if (currentScenario.actions) {
     for (const action of currentScenario.actions) {
       if (action.step === currentTick) {
-        const targetBody = createdBodiesMap.get(action.targetBodyId); // Get body from our physicsEngine's map
+        const targetBody = createdBodiesMap.get(action.targetBodyId);
         if (!targetBody) {
           console.warn(
             `[Visualizer GameLoop Tick ${currentTick}] Action target body ID ${action.targetBodyId} not found for applying action.`
@@ -604,23 +641,31 @@ function gameLoop() {
     }
   }
 
-  physicsEngine.fixedStep(timeStep); // Step our persistent engine
-  currentTick++; // Increment tick AFTER stepping and applying actions for the previous tick value
+  physicsEngine.fixedStep(timeStep);
+  currentTick++;
 
-  const currentState = physicsEngine.toJSON(); // Get its current state
-  renderState(currentState); // Render that state (which will be for the new currentTick)
-  updateStatePlayground(currentState); // Update the state playground UI
+  const currentState = physicsEngine.toJSON();
+  renderState(currentState);
+  updateStatePlayground(currentState);
+  updateRenderControlPlayground();
 
-  // Compare new currentTick to simulationSteps. Note: If simulationSteps is 100,
-  // this means 100 steps are taken. The last state rendered will be tick 100.
-  // The condition should be currentTick >= simulationSteps if simulationSteps is the number of states (0 to N-1)
-  // or currentTick > simulationSteps if simulationSteps is number of steps taken (1 to N).
-  // Given typical simulation loop, currentTick will be N after N steps. So currentTick >= N.
-  if (currentTick >= currentScenario.simulationSteps) {
+  return true; // Indicate step was successful and simulation can continue
+}
+
+function gameLoop() {
+  if (!isPlaying || !currentScenario || !physicsEngine) {
+    return;
+  }
+  _performSingleSimulationStep();
+
+  // For continuous play, check if the scenario's defined step limit has been reached.
+  if (currentScenario && currentTick >= currentScenario.simulationSteps) {
+    if (debugLoggingCheckbox.checked) {
+      console.log(
+        `[GameLoop] Auto-pausing: currentTick (${currentTick}) reached/exceeded scenario simulationSteps (${currentScenario.simulationSteps}).`
+      );
+    }
     pauseSimulation();
-    console.log(
-      `[Visualizer] Scenario reached its simulationSteps (${currentScenario.simulationSteps}). Final tick displayed: ${currentTick}.`
-    );
   }
 }
 
@@ -702,6 +747,49 @@ debugLoggingCheckbox.addEventListener("change", () => {
   }
 });
 
+// Simulation Control Button Listeners
+stepOnceButton.addEventListener("click", () => {
+  if (!currentScenario || !physicsEngine) {
+    alert("Please load a scenario first.");
+    return;
+  }
+  pauseSimulation(); // Ensure we are paused before single stepping
+  _performSingleSimulationStep(); // Execute one simulation step
+});
+
+stepNButton.addEventListener("click", () => {
+  if (!currentScenario || !physicsEngine) {
+    alert("Please load a scenario first.");
+    return;
+  }
+  pauseSimulation();
+  const numTicks = parseInt(stepNTicksInput.value, 10);
+  if (isNaN(numTicks) || numTicks <= 0) {
+    alert("Please enter a valid positive number of ticks.");
+    return;
+  }
+  for (let i = 0; i < numTicks; i++) {
+    if (!_performSingleSimulationStep()) break; // Stop if simulation ended or failed to step
+  }
+});
+
+stepMButton.addEventListener("click", () => {
+  if (!currentScenario || !physicsEngine) {
+    alert("Please load a scenario first.");
+    return;
+  }
+  pauseSimulation();
+  const numSeconds = parseFloat(stepMSecondsInput.value);
+  if (isNaN(numSeconds) || numSeconds <= 0) {
+    alert("Please enter a valid positive number of seconds.");
+    return;
+  }
+  const numTicksToRun = Math.round(numSeconds * (1000 / timeStep));
+  for (let i = 0; i < numTicksToRun; i++) {
+    if (!_performSingleSimulationStep()) break; // Stop if simulation ended or failed to step
+  }
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   if (scenariosToRun.length > 0) {
     populateScenarioSelector();
@@ -776,5 +864,36 @@ function drawGrid() {
 function updateStatePlayground(state: ISerializedPhysicsEngineState) {
   if (stateJsonDisplay) {
     stateJsonDisplay.value = JSON.stringify(state, null, 2); // Pretty print JSON
+  }
+}
+
+function updateRenderControlPlayground() {
+  if (!render || !physicsEngine) return;
+
+  if (renderCanvasDimsDisplay && render.canvas) {
+    renderCanvasDimsDisplay.textContent = `${render.canvas.width}x${render.canvas.height}`;
+  }
+  if (renderViewBoundsDisplay && render.bounds) {
+    renderViewBoundsDisplay.textContent = `min:(${render.bounds.min.x.toFixed(
+      2
+    )}, ${render.bounds.min.y.toFixed(2)}), max:(${render.bounds.max.x.toFixed(
+      2
+    )}, ${render.bounds.max.y.toFixed(2)})`;
+  }
+  if (renderZoomLevelDisplay && render.canvas && render.bounds) {
+    const viewWidthWorld = render.bounds.max.x - render.bounds.min.x;
+    if (viewWidthWorld > 0) {
+      const scaleX = render.canvas.width / viewWidthWorld;
+      renderZoomLevelDisplay.textContent = `${scaleX.toFixed(2)}x`;
+    } else {
+      renderZoomLevelDisplay.textContent = "N/A";
+    }
+  }
+  if (renderCurrentTickDisplay) {
+    renderCurrentTickDisplay.textContent = currentTick.toString();
+  }
+  if (scenarioTotalStepsDisplay && currentScenario) {
+    scenarioTotalStepsDisplay.textContent =
+      currentScenario.simulationSteps.toString();
   }
 }
