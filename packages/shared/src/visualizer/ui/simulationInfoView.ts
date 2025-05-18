@@ -1,7 +1,4 @@
-import {
-  ISerializedPhysicsEngineState,
-  IPhysicsEngineSettings,
-} from "../scenarios/types";
+import { ISerializedPhysicsEngineState } from "../../physics/scenarios/types";
 import { Vector } from "matter-js";
 
 function createTextElement(text: string): HTMLParagraphElement {

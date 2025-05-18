@@ -1,7 +1,7 @@
 import Matter from "matter-js";
-import { PhysicsEngine } from "../PhysicsEngine";
+import { PhysicsEngine } from "../physics/PhysicsEngine";
 // Import the scenariosToRun array directly
-import { scenariosToRun, ScenarioEntry } from "../scenarios/index";
+import { scenariosToRun, ScenarioEntry } from "../physics/scenarios/index";
 // Import runScenario helper
 // import { runScenario } from "../scenarios/scenario-runner.helper"; // No longer directly used in gameLoop
 import type {
@@ -11,7 +11,7 @@ import type {
   ISerializedPhysicsEngineState,
   ISerializedMatterBody, // Added for clarity, though types.ts is the source of truth
   ICelestialBodyData, // Added for clarity
-} from "../scenarios/types.ts";
+} from "../physics/scenarios/types.ts";
 import { updateSimulationInfoView } from "./ui/simulationInfoView";
 import { updateDynamicBodiesView } from "./ui/dynamicBodiesView";
 import { updateCelestialBodiesView } from "./ui/celestialBodiesView";

@@ -10,7 +10,7 @@
     "dev": "tsc -w",
     "test": "mocha --require ts-node/register src/**/*.spec.ts",
     "test:update-snapshots": "cross-env UPDATE_SNAPSHOTS=true mocha --require ts-node/register src/**/*.spec.ts",
-    "visualize": "parcel serve src/physics/__tests__/visualizer.html"
+    "visualize": "parcel serve src/visualizer/visualizer.html"
   },
   "keywords": [],
   "author": "",

@@ -1,4 +1,7 @@
-import { ICelestialBodyData, ISerializedVector } from "../scenarios/types";
+import {
+  ICelestialBodyData,
+  ISerializedVector,
+} from "../../physics/scenarios/types";
 
 // Helper functions (can be refactored into a shared UI utils file later if more views are added)
 function createSectionTitle(text: string): HTMLHeadingElement {

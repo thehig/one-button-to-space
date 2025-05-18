@@ -1,4 +1,7 @@
-import { ISerializedMatterBody, ISerializedVector } from "../scenarios/types";
+import {
+  ISerializedMatterBody,
+  ISerializedVector,
+} from "../../physics/scenarios/types";
 
 function createSectionTitle(text: string): HTMLHeadingElement {
   const h4 = document.createElement("h4");
