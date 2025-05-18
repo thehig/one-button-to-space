@@ -10,6 +10,7 @@ import type {
   // ScenarioBodyInitialState, // Not directly used here
   ISerializedPhysicsEngineState,
   ISerializedMatterBody, // Added for clarity, though types.ts is the source of truth
+  ICelestialBodyData, // Added for clarity
 } from "../scenarios/types.ts";
 import { updateSimulationInfoView } from "./ui/simulationInfoView";
 import { updateDynamicBodiesView } from "./ui/dynamicBodiesView";
@@ -35,6 +36,9 @@ const playPauseButton = document.getElementById(
 const resetButton = document.getElementById(
   "reset-button"
 ) as HTMLButtonElement;
+const resetCameraButton = document.getElementById(
+  "reset-camera-button"
+) as HTMLButtonElement; // New button
 const matterContainer = document.getElementById(
   "matter-container"
 ) as HTMLDivElement;
@@ -82,6 +86,7 @@ const stepMSecondsInput = document.getElementById(
 const stepMButton = document.getElementById(
   "step-m-button"
 ) as HTMLButtonElement;
+const zoomSlider = document.getElementById("zoom-slider") as HTMLInputElement;
 
 // Matter.js specific for visualization
 let engine: Matter.Engine; // The visual Matter.js engine
@@ -285,8 +290,8 @@ function loadScenario(selectedId: string) {
       JSON.stringify(initialState).substring(0, 500) + "..." // Log snippet
     );
     renderState(initialState);
-    updateEngineStateVisualization(initialState); // Update the UI panels
-    updateRenderControlPlayground(); // Update render/control UI
+    updateEngineStateVisualization(initialState);
+    updateRenderControlPlayground(); // Ensure this is still called
     console.log("[Visualizer] Scenario loaded with persistent PhysicsEngine.");
   } else {
     console.error(
@@ -497,109 +502,8 @@ function renderState(state: ISerializedPhysicsEngineState) {
     Matter.World.add(engine.world, bodiesToRender); // Add to the visual Matter.js engine
   }
 
-  if (render) {
-    if (bodiesToRender.length > 0) {
-      const allVisualWorldBodies = Matter.Composite.allBodies(engine.world);
-      if (allVisualWorldBodies.length > 0) {
-        if (debugLoggingCheckbox.checked) {
-          console.log(
-            `[Visualizer RenderState Tick ${currentTick}] allVisualWorldBodies.length: ${allVisualWorldBodies.length}`
-          );
-          if (allVisualWorldBodies.length > 0 && allVisualWorldBodies[0]) {
-            const firstBody = allVisualWorldBodies[0];
-            console.log(
-              `[Visualizer RenderState Tick ${currentTick}] First body in allVisualWorldBodies: id=${firstBody.id}, label='${firstBody.label}', pos=(${firstBody.position.x},${firstBody.position.y}), bounds=(${firstBody.bounds.min.x},${firstBody.bounds.min.y})-(${firstBody.bounds.max.x},${firstBody.bounds.max.y})`
-            );
-            if (firstBody.vertices && firstBody.vertices.length > 0) {
-              const simplifiedVertices = firstBody.vertices
-                .slice(0, 5)
-                .map((v) => ({ x: v.x, y: v.y }));
-              console.log(
-                `[Visualizer RenderState Tick ${currentTick}] First body vertices (first few simplified):`,
-                JSON.stringify(simplifiedVertices)
-              );
-            } else {
-              console.log(
-                `[Visualizer RenderState Tick ${currentTick}] First body has no vertices or empty vertices array.`
-              );
-            }
-            if (firstBody.parts && firstBody.parts.length > 0) {
-              console.log(
-                `[Visualizer RenderState Tick ${currentTick}] First body parts.length: ${
-                  firstBody.parts.length
-                }, first part id: ${
-                  firstBody.parts[0] ? firstBody.parts[0].id : "N/A"
-                }`
-              );
-            } else {
-              console.log(
-                `[Visualizer RenderState Tick ${currentTick}] First body has no parts or empty parts array.`
-              );
-            }
-          }
-        }
-        if (debugLoggingCheckbox.checked) {
-          console.log(
-            `[Visualizer RenderState Tick ${currentTick}] Before lookAt - Render Bounds (current view): min.x=${render.bounds.min.x}, min.y=${render.bounds.min.y}, max.x=${render.bounds.max.x}, max.y=${render.bounds.max.y}`
-          );
-          console.log(
-            `[Visualizer RenderState Tick ${currentTick}] Calling lookAt with ${allVisualWorldBodies.length} bodies.`
-          );
-        }
-
-        const canvasPadding = {
-          x: (render.options.width || 800) * 0.1, // 10% padding, default 80px
-          y: (render.options.height || 600) * 0.1, // 10% padding, default 60px
-        };
-
-        Matter.Render.lookAt(render, allVisualWorldBodies, canvasPadding);
-
-        if (debugLoggingCheckbox.checked) {
-          console.log(
-            `[Visualizer RenderState Tick ${currentTick}] After lookAt with canvasPadding - Render Bounds (new view): min.x=${render.bounds.min.x}, min.y=${render.bounds.min.y}, max.x=${render.bounds.max.x}, max.y=${render.bounds.max.y}`
-          );
-          const finalViewWidth = render.bounds.max.x - render.bounds.min.x;
-          const finalViewHeight = render.bounds.max.y - render.bounds.min.y;
-          console.log(
-            `[Visualizer RenderState Tick ${currentTick}] Final view dimensions after lookAt: width=${finalViewWidth}, height=${finalViewHeight}`
-          );
-          if (
-            !isFinite(finalViewWidth) ||
-            !isFinite(finalViewHeight) ||
-            finalViewWidth <= 0 ||
-            finalViewHeight <= 0
-          ) {
-            console.warn(
-              `[Visualizer RenderState Tick ${currentTick}] WARNING: lookAt resulted in non-finite or non-positive view dimensions. Width: ${finalViewWidth}, Height: ${finalViewHeight}. Consider default view if issues persist.`
-            );
-            // As a fallback if lookAt still produces bad bounds with actual bodies
-            // Matter.Render.lookAt(render, { min: { x: -400, y: -300 }, max: { x: 400, y: 300 } });
-          }
-        }
-      } else {
-        if (debugLoggingCheckbox.checked) {
-          console.log(
-            `[Visualizer RenderState Tick ${currentTick}] No visual bodies in world after attempting to add. Using default view.`
-          );
-        }
-        Matter.Render.lookAt(render, {
-          min: { x: -400, y: -300 },
-          max: { x: 400, y: 300 },
-        });
-      }
-    } else {
-      if (debugLoggingCheckbox.checked) {
-        console.log(
-          `[Visualizer RenderState Tick ${currentTick}] No bodies to render from state. Using default view.`
-        );
-      }
-      Matter.Render.lookAt(render, {
-        min: { x: -400, y: -300 },
-        max: { x: 400, y: 300 },
-      });
-    }
-  }
-  // Removed the forced bounds override from here
+  // CAMERA LOGIC REMOVED FROM renderState
+  // The camera will be positioned by resetViewToFitAll or other dedicated camera controls.
 }
 
 function _performSingleSimulationStep() {

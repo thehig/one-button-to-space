@@ -14,7 +14,8 @@
         <option value="">--Select a Scenario--</option>
       </select>
       <button id="play-pause-button">Play</button>
-      <button id="reset-button">Reset</button>
+      <button id="reset-button">Reset Scenario</button>
+      <!-- <button id="reset-camera-button">Reset Camera</button> -->
       <span style="margin-left: 15px">
         <input type="checkbox" id="debug-logging-checkbox" checked />
         <label for="debug-logging-checkbox">Enable Debug Logging</label>
@@ -92,6 +93,23 @@
           </div>
           <!-- The main Play/Pause button is in the top controls. We might later consolidate or enhance. -->
         </div>
+        <!-- <div class="control-section"> -->
+        <!-- <h3>Camera Controls</h3>
+          <div>
+            <label for="zoom-slider">Zoom Out:</label>
+            <input
+              type="range"
+              id="zoom-slider"
+              min="1"
+              max="10"
+              value="1"
+              step="0.1"
+              style="width: 150px"
+            />
+            <span id="zoom-slider-value">1.0x</span>
+          </div> -->
+        <!-- Reset camera button is in global controls -->
+        <!-- </div> -->
       </div>
 
       <div id="matter-container"></div>
