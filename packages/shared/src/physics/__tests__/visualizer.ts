@@ -73,7 +73,7 @@ function setupMatter() {
         wireframes: true, // Good for debugging
         showBounds: true,
         showAxes: true,
-        background: "#eeeeee",
+        wireframeBackground: "#003366", // Lighter blueprint blue
       },
     });
 
@@ -112,6 +112,15 @@ function setupMatter() {
     min: { x: -400, y: -300 },
     max: { x: 400, y: 300 },
   });
+
+  // Event listener for drawing the grid
+  // Cast to any to handle potential type discrepancies for render.events
+  const renderAsAny = render as any;
+  // Ensure renderAsAny.events and renderAsAny.events.afterRender array exists before trying to remove a listener.
+  if (renderAsAny && renderAsAny.events && renderAsAny.events.afterRender) {
+    Matter.Events.off(render, "afterRender", drawGrid); // Remove previous listener if any
+  }
+  Matter.Events.on(render, "afterRender", drawGrid);
 }
 
 function populateScenarioSelector() {
@@ -706,3 +715,55 @@ document.addEventListener("DOMContentLoaded", () => {
     "[Visualizer] Visualizer initialized. Select a scenario to begin."
   );
 });
+
+function drawGrid() {
+  if (!render || !render.context) return;
+
+  const context = render.context;
+  const bounds = render.bounds;
+  const canvas = render.canvas;
+  const gridSize = 50; // Grid lines every 50 world units
+
+  const viewWidthWorld = bounds.max.x - bounds.min.x;
+  const viewHeightWorld = bounds.max.y - bounds.min.y;
+
+  if (viewWidthWorld <= 0 || viewHeightWorld <= 0) return; // Avoid division by zero or invalid bounds
+
+  const scaleX = canvas.width / viewWidthWorld;
+  const scaleY = canvas.height / viewHeightWorld;
+  // For lineWidth, we'll use an average scale or pick one, e.g., scaleX.
+  // This ensures lines have a consistent screen thickness.
+  const desiredScreenLineWidth = 2;
+  const worldLineWidth = desiredScreenLineWidth / scaleX;
+
+  context.save();
+
+  // Apply transform to draw in world coordinates
+  // 1. Scale to match world unit to pixel ratio
+  // 2. Translate so (bounds.min.x, bounds.min.y) in world aligns with (0,0) in canvas before this transform
+  context.scale(scaleX, scaleY);
+  context.translate(-bounds.min.x, -bounds.min.y);
+
+  context.beginPath();
+  context.strokeStyle = "rgba(255, 255, 255, 0.25)";
+  context.lineWidth = worldLineWidth; // Use calculated world-equivalent line width
+
+  // Vertical lines
+  const startX = Math.floor(bounds.min.x / gridSize) * gridSize;
+  const endX = Math.ceil(bounds.max.x / gridSize) * gridSize;
+  for (let x = startX; x <= endX; x += gridSize) {
+    context.moveTo(x, bounds.min.y);
+    context.lineTo(x, bounds.max.y);
+  }
+
+  // Horizontal lines
+  const startY = Math.floor(bounds.min.y / gridSize) * gridSize;
+  const endY = Math.ceil(bounds.max.y / gridSize) * gridSize;
+  for (let y = startY; y <= endY; y += gridSize) {
+    context.moveTo(bounds.min.x, y);
+    context.lineTo(bounds.max.x, y);
+  }
+
+  context.stroke();
+  context.restore();
+}
