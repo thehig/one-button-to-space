@@ -9,7 +9,11 @@ import type {
   ScenarioAction,
   // ScenarioBodyInitialState, // Not directly used here
   ISerializedPhysicsEngineState,
+  ISerializedMatterBody, // Added for clarity, though types.ts is the source of truth
 } from "../scenarios/types.ts";
+import { updateSimulationInfoView } from "./ui/simulationInfoView";
+import { updateDynamicBodiesView } from "./ui/dynamicBodiesView";
+import { updateCelestialBodiesView } from "./ui/celestialBodiesView";
 
 console.log(
   "Visualizer script loaded. Matter:",
@@ -37,9 +41,15 @@ const matterContainer = document.getElementById(
 const debugLoggingCheckbox = document.getElementById(
   "debug-logging-checkbox"
 ) as HTMLInputElement;
-const stateJsonDisplay = document.getElementById(
-  "state-json-display"
-) as HTMLTextAreaElement;
+const simulationInfoContentDiv = document.getElementById(
+  "simulation-info-content"
+) as HTMLDivElement;
+const dynamicBodiesContentDiv = document.getElementById(
+  "dynamic-bodies-content"
+) as HTMLDivElement;
+const celestialBodiesContentDiv = document.getElementById(
+  "celestial-bodies-content"
+) as HTMLDivElement;
 
 // DOM Elements for Render/Control Playground
 const renderCanvasDimsDisplay = document.getElementById(
@@ -275,7 +285,7 @@ function loadScenario(selectedId: string) {
       JSON.stringify(initialState).substring(0, 500) + "..." // Log snippet
     );
     renderState(initialState);
-    updateStatePlayground(initialState); // Update the state playground UI
+    updateEngineStateVisualization(initialState); // Update the UI panels
     updateRenderControlPlayground(); // Update render/control UI
     console.log("[Visualizer] Scenario loaded with persistent PhysicsEngine.");
   } else {
@@ -646,7 +656,7 @@ function _performSingleSimulationStep() {
 
   const currentState = physicsEngine.toJSON();
   renderState(currentState);
-  updateStatePlayground(currentState);
+  updateEngineStateVisualization(currentState);
   updateRenderControlPlayground();
 
   return true; // Indicate step was successful and simulation can continue
@@ -861,10 +871,22 @@ function drawGrid() {
   context.restore();
 }
 
-function updateStatePlayground(state: ISerializedPhysicsEngineState) {
-  if (stateJsonDisplay) {
-    stateJsonDisplay.value = JSON.stringify(state, null, 2); // Pretty print JSON
+function updateEngineStateVisualization(
+  state: ISerializedPhysicsEngineState | undefined
+) {
+  if (simulationInfoContentDiv) {
+    updateSimulationInfoView(simulationInfoContentDiv, state);
   }
+  if (dynamicBodiesContentDiv) {
+    updateDynamicBodiesView(dynamicBodiesContentDiv, state?.world?.bodies);
+  }
+  if (celestialBodiesContentDiv) {
+    updateCelestialBodiesView(
+      celestialBodiesContentDiv,
+      state?.celestialBodies
+    );
+  }
+  // Later, add calls to update celestial bodies views
 }
 
 function updateRenderControlPlayground() {

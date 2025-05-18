@@ -33,6 +33,41 @@ h1 {
   gap: 20px; /* Add some space between the columns */
 }
 
+#engine-state-visualizer-container {
+  flex: 0 0 30%; /* Engine State visualizer takes 30% */
+  padding-right: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 15px; /* Space between panels within this container */
+  overflow-y: auto; /* Allow scrolling for content if it overflows */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 10px;
+  background-color: #f9f9f9;
+}
+
+#engine-state-visualizer-container h2 {
+  margin-top: 0;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.state-panel {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  background-color: #fff;
+}
+
+.state-panel h3 {
+  margin-top: 0;
+  margin-bottom: 8px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+}
+
 #state-playground-container {
   flex: 0 0 30%; /* Engine State takes 30% */
   padding-right: 0; /* Removed padding-right as gap is used now */

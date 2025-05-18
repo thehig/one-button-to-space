@@ -22,14 +22,28 @@
     </div>
 
     <div id="main-content-area">
-      <div id="state-playground-container">
-        <h2>State Playground (toJSON)</h2>
-        <textarea
-          id="state-json-display"
-          readonly
-          rows="20"
-          cols="60"
-        ></textarea>
+      <div id="engine-state-visualizer-container">
+        <h2>Engine State</h2>
+        <div id="simulation-info-panel" class="state-panel">
+          <h3>Simulation</h3>
+          <div id="simulation-info-content">
+            <!-- Simulation details will be rendered here -->
+          </div>
+        </div>
+        <div id="celestial-bodies-panel" class="state-panel">
+          <h3>Celestial Bodies</h3>
+          <div id="celestial-bodies-content">
+            <!-- Celestial bodies will be rendered here later -->
+            <p><em>(Coming soon)</em></p>
+          </div>
+        </div>
+        <div id="dynamic-bodies-panel" class="state-panel">
+          <h3>Dynamic Bodies</h3>
+          <div id="dynamic-bodies-content">
+            <!-- Dynamic bodies will be rendered here later -->
+            <p><em>(Coming soon)</em></p>
+          </div>
+        </div>
       </div>
 
       <div id="render-control-playground-container">
