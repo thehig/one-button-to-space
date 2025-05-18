@@ -37,6 +37,9 @@ const matterContainer = document.getElementById(
 const debugLoggingCheckbox = document.getElementById(
   "debug-logging-checkbox"
 ) as HTMLInputElement;
+const stateJsonDisplay = document.getElementById(
+  "state-json-display"
+) as HTMLTextAreaElement;
 
 // Matter.js specific for visualization
 let engine: Matter.Engine; // The visual Matter.js engine
@@ -240,6 +243,7 @@ function loadScenario(selectedId: string) {
       JSON.stringify(initialState).substring(0, 500) + "..." // Log snippet
     );
     renderState(initialState);
+    updateStatePlayground(initialState); // Update the state playground UI
     console.log("[Visualizer] Scenario loaded with persistent PhysicsEngine.");
   } else {
     console.error(
@@ -605,6 +609,7 @@ function gameLoop() {
 
   const currentState = physicsEngine.toJSON(); // Get its current state
   renderState(currentState); // Render that state (which will be for the new currentTick)
+  updateStatePlayground(currentState); // Update the state playground UI
 
   // Compare new currentTick to simulationSteps. Note: If simulationSteps is 100,
   // this means 100 steps are taken. The last state rendered will be tick 100.
@@ -766,4 +771,10 @@ function drawGrid() {
 
   context.stroke();
   context.restore();
+}
+
+function updateStatePlayground(state: ISerializedPhysicsEngineState) {
+  if (stateJsonDisplay) {
+    stateJsonDisplay.value = JSON.stringify(state, null, 2); // Pretty print JSON
+  }
 }
