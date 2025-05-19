@@ -210,66 +210,7 @@
       "testStrategy": "Testing should verify that the React-based visualizer maintains feature parity with the original implementation:\n\n1. Manual Testing Checklist:\n   - Verify all scenarios load correctly and can be selected from the UI\n   - Confirm simulation controls (play/pause, speed, reset) function as expected\n   - Test all camera controls and viewpoint adjustments\n   - Verify all information panels display correct data\n   - Check that the layout is responsive and properly organized\n   - Test across different browsers (Chrome, Firefox, Safari)\n   - Verify performance is comparable to the original visualizer\n\n2. Integration Testing:\n   - Create a test script that loads each available scenario and verifies rendering\n   - Compare screenshots of key states between old and new visualizers\n   - Verify that physics simulation results are identical between implementations\n\n3. Validation Approach:\n   - Create a side-by-side comparison mode where both visualizers run the same scenario\n   - Document any visual or behavioral differences\n   - Have another team member review the implementation for React best practices\n   - Verify the build process works correctly and doesn't interfere with existing code\n\n4. Acceptance Criteria:\n   - All existing features are present and functional\n   - No modifications to physics engine or scenario code\n   - Clean separation between old and new visualizer code\n   - Documentation is complete and accurate\n   - Build/dev scripts work as expected",
       "status": "pending",
       "dependencies": [],
-      "priority": "medium",
-      "subtasks": [
-        {
-          "id": 1,
-          "title": "Set up Vite+React project structure for the physics visualizer",
-          "description": "Create and configure the initial React project structure using Vite, with TypeScript support and proper build configuration.",
-          "dependencies": [],
-          "details": "Implementation steps:\n1. Create a new directory at `packages/shared/src/visualizer/react`\n2. Initialize a new Vite project with React and TypeScript template: `npm create vite@latest . -- --template react-ts`\n3. Configure `vite.config.ts` to:\n   - Set the build output directory to avoid conflicts with existing code\n   - Configure proper library mode with appropriate entry points\n   - Set up path aliases for easier imports\n4. Install necessary dependencies:\n   - Core: `react`, `react-dom`\n   - Dev: `@types/react`, `@types/react-dom`, `typescript`, `vite`\n5. Update `tsconfig.json` to ensure compatibility with the existing codebase\n6. Create a basic folder structure:\n   - `/components` - For React components\n   - `/hooks` - For custom React hooks\n   - `/context` - For React context providers\n   - `/utils` - For utility functions\n7. Create a minimal entry point that exports the main visualizer component\n8. Add scripts to package.json:\n   - `dev:visualizer`: Run development server\n   - `build:visualizer`: Build production version\n\nTesting approach:\n- Verify the project builds without errors\n- Ensure development server starts correctly\n- Confirm the project structure follows React best practices",
-          "status": "pending",
-          "parentTaskId": 17
-        },
-        {
-          "id": 2,
-          "title": "Create core React component architecture and state management",
-          "description": "Design and implement the component hierarchy that mirrors the current UI structure with proper state management.",
-          "dependencies": [
-            1
-          ],
-          "details": "Implementation steps:\n1. Analyze the existing DOM-based UI structure to identify key components\n2. Create the following React components:\n   - `Visualizer`: Main container component\n   - `ScenarioSelector`: Dropdown for selecting physics scenarios\n   - `SimulationControls`: Play/pause, speed slider, and reset buttons\n   - `InfoPanel`: Display simulation statistics and information\n   - `CameraControls`: Pan, zoom, and view reset controls\n   - `VisualizationCanvas`: Container for the actual physics rendering\n3. Implement state management:\n   - Create a `VisualizerContext` using React Context API to share state across components\n   - Define state for:\n     - Current scenario\n     - Simulation status (running/paused)\n     - Simulation speed\n     - Camera position and zoom level\n     - UI configuration options\n4. Create custom hooks:\n   - `useVisualizerState`: For accessing and updating visualizer state\n   - `useScenario`: For scenario management\n5. Implement basic component rendering without physics integration\n6. Set up proper prop types and TypeScript interfaces for all components\n\nTesting approach:\n- Render components in isolation to verify they display correctly\n- Test state updates through the context provider\n- Verify component hierarchy matches the existing UI structure\n- Ensure all UI interactions update state correctly",
-          "status": "pending",
-          "parentTaskId": 17
-        },
-        {
-          "id": 3,
-          "title": "Integrate existing physics engine with React components",
-          "description": "Connect the existing physics engine to the React component lifecycle and implement the visualization rendering.",
-          "dependencies": [
-            2
-          ],
-          "details": "Implementation steps:\n1. Import the existing PhysicsEngine from the shared package\n2. Create a `usePhysicsEngine` hook that:\n   - Initializes the physics engine\n   - Connects to the animation loop using `requestAnimationFrame`\n   - Handles play/pause functionality\n   - Controls simulation speed\n   - Manages scenario loading and switching\n3. Implement the `VisualizationCanvas` component:\n   - Create a canvas ref using `useRef`\n   - Set up the canvas for rendering in `useEffect`\n   - Connect the physics engine's render method to the canvas\n   - Implement proper cleanup in the effect's return function\n4. Connect simulation controls to the physics engine:\n   - Play/pause button toggles simulation\n   - Speed slider adjusts simulation speed\n   - Reset button resets the current scenario\n5. Implement scenario selection:\n   - Load available scenarios from the physics engine\n   - Handle scenario switching while preserving state\n6. Add event listeners for user interactions (mouse/touch events)\n7. Ensure all physics engine callbacks and events are properly connected\n\nTesting approach:\n- Verify the physics engine initializes correctly\n- Test play/pause functionality\n- Confirm scenario switching works\n- Check that simulation speed changes take effect\n- Ensure the animation loop runs efficiently\n- Test that cleanup functions prevent memory leaks",
-          "status": "pending",
-          "parentTaskId": 17
-        },
-        {
-          "id": 4,
-          "title": "Implement responsive layout and replace Masonry.js",
-          "description": "Create a responsive layout using modern CSS techniques or React-based alternatives to replace Masonry.js.",
-          "dependencies": [
-            2,
-            3
-          ],
-          "details": "Implementation steps:\n1. Analyze the current Masonry.js implementation to understand layout requirements\n2. Choose an implementation approach:\n   - Option A: Use CSS Grid/Flexbox for layout\n     - Implement a responsive grid layout using CSS Grid\n     - Use media queries for different screen sizes\n     - Add CSS transitions for smooth resizing\n   - Option B: Integrate a React-based Masonry library\n     - Install `react-masonry-css` or similar library\n     - Configure to match current layout behavior\n3. Implement the layout container component:\n   - Create a `VisualizerLayout` component that handles the overall layout\n   - Implement responsive breakpoints for different screen sizes\n4. Style all components using:\n   - CSS Modules for component-specific styles\n   - Global styles for shared elements\n5. Implement information panels layout:\n   - Create collapsible/expandable panels\n   - Ensure proper spacing and alignment\n6. Add responsive behavior for mobile devices:\n   - Adjust controls for touch interfaces\n   - Implement mobile-friendly layout changes\n7. Ensure all UI elements maintain proper positioning during resizing\n\nTesting approach:\n- Test layout at various screen sizes\n- Verify panels resize and reposition correctly\n- Check that the layout matches the current visualizer's appearance\n- Test on different devices and browsers\n- Ensure touch controls work on mobile devices",
-          "status": "pending",
-          "parentTaskId": 17
-        },
-        {
-          "id": 5,
-          "title": "Finalize build configuration and documentation",
-          "description": "Complete the build configuration, ensure all features are working, and create comprehensive documentation.",
-          "dependencies": [
-            1,
-            2,
-            3,
-            4
-          ],
-          "details": "Implementation steps:\n1. Finalize the Vite build configuration:\n   - Configure proper output formats (ESM, CJS if needed)\n   - Set up tree-shaking and code splitting\n   - Optimize asset handling\n   - Configure environment variables\n2. Update package.json:\n   - Add all necessary scripts for development and building\n   - Ensure proper peer dependencies are listed\n   - Configure package exports to not interfere with existing code\n3. Perform comprehensive testing of all features:\n   - Verify all existing visualizer features work in the React version\n   - Test performance compared to the original implementation\n   - Ensure all scenarios load and run correctly\n4. Create documentation:\n   - Write a detailed README.md in the new directory covering:\n     - Project overview and architecture decisions\n     - Component structure and relationships\n     - State management approach\n     - How to run/build the visualizer\n     - How to extend with new components\n     - Migration strategy and rationale\n   - Add inline code documentation for complex logic\n   - Create example usage snippets\n5. Implement any final optimizations:\n   - Performance improvements\n   - Code cleanup\n   - Accessibility enhancements\n\nTesting approach:\n- Perform end-to-end testing of the complete visualizer\n- Verify build output works when imported\n- Check documentation for completeness and accuracy\n- Ensure all existing features are preserved and working correctly\n- Validate that no physics engine code was modified",
-          "status": "pending",
-          "parentTaskId": 17
-        }
-      ]
+      "priority": "medium"
     }
   ],
   "metadata": {
