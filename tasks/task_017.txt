@@ -86,7 +86,7 @@ Testing should verify that the React-based visualizer maintains feature parity w
    - Build/dev scripts work as expected
 
 # Subtasks:
-## 1. Set up Vite+React project structure for the physics visualizer [pending]
+## 1. Set up Vite+React project structure for the physics visualizer [done]
 ### Dependencies: None
 ### Description: Create and configure the initial React project structure using Vite, with TypeScript support and proper build configuration.
 ### Details:
