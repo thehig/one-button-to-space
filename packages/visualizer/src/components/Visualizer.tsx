@@ -21,6 +21,10 @@ import { ScenarioSelector } from "./ScenarioSelector";
 import { SimulationControls } from "./SimulationControls";
 import { CameraControls } from "./CameraControls";
 import { InfoPanel } from "./InfoPanel";
+import { scenarioCardLayout, DEFAULT_CARDS } from "../scenarioCards";
+import type { ScenarioCardDef } from "../scenarioCards";
+import { useScenario } from "../hooks/useScenario";
+import { ALL_SCENARIOS } from "../scenarioLoader";
 
 const CANVAS_ID = "canvas";
 const CARD_PREFIX = "card-";
@@ -116,6 +120,9 @@ const getInitialOrder = (): string[] => {
 const Visualizer: React.FC = () => {
   const [order, setOrder] = useState<string[]>(getInitialOrder());
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const { scenario } = useScenario();
+  const cardDefs: ScenarioCardDef[] =
+    scenarioCardLayout[scenario] || DEFAULT_CARDS;
 
   useEffect(() => {
     localStorage.setItem("visualizerCardOrder", JSON.stringify(order));
@@ -151,20 +158,27 @@ const Visualizer: React.FC = () => {
     );
   }, []);
 
-  // Helper to render card content by index
-  const renderCardContent = (id: string, idx: number) => {
-    switch (idx) {
-      case 0:
-        return <ScenarioSelector options={SCENARIO_OPTIONS} />;
-      case 1:
+  // Helper to render card content by type
+  const renderCardContent = (card: ScenarioCardDef) => {
+    switch (card.type) {
+      case "scenarioSelector":
+        return <ScenarioSelector options={ALL_SCENARIOS} />;
+      case "simulationControls":
         return <SimulationControls />;
-      case 2:
+      case "cameraControls":
         return <CameraControls />;
-      case 3:
-        return <InfoPanel info={MOCK_INFO} />;
+      case "infoPanel":
+        return <InfoPanel {...(card.props || {})} />;
       default:
-        return <div>Card content for Card {id.replace(CARD_PREFIX, "")}</div>;
+        return <div>Custom/Unknown card: {card.title}</div>;
     }
+  };
+
+  // Always render the scenario picker as the first card
+  const scenarioPickerCard: ScenarioCardDef = {
+    id: "selector",
+    type: "scenarioSelector",
+    title: "Scenario",
   };
 
   return (
@@ -175,7 +189,7 @@ const Visualizer: React.FC = () => {
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={order.filter((id) => id !== CANVAS_ID)}
+          items={[scenarioPickerCard.id, ...cardDefs.map((c) => c.id)]}
           strategy={rectSortingStrategy}
         >
           <div className={styles.grid}>
@@ -187,20 +201,28 @@ const Visualizer: React.FC = () => {
             >
               <VisualizationCanvas />
             </div>
-            {/* Render cards */}
-            {order
-              .filter((id) => id !== CANVAS_ID)
-              .map((id, idx) => (
-                <SortableCard
-                  key={id}
-                  id={id}
-                  title={`Card ${id.replace(CARD_PREFIX, "")}`}
-                  collapsed={!!collapsed[id]}
-                  onToggle={() => handleToggle(id)}
-                >
-                  {renderCardContent(id, idx)}
-                </SortableCard>
-              ))}
+            {/* Always render scenario picker first */}
+            <SortableCard
+              key={scenarioPickerCard.id}
+              id={scenarioPickerCard.id}
+              title={scenarioPickerCard.title}
+              collapsed={!!collapsed[scenarioPickerCard.id]}
+              onToggle={() => handleToggle(scenarioPickerCard.id)}
+            >
+              {renderCardContent(scenarioPickerCard)}
+            </SortableCard>
+            {/* Render scenario-driven cards */}
+            {cardDefs.map((card) => (
+              <SortableCard
+                key={card.id}
+                id={card.id}
+                title={card.title}
+                collapsed={!!collapsed[card.id]}
+                onToggle={() => handleToggle(card.id)}
+              >
+                {renderCardContent(card)}
+              </SortableCard>
+            ))}
           </div>
         </SortableContext>
       </DndContext>

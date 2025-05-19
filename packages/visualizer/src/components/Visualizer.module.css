@@ -10,12 +10,13 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   grid-auto-rows: minmax(120px, auto);
-  gap: 1.5rem;
-  max-width: 1800px;
+  gap: 1rem;
+  max-width: 1600px;
   width: 100%;
   align-items: start;
+  grid-auto-flow: dense;
 }
 
 .canvasCell {
@@ -43,6 +44,8 @@
 .cardCell {
   display: flex;
   align-items: stretch;
+  max-width: 400px;
+  width: 100%;
 }
 
 .card {
@@ -50,6 +53,8 @@
   border-radius: 0.75rem;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   width: 100%;
+  min-width: 0;
+  max-width: 400px;
   min-height: 120px;
   display: flex;
   flex-direction: column;
