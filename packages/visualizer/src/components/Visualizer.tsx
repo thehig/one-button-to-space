@@ -17,10 +17,17 @@ import styles from "./Visualizer.module.css";
 // Example import to verify monorepo linkage
 // Remove or replace with real usage later
 import { PhysicsEngine } from "@obts/shared/physics/PhysicsEngine";
+import { ScenarioSelector } from "./ScenarioSelector";
+import { SimulationControls } from "./SimulationControls";
+import { CameraControls } from "./CameraControls";
+import { InfoPanel } from "./InfoPanel";
 
 const CANVAS_ID = "canvas";
 const CARD_PREFIX = "card-";
 const CARD_COUNT = 12; // Example: 12 cards for demo
+
+const SCENARIO_OPTIONS = ["default", "gravity", "collision", "orbits"];
+const MOCK_INFO = { objects: 12, time: 3.2, status: "running" };
 
 // Placeholder VisualizationCanvas
 const VisualizationCanvas: React.FC = () => (
@@ -35,7 +42,8 @@ const SortableCard: React.FC<{
   title: string;
   collapsed: boolean;
   onToggle: () => void;
-}> = ({ id, title, collapsed, onToggle }) => {
+  children?: React.ReactNode;
+}> = ({ id, title, collapsed, onToggle, children }) => {
   const {
     attributes,
     listeners,
@@ -60,7 +68,9 @@ const SortableCard: React.FC<{
       {...listeners}
       className={styles.cardCell}
     >
-      <Card id={id} title={title} collapsed={collapsed} onToggle={onToggle} />
+      <Card id={id} title={title} collapsed={collapsed} onToggle={onToggle}>
+        {children}
+      </Card>
     </div>
   );
 };
@@ -71,7 +81,8 @@ const Card: React.FC<{
   title: string;
   collapsed: boolean;
   onToggle: () => void;
-}> = ({ id, title, collapsed, onToggle }) => (
+  children?: React.ReactNode;
+}> = ({ id, title, collapsed, onToggle, children }) => (
   <div className={styles.card}>
     <div className={styles.cardHeader}>
       <span>{title}</span>
@@ -87,9 +98,7 @@ const Card: React.FC<{
         ★
       </button>
     </div>
-    {!collapsed && (
-      <div className={styles.cardContent}>Card content for {title}</div>
-    )}
+    {!collapsed && <div className={styles.cardContent}>{children}</div>}
   </div>
 );
 
@@ -142,6 +151,22 @@ const Visualizer: React.FC = () => {
     );
   }, []);
 
+  // Helper to render card content by index
+  const renderCardContent = (id: string, idx: number) => {
+    switch (idx) {
+      case 0:
+        return <ScenarioSelector options={SCENARIO_OPTIONS} />;
+      case 1:
+        return <SimulationControls />;
+      case 2:
+        return <CameraControls />;
+      case 3:
+        return <InfoPanel info={MOCK_INFO} />;
+      default:
+        return <div>Card content for Card {id.replace(CARD_PREFIX, "")}</div>;
+    }
+  };
+
   return (
     <div className={styles.gridWrapper}>
       <DndContext
@@ -165,14 +190,16 @@ const Visualizer: React.FC = () => {
             {/* Render cards */}
             {order
               .filter((id) => id !== CANVAS_ID)
-              .map((id) => (
+              .map((id, idx) => (
                 <SortableCard
                   key={id}
                   id={id}
                   title={`Card ${id.replace(CARD_PREFIX, "")}`}
                   collapsed={!!collapsed[id]}
                   onToggle={() => handleToggle(id)}
-                />
+                >
+                  {renderCardContent(id, idx)}
+                </SortableCard>
               ))}
           </div>
         </SortableContext>

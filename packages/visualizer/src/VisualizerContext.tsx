@@ -82,3 +82,5 @@ export function useVisualizerState(): VisualizerState {
     );
   return ctx;
 }
+
+export type { CameraState };

@@ -1,4 +1,4 @@
-import { useVisualizerState, CameraState } from "../VisualizerContext";
+import { useVisualizerState } from "../VisualizerContext";
 
 /**
  * useCamera - Access and update camera state (position and zoom).
