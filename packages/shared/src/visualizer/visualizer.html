@@ -4,118 +4,260 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Physics Scenario Visualizer</title>
-    <link rel="stylesheet" href="./visualizer.css" />
+    <!-- <link rel="stylesheet" href="./visualizer.css" /> -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Removed tailwind.config for gridTemplateAreas as it's not directly used by an applied class -->
+
+    <!-- Parcel will see this as a standard style block. JS below will change its type for Tailwind CDN. -->
+    <style id="tailwind-style-block" type="text/css">
+      /* Tailwind Play CDN will process this block once its type is changed by JS.
+         Custom Tailwind directives like @apply, theme(), etc., would go here if needed.
+         For now, it can be empty if all styling is via utility classes in HTML.
+      */
+    </style>
+    <script>
+      // This script runs immediately after the style block above is parsed.
+      // It changes the type so Tailwind CDN can process it.
+      document
+        .getElementById("tailwind-style-block")
+        .setAttribute("type", "text/tailwindcss");
+    </script>
+    <style>
+      /* Custom scrollbar styling (standard CSS) */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+    </style>
   </head>
-  <body>
-    <h1>Physics Scenario Visualizer</h1>
-    <div class="controls">
-      <label for="scenario-select">Select Scenario:</label>
-      <select id="scenario-select">
-        <option value="">--Select a Scenario--</option>
-      </select>
-      <button id="play-pause-button">Play</button>
-      <button id="reset-button">Reset Scenario</button>
-      <!-- <button id="reset-camera-button">Reset Camera</button> -->
-      <span style="margin-left: 15px">
-        <input type="checkbox" id="debug-logging-checkbox" checked />
-        <label for="debug-logging-checkbox">Enable Debug Logging</label>
-      </span>
+  <body class="font-sans bg-gray-100 flex flex-col h-screen overflow-hidden">
+    <div
+      class="bg-gray-800 text-white p-3 flex justify-between items-center flex-shrink-0 z-10 shadow-md"
+    >
+      <h1 class="text-xl font-semibold">Physics Scenario Visualizer</h1>
+      <div class="flex items-center space-x-4">
+        <label for="scenario-select" class="text-sm">Select Scenario:</label>
+        <select
+          id="scenario-select"
+          class="bg-gray-700 text-white text-sm rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">--Select a Scenario--</option>
+        </select>
+        <button
+          id="play-pause-button"
+          class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          Play
+        </button>
+        <button
+          id="reset-button"
+          class="bg-red-500 hover:bg-red-600 text-white text-sm font-medium py-2 px-4 rounded focus:outline-none focus:ring-2 focus:ring-red-400"
+        >
+          Reset Scenario
+        </button>
+        <div class="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            id="debug-logging-checkbox"
+            checked
+            class="form-checkbox h-4 w-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+          />
+          <label for="debug-logging-checkbox" class="text-sm"
+            >Enable Debug Logging</label
+          >
+        </div>
+      </div>
     </div>
 
-    <div id="main-content-area">
-      <div id="engine-state-visualizer-container">
-        <h2>Engine State</h2>
-        <div id="simulation-info-panel" class="state-panel">
-          <h3>Simulation</h3>
-          <div id="simulation-info-content">
+    <div
+      id="main-layout-container"
+      class="flex-grow flex flex-col p-4 overflow-hidden"
+    >
+      <div
+        id="panel-flow-container"
+        class="bg-gray-200 rounded-lg shadow-inner p-3 overflow-y-auto h-full mx-auto"
+      >
+        <!-- Panels will be direct children here for Masonry -->
+        <!-- Matter.js canvas container, now a flow-panel item -->
+        <div
+          id="matter-container"
+          class="flow-panel bg-gray-900 rounded-lg shadow-lg flex justify-center items-center overflow-hidden border border-gray-700 p-2"
+          style="width: 824px; height: 624px;" /* Explicit size for 800x600 canvas + 2*border + 2*padding */
+        >
+          <!-- Matter.js canvas will be created here by the script -->
+        </div>
+
+        <div
+          id="simulation-info-panel"
+          class="flow-panel bg-white p-4 rounded-md shadow-md min-w-[280px]"
+        >
+          <h3 class="text-lg font-semibold mb-2 pb-1 border-b border-gray-200">
+            Simulation
+          </h3>
+          <div id="simulation-info-content" class="text-sm space-y-1">
             <!-- Simulation details will be rendered here -->
+            <p><em>Loading...</em></p>
           </div>
         </div>
-        <div id="celestial-bodies-panel" class="state-panel">
+        <div
+          id="celestial-bodies-panel"
+          class="flow-panel bg-white p-4 rounded-md shadow-md min-w-[280px]"
+        >
           <h3>Celestial Bodies</h3>
           <div id="celestial-bodies-content">
-            <!-- Celestial bodies will be rendered here later -->
             <p><em>(Coming soon)</em></p>
           </div>
         </div>
-        <div id="dynamic-bodies-panel" class="state-panel">
-          <h3>Dynamic Bodies</h3>
-          <div id="dynamic-bodies-content">
-            <!-- Dynamic bodies will be rendered here later -->
+        <div
+          id="dynamic-bodies-panel"
+          class="flow-panel bg-white p-4 rounded-md shadow-md min-w-[280px]"
+        >
+          <h3 class="text-lg font-semibold mb-2 pb-1 border-b border-gray-200">
+            Dynamic Bodies
+          </h3>
+          <div id="dynamic-bodies-content" class="text-sm space-y-1">
             <p><em>(Coming soon)</em></p>
           </div>
         </div>
-      </div>
-
-      <div id="render-control-playground-container">
-        <h2>Render &amp; Sim Control</h2>
-        <div class="info-section">
-          <h3>Render Info</h3>
-          <p>Canvas Dimensions: <span id="render-canvas-dims">N/A</span></p>
-          <p>View Bounds (World): <span id="render-view-bounds">N/A</span></p>
-          <p>Zoom/Scale (Approx X): <span id="render-zoom-level">N/A</span></p>
-          <p>Current Tick: <span id="render-current-tick">0</span></p>
-          <p>
-            Total Scenario Steps: <span id="scenario-total-steps">N/A</span>
+        <div
+          id="scenario-details-panel"
+          class="flow-panel bg-white p-4 rounded-md shadow-md min-w-[280px]"
+        >
+          <h3 class="text-lg font-semibold mb-2 pb-1 border-b border-gray-200">
+            Scenario Actions Timeline
+          </h3>
+          <div id="scenario-actions-content" class="text-sm">
+            <p><em>(Timeline coming soon)</em></p>
+          </div>
+        </div>
+        <div
+          id="render-canvas-info-panel"
+          class="flow-panel bg-white p-4 rounded-md shadow-md min-w-[280px]"
+        >
+          <h4 class="text-md font-semibold mb-2 pb-1 border-b border-gray-200">
+            Render Info
+          </h4>
+          <p class="text-xs">
+            Canvas Dimensions:
+            <span id="render-canvas-dims" class="font-mono">N/A</span>
+          </p>
+          <p class="text-xs">
+            View Bounds (World):
+            <span id="render-view-bounds" class="font-mono">N/A</span>
           </p>
         </div>
-        <div class="control-section">
-          <h3>Simulation Controls</h3>
-          <button id="step-once-button" title="Advance simulation by one tick">
-            Step 1 Tick
-          </button>
-          <div>
-            <label for="step-n-ticks-input">N:</label>
-            <input
-              type="number"
-              id="step-n-ticks-input"
-              value="10"
-              min="1"
-              style="width: 60px; margin-right: 5px"
-            />
-            <button id="step-n-button" title="Advance simulation by N ticks">
-              Step N Ticks
+        <div
+          id="camera-controls-panel"
+          class="flow-panel bg-white p-4 rounded-md shadow-md min-w-[280px]"
+        >
+          <h4 class="text-md font-semibold mb-2 pb-1 border-b border-gray-200">
+            Camera Controls
+          </h4>
+          <div class="space-y-2 text-sm">
+            <div class="flex items-center">
+              <label for="zoom-slider" class="mr-2">Zoom:</label>
+              <input
+                type="range"
+                id="zoom-slider"
+                min="0.1"
+                max="10"
+                value="1"
+                step="0.1"
+                class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              />
+              <span
+                id="zoom-slider-value"
+                class="ml-2 font-mono text-xs w-10 text-right"
+                >1.0x</span
+              >
+            </div>
+            <button
+              id="reset-camera-button"
+              class="w-full bg-gray-500 hover:bg-gray-600 text-white text-xs font-medium py-1 px-3 rounded focus:outline-none focus:ring-1 focus:ring-gray-400"
+            >
+              Reset Camera
             </button>
           </div>
-          <div>
-            <label for="step-m-seconds-input">Secs:</label>
-            <input
-              type="number"
-              id="step-m-seconds-input"
-              value="1"
-              min="0.1"
-              step="0.1"
-              style="width: 60px; margin-right: 5px"
-            />
-            <button id="step-m-button" title="Run simulation for M seconds">
-              Run M Secs
-            </button>
-          </div>
-          <!-- The main Play/Pause button is in the top controls. We might later consolidate or enhance. -->
         </div>
-        <!-- <div class="control-section"> -->
-        <!-- <h3>Camera Controls</h3>
-          <div>
-            <label for="zoom-slider">Zoom Out:</label>
-            <input
-              type="range"
-              id="zoom-slider"
-              min="1"
-              max="10"
-              value="1"
-              step="0.1"
-              style="width: 150px"
-            />
-            <span id="zoom-slider-value">1.0x</span>
-          </div> -->
-        <!-- Reset camera button is in global controls -->
-        <!-- </div> -->
+        <div
+          id="simulation-state-controls-panel"
+          class="flow-panel bg-white p-4 rounded-md shadow-md min-w-[280px]"
+        >
+          <h4 class="text-md font-semibold mb-2 pb-1 border-b border-gray-200">
+            Simulation State &amp; Controls
+          </h4>
+          <div class="text-xs space-y-1 mb-2">
+            <p>
+              Current Tick:
+              <span id="render-current-tick" class="font-mono">0</span>
+            </p>
+            <p>
+              Total Scenario Steps:
+              <span id="scenario-total-steps" class="font-mono">N/A</span>
+            </p>
+          </div>
+          <div class="space-y-2">
+            <button
+              id="step-once-button"
+              title="Advance simulation by one tick"
+              class="w-full bg-teal-500 hover:bg-teal-600 text-white text-xs font-medium py-1 px-3 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+            >
+              Step 1 Tick
+            </button>
+            <div class="flex items-center space-x-2">
+              <label for="step-n-ticks-input" class="text-xs">N:</label>
+              <input
+                type="number"
+                id="step-n-ticks-input"
+                value="10"
+                min="1"
+                class="text-xs w-16 p-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <button
+                id="step-n-button"
+                title="Advance simulation by N ticks"
+                class="flex-1 bg-teal-500 hover:bg-teal-600 text-white text-xs font-medium py-1 px-2 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+              >
+                Step N Ticks
+              </button>
+            </div>
+            <div class="flex items-center space-x-2">
+              <label for="step-m-seconds-input" class="text-xs">Secs:</label>
+              <input
+                type="number"
+                id="step-m-seconds-input"
+                value="1"
+                min="0.1"
+                step="0.1"
+                class="text-xs w-16 p-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <button
+                id="step-m-button"
+                title="Run simulation for M seconds"
+                class="flex-1 bg-teal-500 hover:bg-teal-600 text-white text-xs font-medium py-1 px-2 rounded focus:outline-none focus:ring-1 focus:ring-teal-400"
+              >
+                Run M Secs
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <div id="matter-container"></div>
     </div>
 
     <script src="../../node_modules/poly-decomp/build/decomp.js"></script>
+    <!-- Masonry.js CDN - added before visualizer.ts -->
+    <script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
     <script type="module" src="./visualizer.ts"></script>
   </body>
 </html>

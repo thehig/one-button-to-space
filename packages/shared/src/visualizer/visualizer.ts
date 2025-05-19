@@ -16,6 +16,8 @@ import { updateSimulationInfoView } from "./ui/simulationInfoView";
 import { updateDynamicBodiesView } from "./ui/dynamicBodiesView";
 import { updateCelestialBodiesView } from "./ui/celestialBodiesView";
 
+declare const Masonry: any; // Declare Masonry if you don't have types for it
+
 console.log(
   "Visualizer script loaded. Matter:",
   Matter ? "loaded" : "not loaded"
@@ -104,6 +106,9 @@ let currentTick = 0;
 let isPlaying = false;
 const timeStep = 1000 / 60; // ms, for 60 FPS
 let gameLoopIntervalId: number | undefined;
+
+// Declare msnry in a scope accessible by functions that update panel content.
+let msnry: any; // Instance of Masonry
 
 function setupMatter() {
   if (!engine) {
@@ -721,6 +726,34 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log(
     "[Visualizer] Visualizer initialized. Select a scenario to begin."
   );
+
+  // Initialize Masonry for the panel flow container
+  const panelFlowContainer = document.getElementById("panel-flow-container");
+  if (panelFlowContainer) {
+    // Ensure child .flow-panel elements are loaded if they are dynamically added
+    // For now, assuming they are in the initial HTML or added before this runs.
+    // A MutationObserver or a slight delay might be needed if panels are added *after* DOMContentLoaded
+    // and before Masonry init by other JS.
+    setTimeout(() => {
+      // Small delay to ensure panels are potentially rendered by other JS if any
+      msnry = new Masonry(panelFlowContainer, {
+        itemSelector: ".flow-panel",
+        columnWidth: 280, // Use a fixed width for column calculation
+        percentPosition: true, // Better for responsive, fluid layouts
+        gutter: 16, // Corresponds to gap-4 in Tailwind (1rem = 16px)
+        fitWidth: true, // Add this line
+      });
+      console.log("[Visualizer] Masonry initialized on #panel-flow-container");
+
+      // Optional: If panels can be dynamically added/removed or resized by other means,
+      // you might need to call msnry.layout() after those changes.
+      // e.g., after loading a new scenario that changes panel content significantly causing resize.
+    }, 100); // 100ms delay, adjust if necessary or use MutationObserver for robustness
+  } else {
+    console.error(
+      "[Visualizer] #panel-flow-container not found for Masonry initialization."
+    );
+  }
 });
 
 function drawGrid() {
@@ -791,6 +824,11 @@ function updateEngineStateVisualization(
     );
   }
   // Later, add calls to update celestial bodies views
+
+  // After updating panel content, if Masonry is initialized, tell it to re-layout.
+  if (msnry) {
+    msnry.layout();
+  }
 }
 
 function updateRenderControlPlayground() {
