@@ -14,12 +14,21 @@ export const CameraControls: React.FC = () => {
   const zoom = (z: number) => setCamera({ ...camera, zoom: z });
   const reset = () => setCamera({ x: 0, y: 0, zoom: 1 });
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        flexWrap: "wrap",
+        overflowX: "auto",
+        minWidth: 0,
+      }}
+    >
       <button onClick={() => pan(-10, 0)}>←</button>
       <button onClick={() => pan(10, 0)}>→</button>
       <button onClick={() => pan(0, -10)}>↑</button>
       <button onClick={() => pan(0, 10)}>↓</button>
-      <label>
+      <label style={{ display: "flex", alignItems: "center", gap: 4 }}>
         Zoom:
         <input
           type="range"
@@ -28,6 +37,7 @@ export const CameraControls: React.FC = () => {
           step={0.1}
           value={camera.zoom}
           onChange={(e) => zoom(Number(e.target.value))}
+          style={{ maxWidth: 120 }}
         />
         <span>{camera.zoom}x</span>
       </label>

@@ -40,6 +40,22 @@ const VisualizationCanvas: React.FC = () => (
   </div>
 );
 
+// Helper to get card header color class by type
+const getCardHeaderClass = (type: string) => {
+  switch (type) {
+    case "scenarioSelector":
+      return styles.cardHeader + " " + styles["cardHeader--scenario"];
+    case "simulationControls":
+      return styles.cardHeader + " " + styles["cardHeader--simulation"];
+    case "cameraControls":
+      return styles.cardHeader + " " + styles["cardHeader--camera"];
+    case "infoPanel":
+      return styles.cardHeader + " " + styles["cardHeader--info"];
+    default:
+      return styles.cardHeader;
+  }
+};
+
 // Sortable Card wrapper for dnd-kit
 const SortableCard: React.FC<{
   id: string;
@@ -47,7 +63,8 @@ const SortableCard: React.FC<{
   collapsed: boolean;
   onToggle: () => void;
   children?: React.ReactNode;
-}> = ({ id, title, collapsed, onToggle, children }) => {
+  headerClassName?: string;
+}> = ({ id, title, collapsed, onToggle, children, headerClassName }) => {
   const {
     attributes,
     listeners,
@@ -72,7 +89,13 @@ const SortableCard: React.FC<{
       {...listeners}
       className={styles.cardCell}
     >
-      <Card id={id} title={title} collapsed={collapsed} onToggle={onToggle}>
+      <Card
+        id={id}
+        title={title}
+        collapsed={collapsed}
+        onToggle={onToggle}
+        headerClassName={headerClassName}
+      >
         {children}
       </Card>
     </div>
@@ -86,9 +109,10 @@ const Card: React.FC<{
   collapsed: boolean;
   onToggle: () => void;
   children?: React.ReactNode;
-}> = ({ id, title, collapsed, onToggle, children }) => (
+  headerClassName?: string;
+}> = ({ id, title, collapsed, onToggle, children, headerClassName }) => (
   <div className={styles.card}>
-    <div className={styles.cardHeader}>
+    <div className={headerClassName || styles.cardHeader}>
       <span>{title}</span>
       <button
         onClick={onToggle}
@@ -208,6 +232,7 @@ const Visualizer: React.FC = () => {
               title={scenarioPickerCard.title}
               collapsed={!!collapsed[scenarioPickerCard.id]}
               onToggle={() => handleToggle(scenarioPickerCard.id)}
+              headerClassName={getCardHeaderClass("scenarioSelector")}
             >
               {renderCardContent(scenarioPickerCard)}
             </SortableCard>
@@ -219,6 +244,7 @@ const Visualizer: React.FC = () => {
                 title={card.title}
                 collapsed={!!collapsed[card.id]}
                 onToggle={() => handleToggle(card.id)}
+                headerClassName={getCardHeaderClass(card.type)}
               >
                 {renderCardContent(card)}
               </SortableCard>

@@ -10,7 +10,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(340px, 520px));
   grid-auto-rows: minmax(120px, auto);
   gap: 1rem;
   max-width: 1600px;
@@ -20,7 +20,8 @@
 }
 
 .canvasCell {
-  grid-column: span 2;
+  grid-column: 1 / span 2;
+  grid-row: 1 / span 2;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -44,7 +45,7 @@
 .cardCell {
   display: flex;
   align-items: stretch;
-  max-width: 400px;
+  max-width: 520px;
   width: 100%;
 }
 
@@ -54,7 +55,7 @@
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   width: 100%;
   min-width: 0;
-  max-width: 400px;
+  max-width: 520px;
   min-height: 120px;
   display: flex;
   flex-direction: column;
@@ -67,11 +68,27 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1rem;
-  background: #f0f4f8;
-  border-bottom: 1px solid #e3e8ee;
   font-weight: 600;
   font-size: 1.1rem;
   border-radius: 0.75rem 0.75rem 0 0;
+  background: #f0f4f8;
+  border-bottom: 1px solid #e3e8ee;
+}
+.cardHeader--scenario {
+  background: #2563eb;
+  color: #fff;
+}
+.cardHeader--simulation {
+  background: #059669;
+  color: #fff;
+}
+.cardHeader--camera {
+  background: #f59e42;
+  color: #222c36;
+}
+.cardHeader--info {
+  background: #6366f1;
+  color: #fff;
 }
 
 .collapseBtn {
