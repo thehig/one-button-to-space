@@ -1,6 +1,6 @@
 # Task ID: 17
 # Title: Migrate Physics Visualizer to React-based Architecture
-# Status: pending
+# Status: in-progress
 # Dependencies: None
 # Priority: medium
 # Description: Create a new Vite+React implementation of the physics visualizer while preserving all existing functionality and keeping the physics engine untouched.
