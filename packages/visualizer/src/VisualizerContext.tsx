@@ -1,7 +1,14 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
+import type { ReactNode } from "react";
+import {
+  usePhysicsEngine,
+  type UsePhysicsEngineResult,
+  type UsePhysicsEngineOptions,
+} from "./hooks/usePhysicsEngine";
+import type { IScenario } from "../../shared/src/physics/scenarios/types";
 
 // Types for state
-export type SimulationStatus = "running" | "paused";
+export type SimulationStatus = "running" | "paused" | "stopped";
 
 export interface CameraState {
   x: number;
@@ -9,7 +16,7 @@ export interface CameraState {
   zoom: number;
 }
 
-export interface VisualizerState {
+export interface VisualizerState extends UsePhysicsEngineResult {
   currentScenario: string;
   simulationStatus: SimulationStatus;
   simulationSpeed: number;
@@ -29,17 +36,39 @@ const defaultState: Omit<
   | "setSimulationSpeed"
   | "setCamera"
   | "setUiConfig"
+  | "play"
+  | "pause"
+  | "reset"
+  | "setSpeed"
+  | "selectScenario"
+  | "step"
+  | "physicsEngine"
+  | "scenario"
+  | "availableScenarios"
+  | "lastState"
 > = {
   currentScenario: "default",
   simulationStatus: "paused",
   simulationSpeed: 1,
   camera: { x: 0, y: 0, zoom: 1 },
   uiConfig: {},
+  isPlaying: false,
+  currentTick: 0,
 };
 
 const VisualizerContext = createContext<VisualizerState | undefined>(undefined);
 
-export const VisualizerProvider = ({ children }: { children: ReactNode }) => {
+interface VisualizerProviderProps {
+  children: ReactNode;
+  physicsEngineOptions?: UsePhysicsEngineOptions;
+}
+
+export const VisualizerProvider = ({
+  children,
+  physicsEngineOptions,
+}: VisualizerProviderProps) => {
+  const physicsEngineAPI = usePhysicsEngine(physicsEngineOptions);
+
   const [currentScenario, setCurrentScenario] = useState(
     defaultState.currentScenario
   );
@@ -55,6 +84,7 @@ export const VisualizerProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const value: VisualizerState = {
+    ...physicsEngineAPI,
     currentScenario,
     simulationStatus,
     simulationSpeed,
@@ -82,5 +112,3 @@ export function useVisualizerState(): VisualizerState {
     );
   return ctx;
 }
-
-export type { CameraState };

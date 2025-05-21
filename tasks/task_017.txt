@@ -116,7 +116,7 @@ Testing approach:
 - Ensure development server starts correctly
 - Confirm the project structure follows React best practices
 
-## 2. Create core React component architecture and state management [pending]
+## 2. Create core React component architecture and state management [done]
 ### Dependencies: 17.1
 ### Description: Design and implement the component hierarchy that mirrors the current UI structure with proper state management.
 ### Details:
@@ -149,7 +149,7 @@ Testing approach:
 - Verify component hierarchy matches the existing UI structure
 - Ensure all UI interactions update state correctly
 
-## 3. Integrate existing physics engine with React components [pending]
+## 3. Integrate existing physics engine with React components [in-progress]
 ### Dependencies: 17.2
 ### Description: Connect the existing physics engine to the React component lifecycle and implement the visualization rendering.
 ### Details:
